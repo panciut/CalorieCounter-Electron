@@ -1,0 +1,97 @@
+const Database = require('better-sqlite3');
+const path = require('path');
+const { app } = require('electron');
+
+let db;
+
+function getDb() {
+  if (!db) {
+    const dbPath = path.join(app.getPath('userData'), 'calories.db');
+    db = new Database(dbPath);
+    db.pragma('journal_mode = WAL');
+    db.pragma('foreign_keys = ON');
+  }
+  return db;
+}
+
+function initDb() {
+  const database = getDb();
+
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS foods (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      calories REAL NOT NULL,
+      protein REAL NOT NULL,
+      carbs REAL NOT NULL,
+      fat REAL NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      food_id INTEGER NOT NULL,
+      grams REAL NOT NULL,
+      FOREIGN KEY (food_id) REFERENCES foods(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS weight_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL UNIQUE,
+      weight REAL NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS recipes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      description TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS recipe_ingredients (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      recipe_id INTEGER NOT NULL,
+      food_id INTEGER NOT NULL,
+      grams REAL NOT NULL,
+      FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE,
+      FOREIGN KEY (food_id) REFERENCES foods(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS water_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      ml REAL NOT NULL
+    );
+  `);
+
+  // Migrations: add columns that may not exist in imported databases
+  const migrations = [
+    "ALTER TABLE foods ADD COLUMN piece_grams REAL",
+    "ALTER TABLE foods ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE log ADD COLUMN meal TEXT NOT NULL DEFAULT 'Snack'",
+  ];
+  for (const stmt of migrations) {
+    try { database.exec(stmt); } catch (_) {}
+  }
+
+  // Default settings
+  const insertSetting = database.prepare(
+    'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)'
+  );
+  for (const [key, val] of [
+    ['cal_goal', '2000'],
+    ['protein_goal', '150'],
+    ['carbs_goal', '250'],
+    ['fat_goal', '70'],
+    ['weight_goal', '0'],
+    ['water_goal', '2000'],
+  ]) {
+    insertSetting.run(key, val);
+  }
+}
+
+module.exports = { getDb, initDb };

@@ -1,0 +1,38 @@
+{
+  "name": "caloriecounter",
+  "version": "1.0.0",
+  "description": "Calorie & weight tracker",
+  "main": "main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "rebuild": "electron-rebuild -f -w better-sqlite3",
+    "dist": "electron-builder --mac"
+  },
+  "build": {
+    "appId": "com.caloriecounter.app",
+    "productName": "CalorieCounter",
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.healthcare-fitness",
+      "icon": "build/icon.icns"
+    },
+    "files": [
+      "main/**/*",
+      "renderer/**/*",
+      "seed_data.js",
+      "node_modules/**/*"
+    ],
+    "extraMetadata": {
+      "main": "main/main.js"
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^26.8.1"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.5.0",
+    "chart.js": "^4.4.0",
+    "fuse.js": "^7.0.0"
+  }
+}
