@@ -31,7 +31,7 @@ async function openBarcodeScanner(targetInputId) {
       const btn = document.createElement('button');
       btn.className = 'cam-pick-btn';
       btn.innerHTML = `<span class="cam-pick-icon">💻</span><span>Mac</span>`;
-      btn.addEventListener('click', () => _startScannerWithCamera(macCam.id, pickerEl));
+      btn.addEventListener('click', () => _startScannerWithCamera(macCam.id, pickerEl, true));
       pickerEl.appendChild(btn);
     }
 
@@ -40,7 +40,7 @@ async function openBarcodeScanner(targetInputId) {
       const btn = document.createElement('button');
       btn.className = 'cam-pick-btn';
       btn.innerHTML = `<span class="cam-pick-icon">📱</span><span>iPhone</span>`;
-      btn.addEventListener('click', () => _startScannerWithCamera(iphoneCam.id, pickerEl));
+      btn.addEventListener('click', () => _startScannerWithCamera(iphoneCam.id, pickerEl, false));
       pickerEl.appendChild(btn);
     }
 
@@ -75,9 +75,11 @@ async function openBarcodeScanner(targetInputId) {
   dialog.showModal();
 }
 
-async function _startScannerWithCamera(cameraId, pickerEl) {
+async function _startScannerWithCamera(cameraId, pickerEl, mirror = false) {
   const viewId = 'barcode-scanner-view';
+  const viewEl = document.getElementById(viewId);
   const statusEl = document.getElementById('barcode-scanner-status');
+  viewEl.classList.toggle('mirrored', mirror);
 
   // Highlight active button
   pickerEl.querySelectorAll('.cam-pick-btn').forEach(b => b.classList.remove('cam-pick-active'));
@@ -170,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (!cam) cam = cameras[0]; // fallback
         if (cam) {
-          _startScannerWithCamera(cam.id, pickerEl);
+          _startScannerWithCamera(cam.id, pickerEl, camType !== 'iphone');
         } else {
           statusEl.textContent = t('barcode.cameraError');
         }

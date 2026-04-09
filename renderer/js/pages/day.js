@@ -85,8 +85,8 @@ function dayInitEvents() {
     const meal      = document.getElementById('day-meal').value;
     const piecesVisible = piecesInp.style.display !== 'none';
     const grams = piecesVisible && piecesInp.value
-      ? +piecesInp.value * _daySelected.piece_grams
-      : +gramsInp.value;
+      ? Math.round(+piecesInp.value * _daySelected.piece_grams * 100) / 100
+      : Math.round(+gramsInp.value * 100) / 100;
     if (!grams) return;
     await api.log.add({ food_id: _daySelected.id, grams, meal, date: _dayDate });
     _daySelected = null;

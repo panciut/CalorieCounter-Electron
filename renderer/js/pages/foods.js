@@ -141,6 +141,13 @@ function foodsInitEvents() {
     if (e.key === 'Enter') { e.preventDefault(); document.getElementById('foods-barcode-btn').click(); }
   });
 
+  // Cancel add form
+  document.getElementById('f-cancel').addEventListener('click', () => {
+    document.getElementById('foods-add-form').reset();
+    document.querySelectorAll('.preset-btn[data-form="foods"]').forEach(b => b.classList.remove('preset-active'));
+    document.getElementById('foods-barcode-status').textContent = '';
+  });
+
   // Add food form
   document.getElementById('foods-add-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -179,9 +186,9 @@ function foodsInitEvents() {
     btn.addEventListener('click', () => {
       const kcal = +document.getElementById('f-kcal').value;
       if (!kcal) { document.getElementById('f-kcal').focus(); return; }
-      document.getElementById('f-protein').value = Math.round(kcal * +btn.dataset.p / 100 / 4 * 10) / 10;
-      document.getElementById('f-carbs').value   = Math.round(kcal * +btn.dataset.c / 100 / 4 * 10) / 10;
-      document.getElementById('f-fat').value     = Math.round(kcal * +btn.dataset.f / 100 / 9 * 10) / 10;
+      document.getElementById('f-protein').value = Math.round(kcal * +btn.dataset.p / 100 / 4 * 100) / 100;
+      document.getElementById('f-carbs').value   = Math.round(kcal * +btn.dataset.c / 100 / 4 * 100) / 100;
+      document.getElementById('f-fat').value     = Math.round(kcal * +btn.dataset.f / 100 / 9 * 100) / 100;
       document.querySelectorAll('.preset-btn[data-form="foods"]').forEach(b => b.classList.remove('preset-active'));
       btn.classList.add('preset-active');
     });

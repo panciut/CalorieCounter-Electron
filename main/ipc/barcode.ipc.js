@@ -9,18 +9,26 @@ function registerBarcodeIpc() {
       if (json.status !== 1 || !json.product) return null;
       const p = json.product;
       const n = p.nutriments || {};
-      // Detect liquid: check categories for beverages
-      const cats = (p.categories_tags || []).join(' ').toLowerCase();
-      const isLiquid = /\bbeverage|\bdrink|\bsoda|\bjuice|\bmilk[^s]|\bwater\b|\bbeer|\bwine|\bliquor/.test(cats);
+      // Detect liquid: match exact category tags known to be beverages
+      const liquidTags = new Set([
+        'en:beverages', 'en:drinks', 'en:sodas', 'en:juices', 'en:fruit-juices',
+        'en:waters', 'en:mineral-waters', 'en:spring-waters',
+        'en:beers', 'en:wines', 'en:spirits', 'en:liquors',
+        'en:milks', 'en:plant-milks', 'en:oat-milks', 'en:almond-milks', 'en:soy-milks',
+        'en:teas', 'en:coffees', 'en:energy-drinks', 'en:sports-drinks',
+        'en:smoothies', 'en:nectars', 'en:syrups',
+      ]);
+      const isLiquid = (p.categories_tags || []).some(tag => liquidTags.has(tag.toLowerCase()));
+      const r2 = v => Math.round((v || 0) * 100) / 100;
       return {
         name:     p.product_name || '',
         name_en:  p.product_name_en || p.product_name || '',
         name_it:  p.product_name_it || p.product_name || '',
-        calories: n['energy-kcal_100g'] || 0,
-        protein:  n.proteins_100g || 0,
-        carbs:    n.carbohydrates_100g || 0,
-        fat:      n.fat_100g || 0,
-        fiber:    n.fiber_100g || 0,
+        calories: r2(n['energy-kcal_100g']),
+        protein:  r2(n.proteins_100g),
+        carbs:    r2(n.carbohydrates_100g),
+        fat:      r2(n.fat_100g),
+        fiber:    r2(n.fiber_100g),
         is_liquid: isLiquid,
       };
     } catch (e) {

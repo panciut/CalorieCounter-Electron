@@ -8,7 +8,7 @@ function registerTemplatesIpc() {
     getDb().prepare(`
       SELECT mt.id, mt.name,
         COUNT(ti.id) AS item_count,
-        ROUND(SUM(f.calories * ti.grams / 100), 1) AS total_calories
+        ROUND(SUM(f.calories * ti.grams / 100), 2) AS total_calories
       FROM meal_templates mt
       LEFT JOIN template_items ti ON ti.template_id = mt.id
       LEFT JOIN foods f ON f.id = ti.food_id
@@ -23,11 +23,11 @@ function registerTemplatesIpc() {
     const items = db.prepare(`
       SELECT ti.id, ti.food_id, ti.grams, ti.meal,
         f.name,
-        ROUND(f.calories * ti.grams / 100, 1) AS calories,
-        ROUND(f.protein  * ti.grams / 100, 1) AS protein,
-        ROUND(f.carbs    * ti.grams / 100, 1) AS carbs,
-        ROUND(f.fat      * ti.grams / 100, 1) AS fat,
-        ROUND(f.fiber    * ti.grams / 100, 1) AS fiber
+        ROUND(f.calories * ti.grams / 100, 2) AS calories,
+        ROUND(f.protein  * ti.grams / 100, 2) AS protein,
+        ROUND(f.carbs    * ti.grams / 100, 2) AS carbs,
+        ROUND(f.fat      * ti.grams / 100, 2) AS fat,
+        ROUND(f.fiber    * ti.grams / 100, 2) AS fiber
       FROM template_items ti
       JOIN foods f ON f.id = ti.food_id
       WHERE ti.template_id = ?

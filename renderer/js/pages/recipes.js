@@ -93,11 +93,11 @@ function _updateRecipeMacroPreview() {
   const preview = document.getElementById('rc-macro-preview');
   if (_rcIngredients.length) {
     preview.style.display = '';
-    document.getElementById('rc-total-cal').textContent     = Math.round(totals.calories * 10) / 10 + ' kcal';
-    document.getElementById('rc-total-protein').textContent = Math.round(totals.protein  * 10) / 10 + 'g protein';
-    document.getElementById('rc-total-carbs').textContent   = Math.round(totals.carbs    * 10) / 10 + 'g carbs';
-    document.getElementById('rc-total-fat').textContent     = Math.round(totals.fat      * 10) / 10 + 'g fat';
-    document.getElementById('rc-total-fiber').textContent   = Math.round(totals.fiber    * 10) / 10 + 'g fiber';
+    document.getElementById('rc-total-cal').textContent     = Math.round(totals.calories * 100) / 100 + ' kcal';
+    document.getElementById('rc-total-protein').textContent = Math.round(totals.protein  * 100) / 100 + 'g protein';
+    document.getElementById('rc-total-carbs').textContent   = Math.round(totals.carbs    * 100) / 100 + 'g carbs';
+    document.getElementById('rc-total-fat').textContent     = Math.round(totals.fat      * 100) / 100 + 'g fat';
+    document.getElementById('rc-total-fiber').textContent   = Math.round(totals.fiber    * 100) / 100 + 'g fiber';
   } else {
     preview.style.display = 'none';
   }
@@ -163,11 +163,11 @@ function recipesInitEvents() {
       food_id:  food.id,
       name:     food.name,
       grams,
-      calories: Math.round(food.calories * grams / 100 * 10) / 10,
-      protein:  Math.round(food.protein  * grams / 100 * 10) / 10,
-      carbs:    Math.round(food.carbs    * grams / 100 * 10) / 10,
-      fat:      Math.round(food.fat      * grams / 100 * 10) / 10,
-      fiber:    Math.round((food.fiber || 0) * grams / 100 * 10) / 10,
+      calories: Math.round(food.calories * grams / 100 * 100) / 100,
+      protein:  Math.round(food.protein  * grams / 100 * 100) / 100,
+      carbs:    Math.round(food.carbs    * grams / 100 * 100) / 100,
+      fat:      Math.round(food.fat      * grams / 100 * 100) / 100,
+      fiber:    Math.round((food.fiber || 0) * grams / 100 * 100) / 100,
     });
     _rcSelectedFood = null;
     _rcFoodSearch.clear();

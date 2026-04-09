@@ -67,7 +67,7 @@
         </div>
       </div>
       <div class="macro-chart-wrap">
-        <canvas id="macro-pie-canvas" width="160" height="160"></canvas>
+        <canvas id="macro-pie-canvas" width="150" height="150"></canvas>
       </div>
     </section>
 
@@ -85,6 +85,8 @@
         <button class="quick-btn" id="water-500">+500 ml</button>
         <button class="quick-btn" id="water-custom" data-i18n="dash.custom">+ Custom</button>
       </div>
+      <button id="water-toggle" class="water-toggle" aria-expanded="false">▾</button>
+      <div id="water-entries" class="water-entries-collapsed"></div>
     </section>
 
     <!-- Streak -->
@@ -197,6 +199,7 @@
         <input type="number" id="f-piece"   data-i18n-placeholder="foods.piecePlaceholder" placeholder="g/piece (opt.)"    min="0.1" step="0.1">
         <label class="liquid-check"><input type="checkbox" id="f-liquid"> 💧 <span data-i18n="foods.liquid">Liquid</span></label>
         <button type="submit" data-i18n="common.add">Add</button>
+        <button type="button" id="f-cancel" data-i18n="common.cancel">Cancel</button>
       </form>
       <div class="preset-row" style="margin-top:8px">
         <span class="preset-label" data-i18n="foods.estimateMacros">Estimate macros:</span>

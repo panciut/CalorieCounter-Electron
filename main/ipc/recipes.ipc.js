@@ -7,11 +7,11 @@ function registerRecipesIpc() {
   ipcMain.handle('recipes:getAll', () =>
     getDb().prepare(`
       SELECT r.id, r.name, r.description,
-        ROUND(SUM(f.calories * ri.grams / 100), 1) AS total_calories,
-        ROUND(SUM(f.protein  * ri.grams / 100), 1) AS total_protein,
-        ROUND(SUM(f.carbs    * ri.grams / 100), 1) AS total_carbs,
-        ROUND(SUM(f.fat      * ri.grams / 100), 1) AS total_fat,
-        ROUND(SUM(f.fiber    * ri.grams / 100), 1) AS total_fiber,
+        ROUND(SUM(f.calories * ri.grams / 100), 2) AS total_calories,
+        ROUND(SUM(f.protein  * ri.grams / 100), 2) AS total_protein,
+        ROUND(SUM(f.carbs    * ri.grams / 100), 2) AS total_carbs,
+        ROUND(SUM(f.fat      * ri.grams / 100), 2) AS total_fat,
+        ROUND(SUM(f.fiber    * ri.grams / 100), 2) AS total_fiber,
         COUNT(ri.id) AS ingredient_count
       FROM recipes r
       JOIN recipe_ingredients ri ON ri.recipe_id = r.id
@@ -26,11 +26,11 @@ function registerRecipesIpc() {
     const recipe = db.prepare('SELECT * FROM recipes WHERE id = ?').get(id);
     const ingredients = db.prepare(`
       SELECT ri.id, ri.grams, f.id AS food_id, f.name,
-        ROUND(f.calories * ri.grams / 100, 1) AS calories,
-        ROUND(f.protein  * ri.grams / 100, 1) AS protein,
-        ROUND(f.carbs    * ri.grams / 100, 1) AS carbs,
-        ROUND(f.fat      * ri.grams / 100, 1) AS fat,
-        ROUND(f.fiber    * ri.grams / 100, 1) AS fiber
+        ROUND(f.calories * ri.grams / 100, 2) AS calories,
+        ROUND(f.protein  * ri.grams / 100, 2) AS protein,
+        ROUND(f.carbs    * ri.grams / 100, 2) AS carbs,
+        ROUND(f.fat      * ri.grams / 100, 2) AS fat,
+        ROUND(f.fiber    * ri.grams / 100, 2) AS fiber
       FROM recipe_ingredients ri
       JOIN foods f ON f.id = ri.food_id
       WHERE ri.recipe_id = ?

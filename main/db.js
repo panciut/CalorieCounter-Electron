@@ -123,6 +123,8 @@ function initDb() {
     "ALTER TABLE log ADD COLUMN meal TEXT NOT NULL DEFAULT 'Snack'",
     "ALTER TABLE foods ADD COLUMN fiber REAL NOT NULL DEFAULT 0",
     "ALTER TABLE foods ADD COLUMN is_liquid INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE water_log ADD COLUMN source TEXT",
+    "ALTER TABLE water_log ADD COLUMN log_id INTEGER",
   ];
   for (const stmt of migrations) {
     try { database.exec(stmt); } catch (_) {}

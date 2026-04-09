@@ -17,10 +17,10 @@ function registerWaterIpc() {
     return { total_ml, entries };
   });
 
-  ipcMain.handle('water:add', (_, { date, ml }) => {
+  ipcMain.handle('water:add', (_, { date, ml, source }) => {
     const result = getDb().prepare(
-      'INSERT INTO water_log (date, ml) VALUES (?, ?)'
-    ).run(date || today(), ml);
+      'INSERT INTO water_log (date, ml, source) VALUES (?, ?, ?)'
+    ).run(date || today(), ml, source || 'manual');
     pushUndo('water:add', { id: result.lastInsertRowid });
     return { id: result.lastInsertRowid };
   });

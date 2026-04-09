@@ -36,7 +36,7 @@ async function dashOnEnter() {
   _dashRenderFavorites(favorites);
   _dashRenderFrequent(frequent);
   _dashRenderEntries(entries, foods);
-  _dashRenderWater(waterData.total_ml, settings.water_goal || 2000);
+  _dashRenderWater(waterData.total_ml, settings.water_goal || 2000, waterData.entries);
   _dashInitSearch(foods, recipes, frequent);
   _dashRenderSupplements(_dashToday);
   document.getElementById('dash-notes').value = notesData.note || '';
@@ -52,11 +52,11 @@ async function dashOnEnter() {
 function _dashRenderTotals(entries, settings) {
   let cal = 0, pro = 0, carbs = 0, fat = 0, fib = 0;
   for (const e of entries) { cal += e.calories; pro += e.protein; carbs += e.carbs; fat += e.fat; fib += (e.fiber || 0); }
-  cal   = Math.round(cal   * 10) / 10;
-  pro   = Math.round(pro   * 10) / 10;
-  carbs = Math.round(carbs * 10) / 10;
-  fat   = Math.round(fat   * 10) / 10;
-  fib   = Math.round(fib   * 10) / 10;
+  cal   = Math.round(cal   * 100) / 100;
+  pro   = Math.round(pro   * 100) / 100;
+  carbs = Math.round(carbs * 100) / 100;
+  fat   = Math.round(fat   * 100) / 100;
+  fib   = Math.round(fib   * 100) / 100;
 
   document.getElementById('dash-kcal').textContent    = cal;
   document.getElementById('dash-protein').textContent = pro + 'g';
@@ -133,11 +133,40 @@ function _dashRenderFrequent(frequent) {
   }
 }
 
-function _dashRenderWater(totalMl, goal) {
+function _dashRenderWater(totalMl, goal, entries) {
   const pct = goal ? Math.min(100, Math.round(totalMl / goal * 100)) : 0;
   document.getElementById('water-bar').style.width = pct + '%';
   document.getElementById('water-label').textContent =
     Math.round(totalMl) + ' / ' + Math.round(goal) + ' ml';
+
+  const container = document.getElementById('water-entries');
+  const toggle = document.getElementById('water-toggle');
+
+  if (!entries || !entries.length) {
+    container.innerHTML = '';
+    container.classList.add('water-entries-collapsed');
+    toggle.style.display = 'none';
+    return;
+  }
+
+  toggle.style.display = '';
+  container.innerHTML = entries.map(e => {
+    const src = (!e.source || e.source === 'manual')
+      ? `<span class="water-source water-source-manual">${t('water.manual')}</span>`
+      : `<span class="water-source water-source-food">↩ ${e.source}</span>`;
+    return `<div class="water-entry" data-id="${e.id}">
+      <span class="water-entry-ml">${Math.round(e.ml)} ml</span>
+      ${src}
+      <button class="water-del" data-id="${e.id}">✕</button>
+    </div>`;
+  }).join('');
+
+  container.querySelectorAll('.water-del').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await api.water.delete(+btn.dataset.id);
+      _refreshWater();
+    });
+  });
 }
 
 function _dashRenderEntries(entries, foods) {
@@ -173,7 +202,7 @@ function _buildEntryTable(items, foods, prefix) {
     const tr = document.createElement('tr');
     tr.dataset.entryId = e.id;
     tr.innerHTML = `
-      <td>${e.name}</td><td>${e.grams}</td><td>${e.calories}</td>
+      <td>${e.name}</td><td>${Math.round(e.grams * 100) / 100}</td><td>${e.calories}</td>
       <td>${e.protein}g</td><td>${e.carbs}g</td><td>${e.fat}g</td><td>${e.fiber || 0}g</td>
       <td class="row-actions">
         <button class="edit-btn" data-id="${e.id}">✎</button>
@@ -348,11 +377,11 @@ function _dashRenderRecipeEditor() {
     const row = document.createElement('div');
     row.className = 'rie-row';
 
-    const computedCal     = Math.round(ing.calories / ing.grams * ing.editGrams * 10) / 10;
-    const computedProtein = Math.round(ing.protein  / ing.grams * ing.editGrams * 10) / 10;
-    const computedCarbs   = Math.round(ing.carbs    / ing.grams * ing.editGrams * 10) / 10;
-    const computedFat     = Math.round(ing.fat      / ing.grams * ing.editGrams * 10) / 10;
-    const computedFiber   = Math.round((ing.fiber || 0) / ing.grams * ing.editGrams * 10) / 10;
+    const computedCal     = Math.round(ing.calories / ing.grams * ing.editGrams * 100) / 100;
+    const computedProtein = Math.round(ing.protein  / ing.grams * ing.editGrams * 100) / 100;
+    const computedCarbs   = Math.round(ing.carbs    / ing.grams * ing.editGrams * 100) / 100;
+    const computedFat     = Math.round(ing.fat      / ing.grams * ing.editGrams * 100) / 100;
+    const computedFiber   = Math.round((ing.fiber || 0) / ing.grams * ing.editGrams * 100) / 100;
 
     row.innerHTML = `
       <span class="rie-name">${ing.name}</span>
@@ -394,10 +423,10 @@ function _dashRenderRecipeTotals() {
   totals.innerHTML = `<span style="color:var(--text);font-weight:600">${r.name}</span>
     <span>${t('common.total')}:</span>
     <span><span class="mp-val">${Math.round(cal)}</span> ${t('macro.kcal')}</span>
-    <span><span class="mp-val">${Math.round(pro * 10) / 10}</span>g ${t('macro.protein')}</span>
-    <span><span class="mp-val">${Math.round(carbs * 10) / 10}</span>g ${t('macro.carbs')}</span>
-    <span><span class="mp-val">${Math.round(fat * 10) / 10}</span>g ${t('macro.fat')}</span>
-    <span><span class="mp-val">${Math.round(fib * 10) / 10}</span>g ${t('macro.fiber')}</span>`;
+    <span><span class="mp-val">${Math.round(pro * 100) / 100}</span>g ${t('macro.protein')}</span>
+    <span><span class="mp-val">${Math.round(carbs * 100) / 100}</span>g ${t('macro.carbs')}</span>
+    <span><span class="mp-val">${Math.round(fat * 100) / 100}</span>g ${t('macro.fat')}</span>
+    <span><span class="mp-val">${Math.round(fib * 100) / 100}</span>g ${t('macro.fiber')}</span>`;
 }
 
 // ── Event wiring (called once) ───────────────────────────────────────────────
@@ -411,8 +440,8 @@ function dashInitEvents() {
     const meal      = document.getElementById('dash-meal').value;
     const piecesVisible = piecesInp.style.display !== 'none';
     const grams = piecesVisible && piecesInp.value
-      ? +piecesInp.value * _dashSelected.piece_grams
-      : +gramsInp.value;
+      ? Math.round(+piecesInp.value * _dashSelected.piece_grams * 100) / 100
+      : Math.round(+gramsInp.value * 100) / 100;
     if (!grams) return;
     await api.log.add({ food_id: _dashSelected.id, grams, meal, date: _dashToday });
     _dashSelected = null;
@@ -459,13 +488,21 @@ function dashInitEvents() {
     document.getElementById('dash-recipe-form').style.display = 'none';
   });
 
+  // Water entries toggle
+  document.getElementById('water-toggle').addEventListener('click', () => {
+    const el = document.getElementById('water-entries');
+    const btn = document.getElementById('water-toggle');
+    const collapsed = el.classList.toggle('water-entries-collapsed');
+    btn.setAttribute('aria-expanded', String(!collapsed));
+  });
+
   // Water buttons
   document.getElementById('water-200').addEventListener('click', async () => {
-    await api.water.add({ date: _dashToday, ml: 200 });
+    await api.water.add({ date: _dashToday, ml: 200, source: 'manual' });
     _refreshWater();
   });
   document.getElementById('water-500').addEventListener('click', async () => {
-    await api.water.add({ date: _dashToday, ml: 500 });
+    await api.water.add({ date: _dashToday, ml: 500, source: 'manual' });
     _refreshWater();
   });
   document.getElementById('water-custom').addEventListener('click', () => {
@@ -475,7 +512,7 @@ function dashInitEvents() {
   document.getElementById('wc-submit').addEventListener('click', async () => {
     const ml = +document.getElementById('wc-ml').value;
     if (!ml) return;
-    await api.water.add({ date: _dashToday, ml });
+    await api.water.add({ date: _dashToday, ml, source: 'manual' });
     document.getElementById('water-custom-dialog').close();
     document.getElementById('wc-ml').value = '';
     _refreshWater();
@@ -526,9 +563,9 @@ function dashInitEvents() {
     btn.addEventListener('click', () => {
       const kcal = +document.getElementById('qf-kcal').value;
       if (!kcal) { document.getElementById('qf-kcal').focus(); return; }
-      document.getElementById('qf-protein').value = Math.round(kcal * +btn.dataset.p / 100 / 4 * 10) / 10;
-      document.getElementById('qf-carbs').value   = Math.round(kcal * +btn.dataset.c / 100 / 4 * 10) / 10;
-      document.getElementById('qf-fat').value     = Math.round(kcal * +btn.dataset.f / 100 / 9 * 10) / 10;
+      document.getElementById('qf-protein').value = Math.round(kcal * +btn.dataset.p / 100 / 4 * 100) / 100;
+      document.getElementById('qf-carbs').value   = Math.round(kcal * +btn.dataset.c / 100 / 4 * 100) / 100;
+      document.getElementById('qf-fat').value     = Math.round(kcal * +btn.dataset.f / 100 / 9 * 100) / 100;
       document.querySelectorAll('.qf-preset').forEach(b => b.classList.remove('preset-active'));
       btn.classList.add('preset-active');
     });
@@ -576,7 +613,7 @@ function _resetQuickFoodForm() {
 async function _refreshWater() {
   const d = _dashToday || new Date().toISOString().slice(0, 10);
   const waterData = await api.water.getDay(d);
-  _dashRenderWater(waterData.total_ml, (_dashSettings && _dashSettings.water_goal) || 2000);
+  _dashRenderWater(waterData.total_ml, (_dashSettings && _dashSettings.water_goal) || 2000, waterData.entries);
 }
 
 // Expose helpers used by day.js

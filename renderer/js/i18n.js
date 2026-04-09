@@ -196,6 +196,7 @@ const _translations = {
     // ── Water dialog ──
     'water.addWater':       'Add water',
     'water.amountMl':       'Amount (ml)',
+    'water.manual':         'Water',
 
     // ── Table headers ──
     'th.food':     'Food',
@@ -440,6 +441,7 @@ const _translations = {
     // ── Water dialog ──
     'water.addWater':       'Aggiungi acqua',
     'water.amountMl':       'Quantit\u00e0 (ml)',
+    'water.manual':         'Acqua',
 
     // ── Table headers ──
     'th.food':     'Cibo',

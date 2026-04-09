@@ -10,11 +10,11 @@ function registerExportIpc() {
     const foods = db.prepare('SELECT * FROM foods').all();
     const log = db.prepare(`
       SELECT l.id, l.date, f.name AS food_name, l.grams, l.meal,
-        ROUND(f.calories * l.grams / 100, 1) AS calories,
-        ROUND(f.protein  * l.grams / 100, 1) AS protein,
-        ROUND(f.carbs    * l.grams / 100, 1) AS carbs,
-        ROUND(f.fat      * l.grams / 100, 1) AS fat,
-        ROUND(f.fiber    * l.grams / 100, 1) AS fiber
+        ROUND(f.calories * l.grams / 100, 2) AS calories,
+        ROUND(f.protein  * l.grams / 100, 2) AS protein,
+        ROUND(f.carbs    * l.grams / 100, 2) AS carbs,
+        ROUND(f.fat      * l.grams / 100, 2) AS fat,
+        ROUND(f.fiber    * l.grams / 100, 2) AS fiber
       FROM log l JOIN foods f ON l.food_id = f.id
       ORDER BY l.date DESC, l.id
     `).all();

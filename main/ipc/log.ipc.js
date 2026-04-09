@@ -9,21 +9,16 @@ function registerLogIpc() {
     const d = date || today();
     return getDb().prepare(`
       SELECT l.id, l.food_id, l.meal, f.name, l.grams,
-        ROUND(f.calories * l.grams / 100, 1) AS calories,
-        ROUND(f.protein  * l.grams / 100, 1) AS protein,
-        ROUND(f.carbs    * l.grams / 100, 1) AS carbs,
-        ROUND(f.fat      * l.grams / 100, 1) AS fat,
-        ROUND(f.fiber    * l.grams / 100, 1) AS fiber
+        ROUND(f.calories * l.grams / 100, 2) AS calories,
+        ROUND(f.protein  * l.grams / 100, 2) AS protein,
+        ROUND(f.carbs    * l.grams / 100, 2) AS carbs,
+        ROUND(f.fat      * l.grams / 100, 2) AS fat,
+        ROUND(f.fiber    * l.grams / 100, 2) AS fiber
       FROM log l
       JOIN foods f ON l.food_id = f.id
       WHERE l.date = ?
       ORDER BY
-        CASE l.meal
-          WHEN 'Breakfast' THEN 1
-          WHEN 'Lunch'     THEN 2
-          WHEN 'Dinner'    THEN 3
-          ELSE 4
-        END, l.id
+        MIN(l.id) OVER (PARTITION BY l.meal), l.id
     `).all(d);
   });
 
@@ -35,9 +30,9 @@ function registerLogIpc() {
     ).run(d, food_id, grams, meal || 'Snack');
     pushUndo('log:add', { id: result.lastInsertRowid });
     // Auto-add water for liquid foods (grams ≈ ml)
-    const food = db.prepare('SELECT is_liquid FROM foods WHERE id = ?').get(food_id);
+    const food = db.prepare('SELECT name, is_liquid FROM foods WHERE id = ?').get(food_id);
     if (food && food.is_liquid) {
-      db.prepare('INSERT INTO water_log (date, ml) VALUES (?, ?)').run(d, grams);
+      db.prepare('INSERT INTO water_log (date, ml, source, log_id) VALUES (?, ?, ?, ?)').run(d, grams, food.name, result.lastInsertRowid);
     }
     return { id: result.lastInsertRowid };
   });
@@ -53,7 +48,7 @@ function registerLogIpc() {
         'INSERT INTO log (date, food_id, grams, meal) VALUES (?, ?, ?, ?)'
       ).run(d, foodResult.lastInsertRowid, grams, meal || 'Snack');
       if (food.is_liquid) {
-        db.prepare('INSERT INTO water_log (date, ml) VALUES (?, ?)').run(d, grams);
+        db.prepare('INSERT INTO water_log (date, ml, source, log_id) VALUES (?, ?, ?, ?)').run(d, grams, food.name, logResult.lastInsertRowid);
       }
       return { id: logResult.lastInsertRowid, food_id: foodResult.lastInsertRowid };
     })();
@@ -71,6 +66,8 @@ function registerLogIpc() {
     const row = db.prepare('SELECT date, food_id, grams, meal FROM log WHERE id = ?').get(id);
     if (row) pushUndo('log:delete', { date: row.date, food_id: row.food_id, grams: row.grams, meal: row.meal });
     db.prepare('DELETE FROM log WHERE id = ?').run(id);
+    // Remove linked water entry if exists
+    db.prepare('DELETE FROM water_log WHERE log_id = ?').run(id);
     return { ok: true };
   });
 
@@ -80,11 +77,11 @@ function registerLogIpc() {
         strftime('%Y-%W', date) AS week,
         MIN(date) AS week_start,
         COUNT(date) AS days_logged,
-        ROUND(AVG(day_calories), 1) AS avg_calories,
-        ROUND(AVG(day_protein),  1) AS avg_protein,
-        ROUND(AVG(day_carbs),    1) AS avg_carbs,
-        ROUND(AVG(day_fat),      1) AS avg_fat,
-        ROUND(AVG(day_fiber),    1) AS avg_fiber
+        ROUND(AVG(day_calories), 2) AS avg_calories,
+        ROUND(AVG(day_protein),   2) AS avg_protein,
+        ROUND(AVG(day_carbs),     2) AS avg_carbs,
+        ROUND(AVG(day_fat),       2) AS avg_fat,
+        ROUND(AVG(day_fiber),     2) AS avg_fiber
       FROM (
         SELECT l.date,
           SUM(f.calories * l.grams / 100) AS day_calories,
@@ -104,11 +101,11 @@ function registerLogIpc() {
     getDb().prepare(`
       SELECT
         l.date,
-        ROUND(SUM(f.calories * l.grams / 100), 1) AS calories,
-        ROUND(SUM(f.protein  * l.grams / 100), 1) AS protein,
-        ROUND(SUM(f.carbs    * l.grams / 100), 1) AS carbs,
-        ROUND(SUM(f.fat      * l.grams / 100), 1) AS fat,
-        ROUND(SUM(f.fiber    * l.grams / 100), 1) AS fiber
+        ROUND(SUM(f.calories * l.grams / 100), 2) AS calories,
+        ROUND(SUM(f.protein  * l.grams / 100), 2) AS protein,
+        ROUND(SUM(f.carbs    * l.grams / 100), 2) AS carbs,
+        ROUND(SUM(f.fat      * l.grams / 100), 2) AS fat,
+        ROUND(SUM(f.fiber    * l.grams / 100), 2) AS fiber
       FROM log l
       JOIN foods f ON l.food_id = f.id
       WHERE l.date BETWEEN ? AND date(?, '+6 days')
