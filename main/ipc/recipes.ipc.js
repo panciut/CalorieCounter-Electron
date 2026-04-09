@@ -11,6 +11,7 @@ function registerRecipesIpc() {
         ROUND(SUM(f.protein  * ri.grams / 100), 1) AS total_protein,
         ROUND(SUM(f.carbs    * ri.grams / 100), 1) AS total_carbs,
         ROUND(SUM(f.fat      * ri.grams / 100), 1) AS total_fat,
+        ROUND(SUM(f.fiber    * ri.grams / 100), 1) AS total_fiber,
         COUNT(ri.id) AS ingredient_count
       FROM recipes r
       JOIN recipe_ingredients ri ON ri.recipe_id = r.id
@@ -28,7 +29,8 @@ function registerRecipesIpc() {
         ROUND(f.calories * ri.grams / 100, 1) AS calories,
         ROUND(f.protein  * ri.grams / 100, 1) AS protein,
         ROUND(f.carbs    * ri.grams / 100, 1) AS carbs,
-        ROUND(f.fat      * ri.grams / 100, 1) AS fat
+        ROUND(f.fat      * ri.grams / 100, 1) AS fat,
+        ROUND(f.fiber    * ri.grams / 100, 1) AS fiber
       FROM recipe_ingredients ri
       JOIN foods f ON f.id = ri.food_id
       WHERE ri.recipe_id = ?

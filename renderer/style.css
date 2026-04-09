@@ -525,3 +525,142 @@ dialog::backdrop {
 }
 .recipe-total-label { color: var(--text-sec); }
 .recipe-macro-preview span { color: var(--text); }
+
+/* ── Macro preview (food selection) ── */
+.macro-preview {
+  background: var(--nav-bg);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  color: var(--text-sec);
+}
+.macro-preview .mp-val { color: var(--text); font-weight: 600; }
+
+/* ── Recipe ingredients editor ── */
+.recipe-ingredients-editor {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.rie-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.rie-row:last-child { border-bottom: none; }
+.rie-name { flex: 1; font-weight: 500; }
+.rie-grams {
+  width: 70px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+  background: #111;
+  color: var(--text);
+  outline: none;
+  text-align: right;
+}
+.rie-grams:focus { border-color: var(--accent); }
+.rie-unit { color: var(--text-sec); font-size: 12px; }
+.rie-macros { color: var(--text-sec); font-size: 12px; white-space: nowrap; }
+
+/* ── Unit toggle link ── */
+.unit-toggle {
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.unit-toggle:hover { text-decoration: underline; }
+
+/* ── Language selector ── */
+.lang-selector {
+  display: flex;
+  gap: 12px;
+}
+.lang-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card-bg);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 24px;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 500;
+  transition: border-color 0.15s, background 0.15s;
+}
+.lang-btn:hover { border-color: var(--accent); background: var(--card-hover); }
+.lang-btn.lang-active { border-color: var(--accent); background: rgba(196,92,0,0.12); }
+.lang-flag { font-size: 28px; line-height: 1; }
+
+/* ── Supplements checklist ── */
+.suppl-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.suppl-check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-size: 14px;
+}
+.suppl-check-row:hover { background: var(--card-hover); }
+.suppl-check-row.suppl-taken { opacity: 0.6; }
+.suppl-check-row.suppl-taken .suppl-check-name { text-decoration: line-through; }
+.suppl-check-num {
+  font-size: 11px;
+  color: var(--text-sec);
+  background: rgba(255,255,255,0.08);
+  border-radius: 4px;
+  padding: 1px 6px;
+  min-width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.suppl-check-name { font-weight: 500; flex: 1; }
+.suppl-pill-count {
+  font-size: 13px;
+  color: var(--text-sec);
+  font-weight: 600;
+  min-width: 36px;
+  text-align: center;
+}
+.suppl-pill-done { color: var(--green); }
+.suppl-take-btn {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+.suppl-take-btn:hover { border-color: var(--accent); background: rgba(196,92,0,0.15); }
+.suppl-take-done { border-color: var(--green); color: var(--green); }
+.suppl-take-done:hover { border-color: var(--red); color: var(--red); }

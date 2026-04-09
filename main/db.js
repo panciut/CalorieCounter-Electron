@@ -66,6 +66,21 @@ function initDb() {
       date TEXT NOT NULL,
       ml REAL NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS supplements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      qty INTEGER NOT NULL DEFAULT 1
+    );
+
+    CREATE TABLE IF NOT EXISTS supplement_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      supplement_id INTEGER NOT NULL,
+      date TEXT NOT NULL,
+      count INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (supplement_id) REFERENCES supplements(id) ON DELETE CASCADE,
+      UNIQUE(supplement_id, date)
+    );
   `);
 
   // Migrations: add columns that may not exist in imported databases
@@ -73,6 +88,7 @@ function initDb() {
     "ALTER TABLE foods ADD COLUMN piece_grams REAL",
     "ALTER TABLE foods ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE log ADD COLUMN meal TEXT NOT NULL DEFAULT 'Snack'",
+    "ALTER TABLE foods ADD COLUMN fiber REAL NOT NULL DEFAULT 0",
   ];
   for (const stmt of migrations) {
     try { database.exec(stmt); } catch (_) {}
@@ -88,7 +104,9 @@ function initDb() {
     ['carbs_goal', '250'],
     ['fat_goal', '70'],
     ['weight_goal', '0'],
+    ['fiber_goal', '25'],
     ['water_goal', '2000'],
+    ['language', 'en'],
   ]) {
     insertSetting.run(key, val);
   }

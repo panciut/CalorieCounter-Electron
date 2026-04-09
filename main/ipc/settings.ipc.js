@@ -5,10 +5,11 @@ function registerSettingsIpc() {
   ipcMain.handle('settings:get', () => {
     const defaults = {
       cal_goal: 2000, protein_goal: 150, carbs_goal: 250,
-      fat_goal: 70, weight_goal: 0, water_goal: 2000,
+      fat_goal: 70, fiber_goal: 25, weight_goal: 0, water_goal: 2000, language: 'en',
     };
+    const stringKeys = new Set(['language']);
     for (const { key, value } of getDb().prepare('SELECT key, value FROM settings').all()) {
-      if (key in defaults) defaults[key] = parseFloat(value);
+      if (key in defaults) defaults[key] = stringKeys.has(key) ? value : parseFloat(value);
     }
     return defaults;
   });

@@ -34,6 +34,14 @@ const api = {
     add:    (data) => window.electronAPI.invoke('weight:add', data),
     delete: (id)   => window.electronAPI.invoke('weight:delete', { id }),
   },
+  supplements: {
+    getAll:  ()     => window.electronAPI.invoke('supplements:getAll'),
+    add:     (data) => window.electronAPI.invoke('supplements:add', data),
+    update:  (data) => window.electronAPI.invoke('supplements:update', data),
+    delete:  (id)   => window.electronAPI.invoke('supplements:delete', { id }),
+    getDay:  (date) => window.electronAPI.invoke('supplements:getDay', { date }),
+    take:    (data) => window.electronAPI.invoke('supplements:take', data),
+  },
   settings: {
     get:  ()     => window.electronAPI.invoke('settings:get'),
     save: (data) => window.electronAPI.invoke('settings:save', data),

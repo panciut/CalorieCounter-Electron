@@ -14,7 +14,7 @@ function _renderHistoryChart(weeks, calGoal) {
 
   // Chart: most recent 12 weeks, oldest first
   const slice  = weeks.slice(0, 12).reverse();
-  const labels = slice.map(w => w.week_start);
+  const labels = slice.map(w => fmtDate(w.week_start));
   const values = slice.map(w => w.avg_calories || 0);
   createOrUpdateBarChart('history-bar-canvas', labels, values, calGoal);
 }
@@ -22,26 +22,27 @@ function _renderHistoryChart(weeks, calGoal) {
 function _renderHistoryTable(weeks) {
   const wrap = document.getElementById('history-table-wrap');
   if (!weeks.length) {
-    wrap.innerHTML = '<p class="empty">No history yet. Start logging food today!</p>';
+    wrap.innerHTML = `<p class="empty">${t('history.noHistory')}</p>`;
     return;
   }
 
   const table = document.createElement('table');
   table.innerHTML = `<thead><tr>
-    <th>Week of</th><th>Days logged</th>
-    <th>Avg kcal</th><th>Avg protein</th><th>Avg carbs</th><th>Avg fat</th>
+    <th>${t('history.weekOf')}</th><th>${t('history.daysLogged')}</th>
+    <th>${t('history.avgKcal')}</th><th>${t('history.avgProtein')}</th><th>${t('history.avgCarbs')}</th><th>${t('history.avgFat')}</th><th>${t('history.avgFiber')}</th>
   </tr></thead>`;
   const tbody = document.createElement('tbody');
 
   for (const w of weeks) {
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td><a class="week-link" data-week="${w.week_start}">${w.week_start}</a></td>
+      <td><a class="week-link" data-week="${w.week_start}">${fmtDate(w.week_start)}</a></td>
       <td>${w.days_logged}/7</td>
       <td>${w.avg_calories}</td>
       <td>${w.avg_protein}g</td>
       <td>${w.avg_carbs}g</td>
-      <td>${w.avg_fat}g</td>`;
+      <td>${w.avg_fat}g</td>
+      <td>${w.avg_fiber || 0}g</td>`;
     tbody.appendChild(tr);
   }
 

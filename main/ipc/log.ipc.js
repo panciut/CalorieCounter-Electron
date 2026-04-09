@@ -11,7 +11,8 @@ function registerLogIpc() {
         ROUND(f.calories * l.grams / 100, 1) AS calories,
         ROUND(f.protein  * l.grams / 100, 1) AS protein,
         ROUND(f.carbs    * l.grams / 100, 1) AS carbs,
-        ROUND(f.fat      * l.grams / 100, 1) AS fat
+        ROUND(f.fat      * l.grams / 100, 1) AS fat,
+        ROUND(f.fiber    * l.grams / 100, 1) AS fiber
       FROM log l
       JOIN foods f ON l.food_id = f.id
       WHERE l.date = ?
@@ -37,8 +38,8 @@ function registerLogIpc() {
     const d = date || today();
     return db.transaction(() => {
       const foodResult = db.prepare(
-        'INSERT INTO foods (name, calories, protein, carbs, fat, piece_grams) VALUES (?, ?, ?, ?, ?, ?)'
-      ).run(food.name, food.calories, food.protein || 0, food.carbs || 0, food.fat || 0, food.piece_grams || null);
+        'INSERT INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).run(food.name, food.calories, food.protein || 0, food.carbs || 0, food.fat || 0, food.fiber || 0, food.piece_grams || null);
       const logResult = db.prepare(
         'INSERT INTO log (date, food_id, grams, meal) VALUES (?, ?, ?, ?)'
       ).run(d, foodResult.lastInsertRowid, grams, meal || 'Snack');
@@ -67,13 +68,15 @@ function registerLogIpc() {
         ROUND(AVG(day_calories), 1) AS avg_calories,
         ROUND(AVG(day_protein),  1) AS avg_protein,
         ROUND(AVG(day_carbs),    1) AS avg_carbs,
-        ROUND(AVG(day_fat),      1) AS avg_fat
+        ROUND(AVG(day_fat),      1) AS avg_fat,
+        ROUND(AVG(day_fiber),    1) AS avg_fiber
       FROM (
         SELECT l.date,
           SUM(f.calories * l.grams / 100) AS day_calories,
           SUM(f.protein  * l.grams / 100) AS day_protein,
           SUM(f.carbs    * l.grams / 100) AS day_carbs,
-          SUM(f.fat      * l.grams / 100) AS day_fat
+          SUM(f.fat      * l.grams / 100) AS day_fat,
+          SUM(f.fiber    * l.grams / 100) AS day_fiber
         FROM log l JOIN foods f ON l.food_id = f.id
         GROUP BY l.date
       )
@@ -89,7 +92,8 @@ function registerLogIpc() {
         ROUND(SUM(f.calories * l.grams / 100), 1) AS calories,
         ROUND(SUM(f.protein  * l.grams / 100), 1) AS protein,
         ROUND(SUM(f.carbs    * l.grams / 100), 1) AS carbs,
-        ROUND(SUM(f.fat      * l.grams / 100), 1) AS fat
+        ROUND(SUM(f.fat      * l.grams / 100), 1) AS fat,
+        ROUND(SUM(f.fiber    * l.grams / 100), 1) AS fiber
       FROM log l
       JOIN foods f ON l.food_id = f.id
       WHERE l.date BETWEEN ? AND date(?, '+6 days')

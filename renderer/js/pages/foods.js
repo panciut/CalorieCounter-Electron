@@ -6,13 +6,13 @@ async function foodsOnEnter() {
 function _renderFoodsTable(foods) {
   const wrap = document.getElementById('foods-table-wrap');
   if (!foods.length) {
-    wrap.innerHTML = '<p class="empty">No foods added yet.</p>';
+    wrap.innerHTML = `<p class="empty">${t('foods.noFoods')}</p>`;
     return;
   }
 
   const table = document.createElement('table');
   table.innerHTML = `<thead><tr>
-    <th>Name</th><th>kcal</th><th>protein</th><th>carbs</th><th>fat</th><th>piece</th><th>★</th><th></th>
+    <th>${t('common.name')}</th><th>${t('th.kcal')}</th><th>${t('th.protein')}</th><th>${t('th.carbs')}</th><th>${t('th.fat')}</th><th>${t('th.fiber')}</th><th>${t('th.piece')}</th><th>★</th><th></th>
   </tr></thead>`;
   const tbody = document.createElement('tbody');
 
@@ -24,6 +24,7 @@ function _renderFoodsTable(foods) {
       <td>${f.protein}g</td>
       <td>${f.carbs}g</td>
       <td>${f.fat}g</td>
+      <td>${f.fiber || 0}g</td>
       <td>${f.piece_grams ? f.piece_grams + 'g' : '—'}</td>
       <td>
         <button class="fav-btn ${f.favorite ? 'fav-on' : ''}" data-id="${f.id}">★</button>
@@ -37,12 +38,13 @@ function _renderFoodsTable(foods) {
     editTr.id = `food-edit-${f.id}`;
     editTr.style.display = 'none';
     editTr.className = 'edit-row';
-    editTr.innerHTML = `<td colspan="8"><div class="inline-form">
+    editTr.innerHTML = `<td colspan="9"><div class="inline-form">
       <input type="text"   class="edit-name"  value="${f.name}" placeholder="Name" required>
       <input type="number" class="edit-kcal"   value="${f.calories}" placeholder="kcal" min="0" step="0.1" required>
       <input type="number" class="edit-protein" value="${f.protein}" placeholder="protein" min="0" step="0.1">
       <input type="number" class="edit-carbs"  value="${f.carbs}" placeholder="carbs" min="0" step="0.1">
       <input type="number" class="edit-fat"    value="${f.fat}" placeholder="fat" min="0" step="0.1">
+      <input type="number" class="edit-fiber"  value="${f.fiber || ''}" placeholder="fiber" min="0" step="0.1">
       <input type="number" class="edit-piece"  value="${f.piece_grams || ''}" placeholder="piece g" min="0" step="0.1">
       <button class="edit-save btn-primary" data-id="${f.id}">Save</button>
       <button class="edit-cancel btn-secondary" data-id="${f.id}">Cancel</button>
@@ -83,6 +85,7 @@ function _renderFoodsTable(foods) {
         protein:     +row.querySelector('.edit-protein').value || 0,
         carbs:       +row.querySelector('.edit-carbs').value || 0,
         fat:         +row.querySelector('.edit-fat').value || 0,
+        fiber:       +row.querySelector('.edit-fiber').value || 0,
         piece_grams: +row.querySelector('.edit-piece').value || null,
       });
       foodsOnEnter();
@@ -117,6 +120,7 @@ function foodsInitEvents() {
       protein:     +document.getElementById('f-protein').value || 0,
       carbs:       +document.getElementById('f-carbs').value   || 0,
       fat:         +document.getElementById('f-fat').value     || 0,
+      fiber:       +document.getElementById('f-fiber').value   || 0,
       piece_grams: +document.getElementById('f-piece').value   || null,
     });
     e.target.reset();

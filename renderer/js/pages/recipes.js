@@ -15,7 +15,7 @@ async function recipesOnEnter() {
 function _renderRecipeList(recipes) {
   const container = document.getElementById('recipes-list');
   if (!recipes.length) {
-    container.innerHTML = '<p class="empty">No recipes yet. Create one to get started.</p>';
+    container.innerHTML = `<p class="empty">${t('recipes.noRecipes')}</p>`;
     return;
   }
 
@@ -33,13 +33,14 @@ function _renderRecipeList(recipes) {
         <div><span>${r.total_protein}g</span> protein</div>
         <div><span>${r.total_carbs}g</span> carbs</div>
         <div><span>${r.total_fat}g</span> fat</div>
-        <div style="margin-left:auto;color:var(--text-sec)">${r.ingredient_count} ingredients</div>
+        <div><span>${r.total_fiber || 0}g</span> fiber</div>
+        <div style="margin-left:auto;color:var(--text-sec)">${r.ingredient_count} ${t('recipes.ingredients')}</div>
       </div>
       <div class="recipe-card-actions">
         <button class="btn-primary rc-log-btn" data-id="${r.id}"
           data-cal="${r.total_calories}" data-pro="${r.total_protein}"
-          data-carbs="${r.total_carbs}" data-fat="${r.total_fat}"
-          data-name="${r.name}">Log</button>
+          data-carbs="${r.total_carbs}" data-fat="${r.total_fat}" data-fiber="${r.total_fiber || 0}"
+          data-name="${r.name}">${t('recipes.log')}</button>
         <button class="del rc-del-btn" data-id="${r.id}">✕ Delete</button>
       </div>`;
     grid.appendChild(card);
@@ -56,6 +57,7 @@ function _renderRecipeList(recipes) {
         protein:  +btn.dataset.pro,
         carbs:    +btn.dataset.carbs,
         fat:      +btn.dataset.fat,
+        fiber:    +btn.dataset.fiber,
       };
       document.getElementById('rl-title').textContent = 'Log: ' + btn.dataset.name;
       _updateLogPreview();
@@ -76,16 +78,17 @@ function _updateLogPreview() {
   const scale = +document.getElementById('rl-scale').value || 1;
   const m = _rlRecipeMacros;
   document.getElementById('rl-preview').textContent =
-    `Will log ${Math.round(m.calories * scale)} kcal · ${Math.round(m.protein * scale)}g protein · ` +
-    `${Math.round(m.carbs * scale)}g carbs · ${Math.round(m.fat * scale)}g fat`;
+    `${t('rl.willLog')} ${Math.round(m.calories * scale)} ${t('macro.kcal')} · ${Math.round(m.protein * scale)}g ${t('macro.protein')} · ` +
+    `${Math.round(m.carbs * scale)}g ${t('macro.carbs')} · ${Math.round(m.fat * scale)}g ${t('macro.fat')} · ${Math.round(m.fiber * scale)}g ${t('macro.fiber')}`;
 }
 
 function _updateRecipeMacroPreview() {
   const totals = _rcIngredients.reduce((acc, ing) => {
     acc.calories += ing.calories; acc.protein += ing.protein;
     acc.carbs    += ing.carbs;    acc.fat     += ing.fat;
+    acc.fiber    += (ing.fiber || 0);
     return acc;
-  }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+  }, { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
 
   const preview = document.getElementById('rc-macro-preview');
   if (_rcIngredients.length) {
@@ -94,6 +97,7 @@ function _updateRecipeMacroPreview() {
     document.getElementById('rc-total-protein').textContent = Math.round(totals.protein  * 10) / 10 + 'g protein';
     document.getElementById('rc-total-carbs').textContent   = Math.round(totals.carbs    * 10) / 10 + 'g carbs';
     document.getElementById('rc-total-fat').textContent     = Math.round(totals.fat      * 10) / 10 + 'g fat';
+    document.getElementById('rc-total-fiber').textContent   = Math.round(totals.fiber    * 10) / 10 + 'g fiber';
   } else {
     preview.style.display = 'none';
   }
@@ -111,7 +115,7 @@ function _renderIngredientList() {
     row.innerHTML = `
       <div>
         <strong>${ing.name}</strong> — ${ing.grams}g
-        <div class="ingredient-macros">${ing.calories} kcal · ${ing.protein}g P · ${ing.carbs}g C · ${ing.fat}g F</div>
+        <div class="ingredient-macros">${ing.calories} kcal · ${ing.protein}g P · ${ing.carbs}g C · ${ing.fat}g F · ${ing.fiber || 0}g Fib</div>
       </div>
       <button class="del rc-remove-ing" data-idx="${i}">✕</button>`;
     list.appendChild(row);
@@ -163,6 +167,7 @@ function recipesInitEvents() {
       protein:  Math.round(food.protein  * grams / 100 * 10) / 10,
       carbs:    Math.round(food.carbs    * grams / 100 * 10) / 10,
       fat:      Math.round(food.fat      * grams / 100 * 10) / 10,
+      fiber:    Math.round((food.fiber || 0) * grams / 100 * 10) / 10,
     });
     _rcSelectedFood = null;
     _rcFoodSearch.clear();

@@ -10,12 +10,14 @@
 
 <nav>
   <span class="app-title">CalorieCounter</span>
-  <a href="#" class="nav-link active" data-page="dashboard"><kbd>1</kbd>Today</a>
-  <a href="#" class="nav-link" data-page="foods"><kbd>2</kbd>Foods</a>
-  <a href="#" class="nav-link" data-page="recipes"><kbd>3</kbd>Recipes</a>
-  <a href="#" class="nav-link" data-page="history"><kbd>4</kbd>History</a>
-  <a href="#" class="nav-link" data-page="weight"><kbd>5</kbd>Weight</a>
-  <a href="#" class="nav-link" data-page="settings"><kbd>6</kbd>Goals</a>
+  <a href="#" class="nav-link active" data-page="dashboard"><kbd>1</kbd><span data-i18n="nav.today">Today</span></a>
+  <a href="#" class="nav-link" data-page="foods"><kbd>2</kbd><span data-i18n="nav.foods">Foods</span></a>
+  <a href="#" class="nav-link" data-page="recipes"><kbd>3</kbd><span data-i18n="nav.recipes">Recipes</span></a>
+  <a href="#" class="nav-link" data-page="history"><kbd>4</kbd><span data-i18n="nav.history">History</span></a>
+  <a href="#" class="nav-link" data-page="weight"><kbd>5</kbd><span data-i18n="nav.weight">Weight</span></a>
+  <a href="#" class="nav-link" data-page="supplements"><kbd>6</kbd><span data-i18n="nav.supplements">Supplements</span></a>
+  <a href="#" class="nav-link" data-page="goals"><kbd>7</kbd><span data-i18n="nav.goals">Goals</span></a>
+  <a href="#" class="nav-link" data-page="settings"><kbd>8</kbd><span data-i18n="nav.settings">Settings</span></a>
 </nav>
 
 <main>
@@ -25,33 +27,39 @@
     <h1 id="dash-date"></h1>
 
     <section class="totals">
-      <div class="macro"><span id="dash-kcal">0</span>kcal</div>
-      <div class="macro"><span id="dash-protein">0g</span>protein</div>
-      <div class="macro"><span id="dash-carbs">0g</span>carbs</div>
-      <div class="macro"><span id="dash-fat">0g</span>fat</div>
+      <div class="macro"><span id="dash-kcal">0</span><span data-i18n="macro.kcal">kcal</span></div>
+      <div class="macro"><span id="dash-protein">0g</span><span data-i18n="macro.protein">protein</span></div>
+      <div class="macro"><span id="dash-carbs">0g</span><span data-i18n="macro.carbs">carbs</span></div>
+      <div class="macro"><span id="dash-fat">0g</span><span data-i18n="macro.fat">fat</span></div>
+      <div class="macro"><span id="dash-fiber">0g</span><span data-i18n="macro.fiber">fiber</span></div>
     </section>
 
     <section class="dashboard-charts-goals">
       <div class="goals">
         <div class="goal-row">
-          <span class="goal-label">Calories</span>
+          <span class="goal-label" data-i18n="macro.kcal">Calories</span>
           <div class="progress-track"><div class="progress-bar bar-green" id="bar-cal" style="width:0%"></div></div>
           <span class="goal-numbers" id="num-cal"></span>
         </div>
         <div class="goal-row">
-          <span class="goal-label">Protein</span>
+          <span class="goal-label" data-i18n="macro.protein">Protein</span>
           <div class="progress-track"><div class="progress-bar bar-green" id="bar-protein" style="width:0%"></div></div>
           <span class="goal-numbers" id="num-protein"></span>
         </div>
         <div class="goal-row">
-          <span class="goal-label">Carbs</span>
+          <span class="goal-label" data-i18n="macro.carbs">Carbs</span>
           <div class="progress-track"><div class="progress-bar bar-green" id="bar-carbs" style="width:0%"></div></div>
           <span class="goal-numbers" id="num-carbs"></span>
         </div>
         <div class="goal-row">
-          <span class="goal-label">Fat</span>
+          <span class="goal-label" data-i18n="macro.fat">Fat</span>
           <div class="progress-track"><div class="progress-bar bar-green" id="bar-fat" style="width:0%"></div></div>
           <span class="goal-numbers" id="num-fat"></span>
+        </div>
+        <div class="goal-row">
+          <span class="goal-label" data-i18n="macro.fiber">Fiber</span>
+          <div class="progress-track"><div class="progress-bar bar-green" id="bar-fiber" style="width:0%"></div></div>
+          <span class="goal-numbers" id="num-fiber"></span>
         </div>
       </div>
       <div class="macro-chart-wrap">
@@ -62,7 +70,7 @@
     <!-- Water -->
     <section class="water-section">
       <div class="section-header">
-        <h2>Water</h2>
+        <h2 data-i18n="dash.water">Water</h2>
         <span id="water-label" class="goal-numbers">0 / 2000 ml</span>
       </div>
       <div class="progress-track">
@@ -71,68 +79,88 @@
       <div class="quick-add-row" style="margin-top:10px">
         <button class="quick-btn" id="water-200">+200 ml</button>
         <button class="quick-btn" id="water-500">+500 ml</button>
-        <button class="quick-btn" id="water-custom">+ Custom</button>
+        <button class="quick-btn" id="water-custom" data-i18n="dash.custom">+ Custom</button>
       </div>
+    </section>
+
+    <!-- Supplements -->
+    <section id="dash-supplements-section" style="display:none">
+      <div class="section-header">
+        <h2 data-i18n="suppl.dashTitle">Supplements</h2>
+        <span id="dash-suppl-status" class="goal-numbers"></span>
+      </div>
+      <div id="dash-supplements-list" class="suppl-checklist"></div>
     </section>
 
     <!-- Favorites -->
     <section id="favorites-section" style="display:none">
-      <h2>Quick add</h2>
+      <h2 data-i18n="dash.quickAdd">Quick add</h2>
       <div class="quick-add-row" id="favorites-row"></div>
     </section>
 
     <!-- Log food -->
     <section>
       <div class="section-header">
-        <h2>Log food</h2>
-        <button type="button" class="btn-secondary" id="dash-open-quick">+ New food</button>
+        <h2 data-i18n="dash.logFood">Log food</h2>
+        <button type="button" class="btn-secondary" id="dash-open-quick" data-i18n="dash.newFood">+ New food</button>
       </div>
       <div class="food-search-wrap">
-        <input type="text" id="dash-food-input" class="search-input" placeholder="Search food or recipe…" autocomplete="off">
+        <input type="text" id="dash-food-input" class="search-input" data-i18n-placeholder="dash.searchPlaceholder" placeholder="Search food or recipe…" autocomplete="off">
         <ul class="search-results" id="dash-search-results" style="display:none"></ul>
       </div>
+      <!-- Food log form -->
       <div id="dash-log-form" style="display:none; margin-top:10px">
-        <div class="inline-form">
-          <input type="number" id="dash-grams"  placeholder="grams"  min="0.1" step="0.1">
-          <input type="number" id="dash-pieces" placeholder="pieces" min="0.1" step="0.1" style="display:none">
-          <select id="dash-meal">
-            <option>Breakfast</option><option>Lunch</option>
-            <option>Dinner</option><option selected>Snack</option>
-          </select>
-          <button type="button" id="dash-log-btn" class="btn-primary">Add</button>
-          <button type="button" id="dash-log-cancel" class="btn-secondary">Cancel</button>
+        <div id="dash-food-preview" class="macro-preview"></div>
+        <div class="inline-form" style="margin-top:8px">
+          <input type="number" id="dash-grams"  data-i18n-placeholder="common.grams" placeholder="grams"  min="0.1" step="0.1">
+          <input type="number" id="dash-pieces" data-i18n-placeholder="common.pieces" placeholder="pieces" min="0.1" step="0.1" style="display:none">
+          <a href="#" id="dash-toggle-unit" class="unit-toggle" style="display:none">switch to grams</a>
+          <select id="dash-meal" class="meal-select"></select>
+          <button type="button" id="dash-log-btn" class="btn-primary" data-i18n="common.add">Add</button>
+          <button type="button" id="dash-log-cancel" class="btn-secondary" data-i18n="common.cancel">Cancel</button>
+        </div>
+      </div>
+      <!-- Recipe log form -->
+      <div id="dash-recipe-form" style="display:none; margin-top:10px">
+        <div id="dash-recipe-ingredients" class="recipe-ingredients-editor"></div>
+        <div id="dash-recipe-totals" class="macro-preview" style="margin-top:8px"></div>
+        <div class="inline-form" style="margin-top:8px">
+          <select id="dash-recipe-meal" class="meal-select"></select>
+          <button type="button" id="dash-recipe-log-btn" class="btn-primary" data-i18n="dash.logRecipe">Log recipe</button>
+          <button type="button" id="dash-recipe-cancel" class="btn-secondary" data-i18n="common.cancel">Cancel</button>
         </div>
       </div>
     </section>
 
     <!-- Today's entries -->
     <section>
-      <h2>Today's entries</h2>
+      <h2 data-i18n="dash.todayEntries">Today's entries</h2>
       <div id="dash-entries"></div>
     </section>
   </section>
 
   <!-- ═══════════ FOODS ═══════════ -->
   <section id="page-foods" class="page" style="display:none">
-    <h1>Food database</h1>
+    <h1 data-i18n="foods.title">Food database</h1>
 
     <section>
-      <h2>Add food <small>(values per 100g)</small></h2>
+      <h2><span data-i18n="foods.addTitle">Add food</span> <small>(<span data-i18n="foods.valuesPerLabel">values per 100g</span>)</small></h2>
       <form class="inline-form" id="foods-add-form">
-        <input type="text"   id="f-name"    placeholder="Name" required>
-        <input type="number" id="f-kcal"    placeholder="kcal"              min="0" step="0.1" required>
-        <input type="number" id="f-protein" placeholder="protein g (opt.)"  min="0" step="0.1">
-        <input type="number" id="f-carbs"   placeholder="carbs g (opt.)"    min="0" step="0.1">
-        <input type="number" id="f-fat"     placeholder="fat g (opt.)"      min="0" step="0.1">
-        <input type="number" id="f-piece"   placeholder="g/piece (opt.)"    min="0.1" step="0.1">
-        <button type="submit">Add</button>
+        <input type="text"   id="f-name"    data-i18n-placeholder="foods.namePlaceholder" placeholder="Name" required>
+        <input type="number" id="f-kcal"    data-i18n-placeholder="foods.kcalPlaceholder" placeholder="kcal"              min="0" step="0.1" required>
+        <input type="number" id="f-protein" data-i18n-placeholder="foods.proteinPlaceholder" placeholder="protein g (opt.)"  min="0" step="0.1">
+        <input type="number" id="f-carbs"   data-i18n-placeholder="foods.carbsPlaceholder" placeholder="carbs g (opt.)"    min="0" step="0.1">
+        <input type="number" id="f-fat"     data-i18n-placeholder="foods.fatPlaceholder" placeholder="fat g (opt.)"      min="0" step="0.1">
+        <input type="number" id="f-fiber"   data-i18n-placeholder="foods.fiberPlaceholder" placeholder="fiber g (opt.)"    min="0" step="0.1">
+        <input type="number" id="f-piece"   data-i18n-placeholder="foods.piecePlaceholder" placeholder="g/piece (opt.)"    min="0.1" step="0.1">
+        <button type="submit" data-i18n="common.add">Add</button>
       </form>
       <div class="preset-row" style="margin-top:8px">
-        <span class="preset-label">Estimate macros:</span>
-        <button type="button" class="preset-btn" data-form="foods" data-p="25" data-c="45" data-f="30">Balanced</button>
-        <button type="button" class="preset-btn" data-form="foods" data-p="40" data-c="30" data-f="30">High-protein</button>
-        <button type="button" class="preset-btn" data-form="foods" data-p="15" data-c="60" data-f="25">High-carb</button>
-        <button type="button" class="preset-btn" data-form="foods" data-p="20" data-c="5"  data-f="75">Keto</button>
+        <span class="preset-label" data-i18n="foods.estimateMacros">Estimate macros:</span>
+        <button type="button" class="preset-btn" data-form="foods" data-p="25" data-c="45" data-f="30" data-i18n="foods.balanced">Balanced</button>
+        <button type="button" class="preset-btn" data-form="foods" data-p="40" data-c="30" data-f="30" data-i18n="foods.highProtein">High-protein</button>
+        <button type="button" class="preset-btn" data-form="foods" data-p="15" data-c="60" data-f="25" data-i18n="foods.highCarb">High-carb</button>
+        <button type="button" class="preset-btn" data-form="foods" data-p="20" data-c="5"  data-f="75" data-i18n="foods.keto">Keto</button>
       </div>
     </section>
 
@@ -144,15 +172,15 @@
   <!-- ═══════════ RECIPES ═══════════ -->
   <section id="page-recipes" class="page" style="display:none">
     <div class="section-header">
-      <h1>Recipes</h1>
-      <button type="button" class="btn-secondary" id="recipe-new-btn">+ New recipe</button>
+      <h1 data-i18n="recipes.title">Recipes</h1>
+      <button type="button" class="btn-secondary" id="recipe-new-btn" data-i18n="recipes.new">+ New recipe</button>
     </div>
     <div id="recipes-list"></div>
   </section>
 
   <!-- ═══════════ HISTORY ═══════════ -->
   <section id="page-history" class="page" style="display:none">
-    <h1>History</h1>
+    <h1 data-i18n="history.title">History</h1>
     <div class="chart-card" id="history-chart-card" style="display:none">
       <canvas id="history-bar-canvas" height="120"></canvas>
     </div>
@@ -161,7 +189,7 @@
 
   <!-- ═══════════ WEEK ═══════════ -->
   <section id="page-week" class="page" style="display:none">
-    <a href="#" class="back-link" id="week-back">← Back to History</a>
+    <a href="#" class="back-link" id="week-back" data-i18n="week.backToHistory">← Back to History</a>
     <h1 id="week-title"></h1>
     <section class="totals" id="week-totals"></section>
     <section class="chart-card">
@@ -172,56 +200,54 @@
 
   <!-- ═══════════ DAY ═══════════ -->
   <section id="page-day" class="page" style="display:none">
-    <a href="#" class="back-link" id="day-back">← Back</a>
+    <a href="#" class="back-link" id="day-back" data-i18n="day.back">← Back</a>
     <h1 id="day-title"></h1>
     <section class="totals" id="day-totals"></section>
 
     <section>
       <div class="section-header">
-        <h2>Add entry</h2>
-        <button type="button" class="btn-secondary" id="day-open-quick">+ New food</button>
+        <h2 data-i18n="day.addEntry">Add entry</h2>
+        <button type="button" class="btn-secondary" id="day-open-quick" data-i18n="dash.newFood">+ New food</button>
       </div>
       <div class="food-search-wrap">
-        <input type="text" id="day-food-input" class="search-input" placeholder="Search food…" autocomplete="off">
+        <input type="text" id="day-food-input" class="search-input" data-i18n-placeholder="rc.searchFood" placeholder="Search food…" autocomplete="off">
         <ul class="search-results" id="day-search-results" style="display:none"></ul>
       </div>
       <div id="day-log-form" style="display:none; margin-top:10px">
         <div class="inline-form">
-          <input type="number" id="day-grams"  placeholder="grams"  min="0.1" step="0.1">
-          <input type="number" id="day-pieces" placeholder="pieces" min="0.1" step="0.1" style="display:none">
-          <select id="day-meal">
-            <option>Breakfast</option><option>Lunch</option>
-            <option>Dinner</option><option selected>Snack</option>
-          </select>
-          <button type="button" id="day-log-btn" class="btn-primary">Add</button>
-          <button type="button" id="day-log-cancel" class="btn-secondary">Cancel</button>
+          <input type="number" id="day-grams"  data-i18n-placeholder="common.grams" placeholder="grams"  min="0.1" step="0.1">
+          <input type="number" id="day-pieces" data-i18n-placeholder="common.pieces" placeholder="pieces" min="0.1" step="0.1" style="display:none">
+          <a href="#" id="day-toggle-unit" class="unit-toggle" style="display:none">switch to grams</a>
+          <select id="day-meal" class="meal-select"></select>
+          <button type="button" id="day-log-btn" class="btn-primary" data-i18n="common.add">Add</button>
+          <button type="button" id="day-log-cancel" class="btn-secondary" data-i18n="common.cancel">Cancel</button>
         </div>
       </div>
     </section>
 
     <section>
-      <h2>Entries</h2>
+      <h2 data-i18n="day.entries">Entries</h2>
       <div id="day-entries"></div>
     </section>
   </section>
 
   <!-- ═══════════ WEIGHT ═══════════ -->
   <section id="page-weight" class="page" style="display:none">
-    <h1>Weight</h1>
+    <h1 data-i18n="weight.title">Weight</h1>
 
     <section>
-      <h2>Log weight</h2>
+      <h2 data-i18n="weight.logWeight">Log weight</h2>
       <form class="inline-form" id="weight-add-form">
         <input type="date" id="weight-date">
-        <input type="number" id="weight-val" placeholder="kg" min="0" step="0.1" required>
-        <button type="submit">Save</button>
+        <input type="number" id="weight-val" data-i18n-placeholder="weight.kgPlaceholder" placeholder="kg" min="0" step="0.1" required>
+        <button type="submit" data-i18n="common.save">Save</button>
       </form>
     </section>
 
     <section class="totals" id="weight-stats" style="display:none">
-      <div class="macro"><span id="weight-current">—</span>current</div>
-      <div class="macro"><span id="weight-goal-val">—</span>goal</div>
-      <div class="macro"><span id="weight-prediction">—</span>predicted date</div>
+      <div class="macro"><span id="weight-current">—</span><span data-i18n="weight.current">current</span></div>
+      <div class="macro"><span id="weight-goal-val">—</span><span data-i18n="weight.goal">goal</span></div>
+      <div class="macro"><span id="weight-prediction">—</span><span data-i18n="weight.predictedDate">predicted date</span></div>
     </section>
 
     <section class="weight-chart-wrap" id="weight-chart-card" style="display:none">
@@ -234,20 +260,57 @@
     </section>
   </section>
 
-  <!-- ═══════════ SETTINGS ═══════════ -->
-  <section id="page-settings" class="page" style="display:none">
-    <h1>Goals</h1>
+  <!-- ═══════════ SUPPLEMENTS ═══════════ -->
+  <section id="page-supplements" class="page" style="display:none">
+    <h1 data-i18n="suppl.title">Supplements</h1>
+
+    <section>
+      <h2 data-i18n="suppl.addTitle">Add supplement</h2>
+      <form class="inline-form" id="suppl-add-form">
+        <input type="text" id="suppl-name" data-i18n-placeholder="suppl.namePlaceholder" placeholder="Name (e.g. Multivitamin)" required>
+        <input type="number" id="suppl-qty" value="1" min="1" step="1" style="width:60px" title="# pills/day">
+        <button type="submit" data-i18n="common.add">Add</button>
+      </form>
+    </section>
+
+    <section>
+      <div id="suppl-table-wrap"></div>
+    </section>
+  </section>
+
+  <!-- ═══════════ GOALS ═══════════ -->
+  <section id="page-goals" class="page" style="display:none">
+    <h1 data-i18n="nav.goals">Goals</h1>
     <section>
       <form class="settings-form" id="settings-form">
-        <div class="settings-row"><label>Daily calories</label>    <input type="number" id="s-cal"     min="0" step="1" required></div>
-        <div class="settings-row"><label>Protein (g)</label>       <input type="number" id="s-protein" min="0" step="1" required></div>
-        <div class="settings-row"><label>Carbs (g)</label>         <input type="number" id="s-carbs"   min="0" step="1" required></div>
-        <div class="settings-row"><label>Fat (g)</label>           <input type="number" id="s-fat"     min="0" step="1" required></div>
-        <div class="settings-row"><label>Goal weight (kg)</label>  <input type="number" id="s-weight"  min="0" step="0.1" placeholder="e.g. 75"></div>
-        <div class="settings-row"><label>Daily water goal (ml)</label> <input type="number" id="s-water" min="0" step="100"></div>
-        <button type="submit">Save</button>
+        <div class="settings-row"><label data-i18n="settings.dailyCal">Daily calories</label>    <input type="number" id="s-cal"     min="0" step="1" required></div>
+        <div class="settings-row"><label data-i18n="settings.protein">Protein (g)</label>       <input type="number" id="s-protein" min="0" step="1" required></div>
+        <div class="settings-row"><label data-i18n="settings.carbs">Carbs (g)</label>         <input type="number" id="s-carbs"   min="0" step="1" required></div>
+        <div class="settings-row"><label data-i18n="settings.fat">Fat (g)</label>           <input type="number" id="s-fat"     min="0" step="1" required></div>
+        <div class="settings-row"><label data-i18n="settings.fiber">Fiber (g)</label>         <input type="number" id="s-fiber"   min="0" step="1" required></div>
+        <div class="settings-row"><label data-i18n="settings.goalWeight">Goal weight (kg)</label>  <input type="number" id="s-weight"  min="0" step="0.1" placeholder="e.g. 75"></div>
+        <div class="settings-row"><label data-i18n="settings.waterGoal">Daily water goal (ml)</label> <input type="number" id="s-water" min="0" step="100"></div>
+        <button type="submit" data-i18n="common.save">Save</button>
       </form>
-      <p id="settings-saved" style="display:none; color:var(--green); margin-top:8px; font-size:14px">Saved!</p>
+      <p id="settings-saved" style="display:none; color:var(--green); margin-top:8px; font-size:14px" data-i18n="common.saved">Saved!</p>
+    </section>
+  </section>
+
+  <!-- ═══════════ SETTINGS ═══════════ -->
+  <section id="page-settings" class="page" style="display:none">
+    <h1 data-i18n="nav.settings">Settings</h1>
+    <section>
+      <h2 data-i18n="settings.language">Language</h2>
+      <div class="lang-selector">
+        <button class="lang-btn" data-lang="en">
+          <span class="lang-flag">&#x1F1EC;&#x1F1E7;</span>
+          <span>English</span>
+        </button>
+        <button class="lang-btn" data-lang="it">
+          <span class="lang-flag">&#x1F1EE;&#x1F1F9;</span>
+          <span>Italiano</span>
+        </button>
+      </div>
     </section>
   </section>
 
@@ -258,59 +321,60 @@
 <!-- Quick-add food & log -->
 <dialog id="quick-food-dialog">
   <div class="dialog-header">
-    <h2>Add new food &amp; log it</h2>
+    <h2 data-i18n="qf.title">Add new food &amp; log it</h2>
     <button type="button" class="dialog-close" data-close="quick-food-dialog">✕</button>
   </div>
   <div class="dialog-form">
     <div class="dialog-field">
-      <label>Food name</label>
-      <input type="text" id="qf-name" placeholder="e.g. Cottage Cheese" required autocomplete="off">
+      <label data-i18n="qf.foodName">Food name</label>
+      <input type="text" id="qf-name" data-i18n-placeholder="qf.foodNamePlaceholder" placeholder="e.g. Cottage Cheese" required autocomplete="off">
     </div>
     <div class="dialog-row">
       <div class="dialog-field">
-        <label>kcal / 100g</label>
+        <label data-i18n="qf.kcalPer100">kcal / 100g</label>
         <input type="number" id="qf-kcal" placeholder="98" min="0" step="0.1" required>
       </div>
       <div class="dialog-field">
-        <label>Protein g <span class="optional">(opt.)</span></label>
+        <label><span data-i18n="macro.protein">Protein</span> g <span class="optional" data-i18n="common.opt">(opt.)</span></label>
         <input type="number" id="qf-protein" placeholder="—" min="0" step="0.1">
       </div>
       <div class="dialog-field">
-        <label>Carbs g <span class="optional">(opt.)</span></label>
+        <label><span data-i18n="macro.carbs">Carbs</span> g <span class="optional" data-i18n="common.opt">(opt.)</span></label>
         <input type="number" id="qf-carbs" placeholder="—" min="0" step="0.1">
       </div>
       <div class="dialog-field">
-        <label>Fat g <span class="optional">(opt.)</span></label>
+        <label><span data-i18n="macro.fat">Fat</span> g <span class="optional" data-i18n="common.opt">(opt.)</span></label>
         <input type="number" id="qf-fat" placeholder="—" min="0" step="0.1">
+      </div>
+      <div class="dialog-field">
+        <label><span data-i18n="macro.fiber">Fiber</span> g <span class="optional" data-i18n="common.opt">(opt.)</span></label>
+        <input type="number" id="qf-fiber" placeholder="—" min="0" step="0.1">
       </div>
     </div>
     <div class="preset-row">
-      <span class="preset-label">Estimate macros:</span>
-      <button type="button" class="preset-btn qf-preset" data-p="25" data-c="45" data-f="30">Balanced</button>
-      <button type="button" class="preset-btn qf-preset" data-p="40" data-c="30" data-f="30">High-protein</button>
-      <button type="button" class="preset-btn qf-preset" data-p="15" data-c="60" data-f="25">High-carb</button>
-      <button type="button" class="preset-btn qf-preset" data-p="20" data-c="5"  data-f="75">Keto</button>
+      <span class="preset-label" data-i18n="foods.estimateMacros">Estimate macros:</span>
+      <button type="button" class="preset-btn qf-preset" data-p="25" data-c="45" data-f="30" data-i18n="foods.balanced">Balanced</button>
+      <button type="button" class="preset-btn qf-preset" data-p="40" data-c="30" data-f="30" data-i18n="foods.highProtein">High-protein</button>
+      <button type="button" class="preset-btn qf-preset" data-p="15" data-c="60" data-f="25" data-i18n="foods.highCarb">High-carb</button>
+      <button type="button" class="preset-btn qf-preset" data-p="20" data-c="5"  data-f="75" data-i18n="foods.keto">Keto</button>
     </div>
     <div class="dialog-row">
       <div class="dialog-field">
-        <label>Grams to log</label>
+        <label data-i18n="qf.gramsToLog">Grams to log</label>
         <input type="number" id="qf-grams" placeholder="150" min="0.1" step="0.1" required>
       </div>
       <div class="dialog-field">
-        <label>Meal</label>
-        <select id="qf-meal">
-          <option>Breakfast</option><option>Lunch</option>
-          <option>Dinner</option><option selected>Snack</option>
-        </select>
+        <label data-i18n="common.meal">Meal</label>
+        <select id="qf-meal" class="meal-select"></select>
       </div>
       <div class="dialog-field">
-        <label>g / piece <span class="optional">(opt.)</span></label>
+        <label><span data-i18n="qf.gPerPiece">g / piece</span> <span class="optional" data-i18n="common.opt">(opt.)</span></label>
         <input type="number" id="qf-piece" placeholder="—" min="0.1" step="0.1">
       </div>
     </div>
     <div class="dialog-actions">
-      <button type="button" class="btn-secondary" data-close="quick-food-dialog">Cancel</button>
-      <button type="button" id="qf-submit" class="btn-primary">Add &amp; log</button>
+      <button type="button" class="btn-secondary" data-close="quick-food-dialog" data-i18n="common.cancel">Cancel</button>
+      <button type="button" id="qf-submit" class="btn-primary" data-i18n="qf.addAndLog">Add &amp; log</button>
     </div>
   </div>
 </dialog>
@@ -318,40 +382,41 @@
 <!-- Recipe create -->
 <dialog id="recipe-create-dialog">
   <div class="dialog-header">
-    <h2>New Recipe</h2>
+    <h2 data-i18n="rc.newRecipe">New Recipe</h2>
     <button type="button" class="dialog-close" data-close="recipe-create-dialog">✕</button>
   </div>
   <div class="dialog-form">
     <div class="dialog-field">
-      <label>Recipe name</label>
-      <input type="text" id="rc-name" placeholder="e.g. Chicken &amp; Rice Bowl" autocomplete="off">
+      <label data-i18n="rc.recipeName">Recipe name</label>
+      <input type="text" id="rc-name" data-i18n-placeholder="rc.recipeNamePlaceholder" placeholder="e.g. Chicken &amp; Rice Bowl" autocomplete="off">
     </div>
     <div class="dialog-field">
-      <label>Description <span class="optional">(optional)</span></label>
-      <input type="text" id="rc-desc" placeholder="Optional notes">
+      <label><span data-i18n="rc.description">Description</span> <span class="optional" data-i18n="common.opt">(opt.)</span></label>
+      <input type="text" id="rc-desc" placeholder="">
     </div>
     <div class="dialog-field">
-      <label>Add ingredient</label>
+      <label data-i18n="rc.addIngredient">Add ingredient</label>
       <div class="food-search-wrap">
-        <input type="text" id="rc-food-input" class="search-input" placeholder="Search food…" autocomplete="off">
+        <input type="text" id="rc-food-input" class="search-input" data-i18n-placeholder="rc.searchFood" placeholder="Search food…" autocomplete="off">
         <ul class="search-results" id="rc-search-results" style="display:none"></ul>
       </div>
       <div class="inline-form" id="rc-ingredient-form" style="display:none; margin-top:8px">
-        <input type="number" id="rc-grams" placeholder="grams" min="0.1" step="0.1">
-        <button type="button" id="rc-add-ingredient" class="btn-primary">Add</button>
+        <input type="number" id="rc-grams" data-i18n-placeholder="common.grams" placeholder="grams" min="0.1" step="0.1">
+        <button type="button" id="rc-add-ingredient" class="btn-primary" data-i18n="common.add">Add</button>
       </div>
     </div>
     <div id="rc-ingredients-list"></div>
     <div class="recipe-macro-preview" id="rc-macro-preview" style="display:none">
-      <span class="recipe-total-label">Total:</span>
+      <span class="recipe-total-label" data-i18n="common.total">Total:</span>
       <span id="rc-total-cal"></span>
       <span id="rc-total-protein"></span>
       <span id="rc-total-carbs"></span>
       <span id="rc-total-fat"></span>
+      <span id="rc-total-fiber"></span>
     </div>
     <div class="dialog-actions">
-      <button type="button" class="btn-secondary" data-close="recipe-create-dialog">Cancel</button>
-      <button type="button" id="rc-submit" class="btn-primary">Create Recipe</button>
+      <button type="button" class="btn-secondary" data-close="recipe-create-dialog" data-i18n="common.cancel">Cancel</button>
+      <button type="button" id="rc-submit" class="btn-primary" data-i18n="rc.createRecipe">Create Recipe</button>
     </div>
   </div>
 </dialog>
@@ -359,27 +424,24 @@
 <!-- Recipe log -->
 <dialog id="recipe-log-dialog">
   <div class="dialog-header">
-    <h2 id="rl-title">Log Recipe</h2>
+    <h2 id="rl-title" data-i18n="rl.logRecipe">Log Recipe</h2>
     <button type="button" class="dialog-close" data-close="recipe-log-dialog">✕</button>
   </div>
   <div class="dialog-form">
     <div class="dialog-row">
       <div class="dialog-field">
-        <label>Meal</label>
-        <select id="rl-meal">
-          <option>Breakfast</option><option>Lunch</option>
-          <option>Dinner</option><option selected>Snack</option>
-        </select>
+        <label data-i18n="common.meal">Meal</label>
+        <select id="rl-meal" class="meal-select"></select>
       </div>
       <div class="dialog-field">
-        <label>Scale (portions)</label>
+        <label data-i18n="rl.scale">Scale (portions)</label>
         <input type="number" id="rl-scale" value="1" min="0.1" step="0.1">
       </div>
     </div>
     <p id="rl-preview" style="font-size:13px; color:var(--text-sec)"></p>
     <div class="dialog-actions">
-      <button type="button" class="btn-secondary" data-close="recipe-log-dialog">Cancel</button>
-      <button type="button" id="rl-submit" class="btn-primary">Log</button>
+      <button type="button" class="btn-secondary" data-close="recipe-log-dialog" data-i18n="common.cancel">Cancel</button>
+      <button type="button" id="rl-submit" class="btn-primary" data-i18n="recipes.log">Log</button>
     </div>
   </div>
 </dialog>
@@ -387,17 +449,17 @@
 <!-- Water custom amount -->
 <dialog id="water-custom-dialog">
   <div class="dialog-header">
-    <h2>Add water</h2>
+    <h2 data-i18n="water.addWater">Add water</h2>
     <button type="button" class="dialog-close" data-close="water-custom-dialog">✕</button>
   </div>
   <div class="dialog-form">
     <div class="dialog-field">
-      <label>Amount (ml)</label>
+      <label data-i18n="water.amountMl">Amount (ml)</label>
       <input type="number" id="wc-ml" placeholder="300" min="1" step="1">
     </div>
     <div class="dialog-actions">
-      <button type="button" class="btn-secondary" data-close="water-custom-dialog">Cancel</button>
-      <button type="button" id="wc-submit" class="btn-primary">Add</button>
+      <button type="button" class="btn-secondary" data-close="water-custom-dialog" data-i18n="common.cancel">Cancel</button>
+      <button type="button" id="wc-submit" class="btn-primary" data-i18n="common.add">Add</button>
     </div>
   </div>
 </dialog>
@@ -405,6 +467,8 @@
 <!-- ═══════════ SCRIPTS ═══════════ -->
 <script src="../node_modules/chart.js/dist/chart.umd.js"></script>
 <script src="../node_modules/fuse.js/dist/fuse.min.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/dateUtil.js"></script>
 <script src="js/api.js"></script>
 <script src="js/components/macroChart.js"></script>
 <script src="js/components/barChart.js"></script>
@@ -416,6 +480,7 @@
 <script src="js/pages/week.js"></script>
 <script src="js/pages/day.js"></script>
 <script src="js/pages/weight.js"></script>
+<script src="js/pages/supplements.js"></script>
 <script src="js/pages/settings.js"></script>
 <script src="js/router.js"></script>
 <script src="js/shortcuts.js"></script>

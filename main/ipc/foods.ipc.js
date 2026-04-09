@@ -10,22 +10,25 @@ function registerFoodsIpc() {
     getDb().prepare('SELECT * FROM foods WHERE favorite = 1 ORDER BY name').all()
   );
 
-  ipcMain.handle('foods:add', (_, { name, calories, protein, carbs, fat, piece_grams }) => {
+  ipcMain.handle('foods:add', (_, { name, calories, protein, carbs, fat, fiber, piece_grams }) => {
     const result = getDb().prepare(
-      'INSERT INTO foods (name, calories, protein, carbs, fat, piece_grams) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(name, calories, protein || 0, carbs || 0, fat || 0, piece_grams || null);
+      'INSERT INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece_grams || null);
     return { id: result.lastInsertRowid };
   });
 
   ipcMain.handle('foods:delete', (_, { id }) => {
-    getDb().prepare('DELETE FROM foods WHERE id = ?').run(id);
+    const db = getDb();
+    db.prepare('DELETE FROM log WHERE food_id = ?').run(id);
+    db.prepare('DELETE FROM recipe_ingredients WHERE food_id = ?').run(id);
+    db.prepare('DELETE FROM foods WHERE id = ?').run(id);
     return { ok: true };
   });
 
-  ipcMain.handle('foods:update', (_, { id, name, calories, protein, carbs, fat, piece_grams }) => {
+  ipcMain.handle('foods:update', (_, { id, name, calories, protein, carbs, fat, fiber, piece_grams }) => {
     getDb().prepare(
-      'UPDATE foods SET name=?, calories=?, protein=?, carbs=?, fat=?, piece_grams=? WHERE id=?'
-    ).run(name, calories, protein || 0, carbs || 0, fat || 0, piece_grams || null, id);
+      'UPDATE foods SET name=?, calories=?, protein=?, carbs=?, fat=?, fiber=?, piece_grams=? WHERE id=?'
+    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece_grams || null, id);
     return { ok: true };
   });
 

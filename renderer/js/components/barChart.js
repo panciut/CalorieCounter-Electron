@@ -70,7 +70,7 @@ function createOrUpdateLineChart(canvasId, entries, goalWeight) {
   const canvas = document.getElementById(canvasId);
   if (!canvas || !entries.length) return null;
 
-  const labels  = entries.map(e => e.date);
+  const labels  = entries.map(e => typeof fmtDate === 'function' ? fmtDate(e.date) : e.date);
   const weights = entries.map(e => e.weight);
   const xs      = weights.map((_, i) => i);
 

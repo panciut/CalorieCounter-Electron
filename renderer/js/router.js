@@ -6,8 +6,10 @@ const _pages = {
   history:   { id: 'page-history',   onEnter: (p) => historyOnEnter(p) },
   week:      { id: 'page-week',      onEnter: (p) => weekOnEnter(p) },
   day:       { id: 'page-day',       onEnter: (p) => dayOnEnter(p) },
-  weight:    { id: 'page-weight',    onEnter: (p) => weightOnEnter(p) },
-  settings:  { id: 'page-settings',  onEnter: (p) => settingsOnEnter(p) },
+  weight:      { id: 'page-weight',      onEnter: (p) => weightOnEnter(p) },
+  supplements: { id: 'page-supplements', onEnter: (p) => supplementsOnEnter(p) },
+  goals:       { id: 'page-goals',       onEnter: (p) => goalsOnEnter(p) },
+  settings:  { id: 'page-settings',  onEnter: (p) => settingsPageOnEnter(p) },
 };
 
 let _currentPage = null;
@@ -50,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
   foodsInitEvents();
   recipesInitEvents();
   settingsInitEvents();
+  supplementsInitEvents();
   weightInitEvents();
   dayInitEvents();
 
@@ -62,6 +65,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 150);
   });
 
-  // Boot into dashboard
-  navigate('dashboard');
+  // Load language, apply translations, then boot
+  api.settings.get().then(s => {
+    setLanguage(s.language || 'en');
+    navigate('dashboard');
+  });
 });

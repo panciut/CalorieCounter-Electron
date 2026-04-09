@@ -29,7 +29,9 @@ document.addEventListener('keydown', (e) => {
       '3': 'recipes',
       '4': 'history',
       '5': 'weight',
-      '6': 'settings',
+      '6': 'supplements',
+      '7': 'goals',
+      '8': 'settings',
     };
     if (pageMap[e.key]) {
       e.preventDefault();

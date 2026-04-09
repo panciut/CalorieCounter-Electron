@@ -8,7 +8,8 @@ const registerLogIpc      = require('./ipc/log.ipc');
 const registerRecipesIpc  = require('./ipc/recipes.ipc');
 const registerWaterIpc    = require('./ipc/water.ipc');
 const registerWeightIpc   = require('./ipc/weight.ipc');
-const registerSettingsIpc = require('./ipc/settings.ipc');
+const registerSettingsIpc     = require('./ipc/settings.ipc');
+const registerSupplementsIpc = require('./ipc/supplements.ipc');
 
 let mainWindow;
 
@@ -18,6 +19,7 @@ function createWindow() {
     height: 820,
     minWidth: 900,
     minHeight: 600,
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -29,6 +31,11 @@ function createWindow() {
 
   mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
   // mainWindow.webContents.openDevTools();
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.maximize();
+    mainWindow.show();
+  });
 
   mainWindow.webContents.on('console-message', (_e, level, msg, line, src) => {
     const tag = ['V','I','W','E'][level] || '?';
@@ -46,6 +53,7 @@ app.whenReady().then(() => {
   registerWaterIpc();
   registerWeightIpc();
   registerSettingsIpc();
+  registerSupplementsIpc();
 
   createWindow();
 

@@ -13,7 +13,7 @@ async function dayOnEnter(param) {
     _dayFromWeek = '';
   }
 
-  document.getElementById('day-title').textContent = _dayDate;
+  document.getElementById('day-title').textContent = fmtDate(_dayDate);
 
   const [entries, foods] = await Promise.all([
     api.log.getDay(_dayDate),
@@ -23,21 +23,23 @@ async function dayOnEnter(param) {
 
   // Totals
   const totalsEl = document.getElementById('day-totals');
-  const t = entries.reduce((acc, e) => {
+  const tot = entries.reduce((acc, e) => {
     acc.calories += e.calories; acc.protein += e.protein;
     acc.carbs    += e.carbs;    acc.fat     += e.fat;
+    acc.fiber    += (e.fiber || 0);
     return acc;
-  }, { calories: 0, protein: 0, carbs: 0, fat: 0 });
+  }, { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
   totalsEl.innerHTML = `
-    <div class="macro"><span>${Math.round(t.calories * 10) / 10}</span>kcal</div>
-    <div class="macro"><span>${Math.round(t.protein  * 10) / 10}g</span>protein</div>
-    <div class="macro"><span>${Math.round(t.carbs    * 10) / 10}g</span>carbs</div>
-    <div class="macro"><span>${Math.round(t.fat      * 10) / 10}g</span>fat</div>`;
+    <div class="macro"><span>${Math.round(tot.calories * 10) / 10}</span>${t('macro.kcal')}</div>
+    <div class="macro"><span>${Math.round(tot.protein  * 10) / 10}g</span>${t('macro.protein')}</div>
+    <div class="macro"><span>${Math.round(tot.carbs    * 10) / 10}g</span>${t('macro.carbs')}</div>
+    <div class="macro"><span>${Math.round(tot.fat      * 10) / 10}g</span>${t('macro.fat')}</div>
+    <div class="macro"><span>${Math.round(tot.fiber    * 10) / 10}g</span>${t('macro.fiber')}</div>`;
 
   // Entries
   const container = document.getElementById('day-entries');
   if (!entries.length) {
-    container.innerHTML = '<p class="empty">Nothing logged this day.</p>';
+    container.innerHTML = `<p class="empty">${t('day.nothingLogged')}</p>`;
   } else {
     const groups = {};
     for (const e of entries) (groups[e.meal] = groups[e.meal] || []).push(e);
@@ -45,7 +47,7 @@ async function dayOnEnter(param) {
     for (const meal of ['Breakfast', 'Lunch', 'Dinner', 'Snack']) {
       if (!groups[meal]) continue;
       const h = document.createElement('div');
-      h.className = 'meal-header'; h.textContent = meal;
+      h.className = 'meal-header'; h.textContent = tMeal(meal);
       container.appendChild(h);
       container.appendChild(buildEntryTable(groups[meal], foods, 'day'));
     }
@@ -61,16 +63,11 @@ async function dayOnEnter(param) {
 
 function _dayFoodSelected(food) {
   _daySelected = food;
-  const form      = document.getElementById('day-log-form');
-  const gramsInp  = document.getElementById('day-grams');
-  const piecesInp = document.getElementById('day-pieces');
-  form.style.display = '';
+  document.getElementById('day-log-form').style.display = '';
   if (food.piece_grams) {
-    gramsInp.style.display  = 'none'; gramsInp.required  = false; gramsInp.value = '';
-    piecesInp.style.display = '';     piecesInp.required = true;  piecesInp.focus();
+    _showUnitInputs('day', 'pieces');
   } else {
-    piecesInp.style.display = 'none'; piecesInp.required = false; piecesInp.value = '';
-    gramsInp.style.display  = '';     gramsInp.required  = true;  gramsInp.focus();
+    _showUnitInputs('day', 'grams');
   }
 }
 
@@ -86,7 +83,8 @@ function dayInitEvents() {
     const gramsInp  = document.getElementById('day-grams');
     const piecesInp = document.getElementById('day-pieces');
     const meal      = document.getElementById('day-meal').value;
-    const grams = _daySelected.piece_grams && piecesInp.value
+    const piecesVisible = piecesInp.style.display !== 'none';
+    const grams = piecesVisible && piecesInp.value
       ? +piecesInp.value * _daySelected.piece_grams
       : +gramsInp.value;
     if (!grams) return;
@@ -102,8 +100,15 @@ function dayInitEvents() {
     _daySelected = null;
     _dayFoodSearch && _dayFoodSearch.clear();
     document.getElementById('day-log-form').style.display = 'none';
+    document.getElementById('day-toggle-unit').style.display = 'none';
     document.getElementById('day-grams').value  = '';
     document.getElementById('day-pieces').value = '';
+  });
+
+  document.getElementById('day-toggle-unit').addEventListener('click', (e) => {
+    e.preventDefault();
+    const piecesVisible = document.getElementById('day-pieces').style.display !== 'none';
+    _showUnitInputs('day', piecesVisible ? 'grams' : 'pieces');
   });
 
   document.getElementById('day-open-quick').addEventListener('click', () => {
