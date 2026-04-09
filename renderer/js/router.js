@@ -7,8 +7,10 @@ const _pages = {
   week:      { id: 'page-week',      onEnter: (p) => weekOnEnter(p) },
   day:       { id: 'page-day',       onEnter: (p) => dayOnEnter(p) },
   weight:      { id: 'page-weight',      onEnter: (p) => weightOnEnter(p) },
-  supplements: { id: 'page-supplements', onEnter: (p) => supplementsOnEnter(p) },
-  goals:       { id: 'page-goals',       onEnter: (p) => goalsOnEnter(p) },
+  supplements:  { id: 'page-supplements',  onEnter: (p) => supplementsOnEnter(p) },
+  measurements: { id: 'page-measurements', onEnter: (p) => measurementsOnEnter(p) },
+  templates:    { id: 'page-templates',    onEnter: (p) => templatesOnEnter(p) },
+  goals:        { id: 'page-goals',        onEnter: (p) => goalsOnEnter(p) },
   settings:  { id: 'page-settings',  onEnter: (p) => settingsPageOnEnter(p) },
 };
 
@@ -53,8 +55,10 @@ document.addEventListener('DOMContentLoaded', () => {
   recipesInitEvents();
   settingsInitEvents();
   supplementsInitEvents();
+  measurementsInitEvents();
   weightInitEvents();
   dayInitEvents();
+  templatesInitEvents();
 
   // Global shortcut from main process: focus quick-add
   window.electronAPI.on('shortcut:quickAdd', () => {
@@ -68,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load language, apply translations, then boot
   api.settings.get().then(s => {
     setLanguage(s.language || 'en');
+    applyTheme(s.theme || 'dark');
     navigate('dashboard');
   });
 });

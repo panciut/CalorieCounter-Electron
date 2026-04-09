@@ -17,13 +17,15 @@ async function dashOnEnter() {
   _dashToday = new Date().toISOString().slice(0, 10);
   document.getElementById('dash-date').textContent = fmtDate(_dashToday);
 
-  const [entries, favorites, foods, settings, waterData, recipes] = await Promise.all([
+  const [entries, favorites, foods, settings, waterData, recipes, notesData, frequent] = await Promise.all([
     api.log.getDay(_dashToday),
     api.foods.getFavorites(),
     api.foods.getAll(),
     api.settings.get(),
     api.water.getDay(_dashToday),
     api.recipes.getAll(),
+    api.notes.get(_dashToday),
+    api.foods.getFrequent(10),
   ]);
 
   _dashFoods    = foods;
@@ -32,10 +34,17 @@ async function dashOnEnter() {
 
   _dashRenderTotals(entries, settings);
   _dashRenderFavorites(favorites);
+  _dashRenderFrequent(frequent);
   _dashRenderEntries(entries, foods);
   _dashRenderWater(waterData.total_ml, settings.water_goal || 2000);
-  _dashInitSearch(foods, recipes);
+  _dashInitSearch(foods, recipes, frequent);
   _dashRenderSupplements(_dashToday);
+  document.getElementById('dash-notes').value = notesData.note || '';
+
+  api.streaks.get().then(s => {
+    document.getElementById('streak-current').textContent = s.current + ' ' + t('streak.days');
+    document.getElementById('streak-best').textContent = s.best + ' ' + t('streak.days');
+  });
 }
 
 // ── Render helpers ───────────────────────────────────────────────────────────
@@ -54,6 +63,17 @@ function _dashRenderTotals(entries, settings) {
   document.getElementById('dash-carbs').textContent   = carbs + 'g';
   document.getElementById('dash-fat').textContent     = fat + 'g';
   document.getElementById('dash-fiber').textContent   = fib + 'g';
+
+  // Budget remaining
+  const remaining = Math.round(settings.cal_goal - cal);
+  const remEl = document.getElementById('dash-remaining');
+  if (remaining > 0) {
+    remEl.textContent = remaining + ' ' + t('macro.kcal') + ' ' + t('dash.remaining');
+    remEl.className = 'budget-remaining ' + (remaining > settings.cal_goal * 0.3 ? 'budget-green' : 'budget-yellow');
+  } else {
+    remEl.textContent = t('dash.overBy') + ' ' + Math.abs(remaining) + ' ' + t('macro.kcal');
+    remEl.className = 'budget-remaining budget-red';
+  }
 
   const bars = [
     { id: 'cal',    actual: cal,   goal: settings.cal_goal,     unit: 'kcal' },
@@ -88,6 +108,26 @@ function _dashRenderFavorites(favorites) {
     btn.addEventListener('click', async () => {
       await api.log.add({ food_id: f.id, grams: f.piece_grams || 100, meal: 'Snack', date: _dashToday });
       dashOnEnter();
+    });
+    row.appendChild(btn);
+  }
+}
+
+function _dashRenderFrequent(frequent) {
+  const section = document.getElementById('frequent-section');
+  const row     = document.getElementById('frequent-row');
+  if (!frequent.length) { section.style.display = 'none'; return; }
+  section.style.display = '';
+  row.innerHTML = '';
+  for (const f of frequent) {
+    const btn = document.createElement('button');
+    btn.className   = 'quick-btn';
+    btn.textContent = f.name;
+    btn.title       = `${f.use_count}x · ${f.calories} kcal/100g`;
+    btn.addEventListener('click', () => {
+      _dashSelectFood(f);
+      // Focus the search input so user sees the form
+      document.getElementById('dash-food-input').value = f.name;
     });
     row.appendChild(btn);
   }
@@ -199,17 +239,25 @@ function _wireEntryTable(container, prefix, foods, refresh) {
   });
 }
 
-function _dashInitSearch(foods, recipes) {
+function _dashInitSearch(foods, recipes, frequent) {
   if (!_dashFoodSearch) {
     _dashFoodSearch = new FoodSearch('dash-food-input', 'dash-search-results', _dashItemSelected);
   }
+  // Build frequency map for search boosting
+  const freqMap = {};
+  if (frequent) for (const f of frequent) freqMap[f.id] = f.use_count;
+
+  // Tag foods with frequency
+  const taggedFoods = foods.map(f => ({ ...f, _freq: freqMap[f.id] || 0 }));
+
   // Merge foods and recipes into one searchable list
   const recipeItems = (recipes || []).map(r => ({
     ...r,
     isRecipe: true,
     name: r.name,
+    _freq: 0,
   }));
-  _dashFoodSearch.setItems([...foods, ...recipeItems]);
+  _dashFoodSearch.setItems([...taggedFoods, ...recipeItems]);
 }
 
 function _dashItemSelected(item) {
@@ -256,7 +304,7 @@ function _showUnitInputs(prefix, mode) {
 
   if (mode === 'pieces') {
     gramsInp.style.display  = 'none';  gramsInp.required  = false; gramsInp.value = '';
-    piecesInp.style.display = '';      piecesInp.required = true;  piecesInp.value = ''; piecesInp.focus();
+    piecesInp.style.display = '';      piecesInp.required = true;  piecesInp.value = '1'; piecesInp.focus();
     toggle.style.display    = '';
     toggle.textContent      = t('dash.switchToGrams');
     piecesInp.placeholder   = `${t('common.pieces')} (${food.piece_grams}g)`;
@@ -433,7 +481,40 @@ function dashInitEvents() {
     _refreshWater();
   });
 
-  // Quick-food dialog
+  // Barcode lookup inside quick-food dialog
+  document.getElementById('qf-barcode-btn').addEventListener('click', async () => {
+    const barcode = document.getElementById('qf-barcode').value.trim();
+    const statusEl = document.getElementById('qf-barcode-status');
+    if (!barcode) return;
+    statusEl.textContent = '...';
+    statusEl.className = 'barcode-status';
+    const result = await api.barcode.lookup(barcode);
+    if (result) {
+      statusEl.textContent = t('barcode.found');
+      statusEl.className = 'barcode-status barcode-ok';
+      document.getElementById('qf-name').value = result['name_' + getCurrentLang()] || result.name;
+      document.getElementById('qf-kcal').value = result.calories;
+      document.getElementById('qf-protein').value = result.protein;
+      document.getElementById('qf-carbs').value = result.carbs;
+      document.getElementById('qf-fat').value = result.fat;
+      document.getElementById('qf-fiber').value = result.fiber;
+      document.getElementById('qf-liquid').checked = !!result.is_liquid;
+      setTimeout(() => document.getElementById('qf-grams').focus(), 50);
+    } else {
+      statusEl.textContent = t('barcode.notFound');
+      statusEl.className = 'barcode-status barcode-err';
+    }
+    document.getElementById('qf-barcode').value = '';
+  });
+  document.getElementById('qf-barcode').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('qf-barcode-btn').click(); }
+  });
+
+  // Daily notes auto-save
+  document.getElementById('dash-notes').addEventListener('blur', () => {
+    api.notes.save({ date: _dashToday, note: document.getElementById('dash-notes').value });
+  });
+
   document.getElementById('dash-open-quick').addEventListener('click', () => {
     _quickFoodDate = _dashToday;
     document.getElementById('quick-food-dialog').showModal();
@@ -467,6 +548,7 @@ function dashInitEvents() {
         fat:         +document.getElementById('qf-fat').value     || 0,
         fiber:       +document.getElementById('qf-fiber').value   || 0,
         piece_grams: +document.getElementById('qf-piece').value   || null,
+        is_liquid:   document.getElementById('qf-liquid').checked,
       },
       grams,
       meal: document.getElementById('qf-meal').value,
@@ -484,6 +566,7 @@ function dashInitEvents() {
 }
 
 function _resetQuickFoodForm() {
+  document.getElementById('qf-liquid').checked = false;
   ['qf-name','qf-kcal','qf-protein','qf-carbs','qf-fat','qf-fiber','qf-grams','qf-piece'].forEach(id => {
     document.getElementById(id).value = '';
   });

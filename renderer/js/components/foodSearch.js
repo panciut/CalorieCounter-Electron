@@ -29,8 +29,10 @@ class FoodSearch {
   _onInput() {
     const q = this.input.value.trim();
     if (!q || !this.fuse) { this._hide(); return; }
-    const hits = this.fuse.search(q).slice(0, 10).map(r => r.item);
-    this._render(hits);
+    const hits = this.fuse.search(q).slice(0, 15).map(r => r.item);
+    // Boost frequent foods to the top while keeping fuzzy relevance
+    hits.sort((a, b) => (b._freq || 0) - (a._freq || 0));
+    this._render(hits.slice(0, 10));
   }
 
   _render(items) {

@@ -32,6 +32,8 @@ document.addEventListener('keydown', (e) => {
       '6': 'supplements',
       '7': 'goals',
       '8': 'settings',
+      '9': 'templates',
+      '0': 'measurements',
     };
     if (pageMap[e.key]) {
       e.preventDefault();

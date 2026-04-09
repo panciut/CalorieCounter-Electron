@@ -16,8 +16,10 @@
   <a href="#" class="nav-link" data-page="history"><kbd>4</kbd><span data-i18n="nav.history">History</span></a>
   <a href="#" class="nav-link" data-page="weight"><kbd>5</kbd><span data-i18n="nav.weight">Weight</span></a>
   <a href="#" class="nav-link" data-page="supplements"><kbd>6</kbd><span data-i18n="nav.supplements">Supplements</span></a>
+  <a href="#" class="nav-link" data-page="measurements"><kbd>0</kbd><span data-i18n="nav.measurements">Measurements</span></a>
   <a href="#" class="nav-link" data-page="goals"><kbd>7</kbd><span data-i18n="nav.goals">Goals</span></a>
   <a href="#" class="nav-link" data-page="settings"><kbd>8</kbd><span data-i18n="nav.settings">Settings</span></a>
+  <a href="#" class="nav-link" data-page="templates"><kbd>9</kbd><span data-i18n="nav.templates">Templates</span></a>
 </nav>
 
 <main>
@@ -25,6 +27,8 @@
   <!-- ═══════════ DASHBOARD ═══════════ -->
   <section id="page-dashboard" class="page">
     <h1 id="dash-date"></h1>
+
+    <div class="budget-remaining" id="dash-remaining"></div>
 
     <section class="totals">
       <div class="macro"><span id="dash-kcal">0</span><span data-i18n="macro.kcal">kcal</span></div>
@@ -83,6 +87,18 @@
       </div>
     </section>
 
+    <!-- Streak -->
+    <section class="streak-card">
+      <div class="streak-item">
+        <span class="streak-number" id="streak-current">0</span>
+        <span class="streak-label" data-i18n="streak.current">Current streak</span>
+      </div>
+      <div class="streak-item">
+        <span class="streak-number" id="streak-best">0</span>
+        <span class="streak-label" data-i18n="streak.best">Best streak</span>
+      </div>
+    </section>
+
     <!-- Supplements -->
     <section id="dash-supplements-section" style="display:none">
       <div class="section-header">
@@ -98,10 +114,17 @@
       <div class="quick-add-row" id="favorites-row"></div>
     </section>
 
+    <!-- Frequent foods -->
+    <section id="frequent-section" style="display:none">
+      <h2 data-i18n="dash.frequent">Frequent</h2>
+      <div class="quick-add-row" id="frequent-row"></div>
+    </section>
+
     <!-- Log food -->
     <section>
       <div class="section-header">
         <h2 data-i18n="dash.logFood">Log food</h2>
+        <button type="button" class="btn-secondary" id="dash-apply-template" data-i18n="templates.apply">Apply</button>
         <button type="button" class="btn-secondary" id="dash-open-quick" data-i18n="dash.newFood">+ New food</button>
       </div>
       <div class="food-search-wrap">
@@ -137,11 +160,30 @@
       <h2 data-i18n="dash.todayEntries">Today's entries</h2>
       <div id="dash-entries"></div>
     </section>
+
+    <section>
+      <h2 data-i18n="dash.notes">Notes</h2>
+      <textarea id="dash-notes" class="daily-notes" rows="3" data-i18n-placeholder="dash.notesPlaceholder" placeholder="Add notes for today..."></textarea>
+    </section>
   </section>
 
   <!-- ═══════════ FOODS ═══════════ -->
   <section id="page-foods" class="page" style="display:none">
-    <h1 data-i18n="foods.title">Food database</h1>
+    <div class="section-header">
+      <h1 data-i18n="foods.title">Food database</h1>
+      <button type="button" class="btn-secondary" id="foods-import-btn" data-i18n="import.foods">Import</button>
+    </div>
+
+    <section>
+      <h2 data-i18n="barcode.addByBarcode">Add by barcode</h2>
+      <div class="barcode-wrap">
+        <input type="text" id="foods-barcode" class="search-input" data-i18n-placeholder="barcode.placeholder" placeholder="Enter barcode..." autocomplete="off">
+        <button type="button" id="foods-barcode-btn" class="btn-secondary" data-i18n="barcode.lookup">Lookup</button>
+        <button type="button" class="btn-secondary barcode-inline-cam" data-target="foods-barcode" data-cam="mac" title="Mac webcam">💻</button>
+        <button type="button" class="btn-secondary barcode-inline-cam" data-target="foods-barcode" data-cam="iphone" title="iPhone">📱</button>
+        <span id="foods-barcode-status" class="barcode-status"></span>
+      </div>
+    </section>
 
     <section>
       <h2><span data-i18n="foods.addTitle">Add food</span> <small>(<span data-i18n="foods.valuesPerLabel">values per 100g</span>)</small></h2>
@@ -153,6 +195,7 @@
         <input type="number" id="f-fat"     data-i18n-placeholder="foods.fatPlaceholder" placeholder="fat g (opt.)"      min="0" step="0.1">
         <input type="number" id="f-fiber"   data-i18n-placeholder="foods.fiberPlaceholder" placeholder="fiber g (opt.)"    min="0" step="0.1">
         <input type="number" id="f-piece"   data-i18n-placeholder="foods.piecePlaceholder" placeholder="g/piece (opt.)"    min="0.1" step="0.1">
+        <label class="liquid-check"><input type="checkbox" id="f-liquid"> 💧 <span data-i18n="foods.liquid">Liquid</span></label>
         <button type="submit" data-i18n="common.add">Add</button>
       </form>
       <div class="preset-row" style="margin-top:8px">
@@ -278,6 +321,38 @@
     </section>
   </section>
 
+  <!-- ═══════════ TEMPLATES ═══════════ -->
+  <section id="page-templates" class="page" style="display:none">
+    <h1 data-i18n="templates.title">Meal Templates</h1>
+    <section>
+      <button type="button" class="btn-secondary" id="tpl-save-today" data-i18n="templates.saveToday">Save today as template</button>
+    </section>
+    <div id="templates-list"></div>
+  </section>
+
+  <!-- ═══════════ MEASUREMENTS ═══════════ -->
+  <section id="page-measurements" class="page" style="display:none">
+    <h1 data-i18n="meas.title">Body Measurements</h1>
+    <section>
+      <h2 data-i18n="meas.addTitle">Log Measurements</h2>
+      <form class="settings-form" id="meas-add-form">
+        <div class="settings-row"><label>Date</label><input type="date" id="meas-date"></div>
+        <div class="settings-row"><label data-i18n="meas.waist">Waist (cm)</label><input type="number" id="meas-waist" min="0" step="0.1"></div>
+        <div class="settings-row"><label data-i18n="meas.chest">Chest (cm)</label><input type="number" id="meas-chest" min="0" step="0.1"></div>
+        <div class="settings-row"><label data-i18n="meas.arms">Arms (cm)</label><input type="number" id="meas-arms" min="0" step="0.1"></div>
+        <div class="settings-row"><label data-i18n="meas.thighs">Thighs (cm)</label><input type="number" id="meas-thighs" min="0" step="0.1"></div>
+        <div class="settings-row"><label data-i18n="meas.hips">Hips (cm)</label><input type="number" id="meas-hips" min="0" step="0.1"></div>
+        <div class="settings-row"><label data-i18n="meas.neck">Neck (cm)</label><input type="number" id="meas-neck" min="0" step="0.1"></div>
+        <button type="submit" data-i18n="common.save">Save</button>
+      </form>
+    </section>
+    <section class="chart-card" id="meas-chart-card" style="display:none">
+      <canvas id="meas-line-canvas" height="200"></canvas>
+      <div class="chart-legend" id="meas-legend"></div>
+    </section>
+    <section><div id="meas-table-wrap"></div></section>
+  </section>
+
   <!-- ═══════════ GOALS ═══════════ -->
   <section id="page-goals" class="page" style="display:none">
     <h1 data-i18n="nav.goals">Goals</h1>
@@ -312,6 +387,27 @@
         </button>
       </div>
     </section>
+    <section>
+      <h2 data-i18n="settings.theme">Theme</h2>
+      <div class="lang-selector">
+        <button class="theme-btn" data-theme="dark">
+          <span class="lang-flag">&#x1F319;</span>
+          <span data-i18n="settings.dark">Dark</span>
+        </button>
+        <button class="theme-btn" data-theme="light">
+          <span class="lang-flag">&#x2600;&#xFE0F;</span>
+          <span data-i18n="settings.light">Light</span>
+        </button>
+      </div>
+    </section>
+    <section>
+      <h2 data-i18n="export.title">Export Data</h2>
+      <div class="lang-selector">
+        <button class="btn-secondary" id="export-json" data-i18n="export.json">Export JSON</button>
+        <button class="btn-secondary" id="export-csv" data-i18n="export.csv">Export CSV</button>
+      </div>
+      <p id="export-status" style="display:none; margin-top:8px; font-size:14px"></p>
+    </section>
   </section>
 
 </main>
@@ -325,6 +421,13 @@
     <button type="button" class="dialog-close" data-close="quick-food-dialog">✕</button>
   </div>
   <div class="dialog-form">
+    <div class="barcode-wrap">
+      <input type="text" id="qf-barcode" class="search-input" data-i18n-placeholder="barcode.placeholder" placeholder="Enter barcode..." autocomplete="off">
+      <button type="button" id="qf-barcode-btn" class="btn-secondary" data-i18n="barcode.lookup">Lookup</button>
+      <button type="button" class="btn-secondary barcode-inline-cam" data-target="qf-barcode" data-cam="mac" title="Mac webcam">💻</button>
+      <button type="button" class="btn-secondary barcode-inline-cam" data-target="qf-barcode" data-cam="iphone" title="iPhone">📱</button>
+      <span id="qf-barcode-status" class="barcode-status"></span>
+    </div>
     <div class="dialog-field">
       <label data-i18n="qf.foodName">Food name</label>
       <input type="text" id="qf-name" data-i18n-placeholder="qf.foodNamePlaceholder" placeholder="e.g. Cottage Cheese" required autocomplete="off">
@@ -370,6 +473,9 @@
       <div class="dialog-field">
         <label><span data-i18n="qf.gPerPiece">g / piece</span> <span class="optional" data-i18n="common.opt">(opt.)</span></label>
         <input type="number" id="qf-piece" placeholder="—" min="0.1" step="0.1">
+      </div>
+      <div class="dialog-field" style="justify-content:center">
+        <label class="liquid-check"><input type="checkbox" id="qf-liquid"> 💧 <span data-i18n="foods.liquid">Liquid</span></label>
       </div>
     </div>
     <div class="dialog-actions">
@@ -464,6 +570,53 @@
   </div>
 </dialog>
 
+<!-- Template name dialog -->
+<dialog id="template-name-dialog">
+  <div class="dialog-header">
+    <h2 data-i18n="templates.name">Template name</h2>
+    <button type="button" class="dialog-close" data-close="template-name-dialog">✕</button>
+  </div>
+  <div class="dialog-form">
+    <div class="dialog-field">
+      <label data-i18n="templates.name">Template name</label>
+      <input type="text" id="tpl-name-input" placeholder="My template" autocomplete="off">
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn-secondary" data-close="template-name-dialog" data-i18n="common.cancel">Cancel</button>
+      <button type="button" id="tpl-name-submit" class="btn-primary" data-i18n="common.save">Save</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Template pick dialog (dashboard) -->
+<dialog id="template-pick-dialog">
+  <div class="dialog-header">
+    <h2 data-i18n="templates.title">Meal Templates</h2>
+    <button type="button" class="dialog-close" data-close="template-pick-dialog">✕</button>
+  </div>
+  <div class="dialog-form">
+    <div id="tpl-pick-list"></div>
+    <div class="dialog-actions">
+      <button type="button" class="btn-secondary" data-close="template-pick-dialog" data-i18n="common.cancel">Cancel</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Barcode scanner dialog -->
+<dialog id="barcode-scanner-dialog">
+  <div class="dialog-header">
+    <h2 data-i18n="barcode.scanTitle">Scan Barcode</h2>
+    <button type="button" class="dialog-close" data-close="barcode-scanner-dialog">✕</button>
+  </div>
+  <div class="dialog-form">
+    <div class="barcode-camera-picker" id="barcode-camera-picker"></div>
+    <div id="barcode-scanner-view"></div>
+    <p id="barcode-scanner-status" style="text-align:center; color:var(--text-sec); font-size:13px; margin-top:8px">Point camera at barcode...</p>
+  </div>
+</dialog>
+
+<div id="undo-toast" class="toast" style="display:none"></div>
+
 <!-- ═══════════ SCRIPTS ═══════════ -->
 <script src="../node_modules/chart.js/dist/chart.umd.js"></script>
 <script src="../node_modules/fuse.js/dist/fuse.min.js"></script>
@@ -472,6 +625,8 @@
 <script src="js/api.js"></script>
 <script src="js/components/macroChart.js"></script>
 <script src="js/components/barChart.js"></script>
+<script src="../node_modules/html5-qrcode/html5-qrcode.min.js"></script>
+<script src="js/components/barcodeScanner.js"></script>
 <script src="js/components/foodSearch.js"></script>
 <script src="js/pages/dashboard.js"></script>
 <script src="js/pages/foods.js"></script>
@@ -481,7 +636,10 @@
 <script src="js/pages/day.js"></script>
 <script src="js/pages/weight.js"></script>
 <script src="js/pages/supplements.js"></script>
+<script src="js/pages/measurements.js"></script>
+<script src="js/pages/templates.js"></script>
 <script src="js/pages/settings.js"></script>
+<script src="js/undo.js"></script>
 <script src="js/router.js"></script>
 <script src="js/shortcuts.js"></script>
 </body>

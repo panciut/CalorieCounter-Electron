@@ -12,7 +12,7 @@ function _renderFoodsTable(foods) {
 
   const table = document.createElement('table');
   table.innerHTML = `<thead><tr>
-    <th>${t('common.name')}</th><th>${t('th.kcal')}</th><th>${t('th.protein')}</th><th>${t('th.carbs')}</th><th>${t('th.fat')}</th><th>${t('th.fiber')}</th><th>${t('th.piece')}</th><th>★</th><th></th>
+    <th>${t('common.name')}</th><th>${t('th.kcal')}</th><th>${t('th.protein')}</th><th>${t('th.carbs')}</th><th>${t('th.fat')}</th><th>${t('th.fiber')}</th><th>${t('th.piece')}</th><th>${t('th.liquid')}</th><th>★</th><th></th>
   </tr></thead>`;
   const tbody = document.createElement('tbody');
 
@@ -26,6 +26,7 @@ function _renderFoodsTable(foods) {
       <td>${f.fat}g</td>
       <td>${f.fiber || 0}g</td>
       <td>${f.piece_grams ? f.piece_grams + 'g' : '—'}</td>
+      <td>${f.is_liquid ? '💧' : ''}</td>
       <td>
         <button class="fav-btn ${f.favorite ? 'fav-on' : ''}" data-id="${f.id}">★</button>
       </td>
@@ -38,7 +39,7 @@ function _renderFoodsTable(foods) {
     editTr.id = `food-edit-${f.id}`;
     editTr.style.display = 'none';
     editTr.className = 'edit-row';
-    editTr.innerHTML = `<td colspan="9"><div class="inline-form">
+    editTr.innerHTML = `<td colspan="10"><div class="inline-form">
       <input type="text"   class="edit-name"  value="${f.name}" placeholder="Name" required>
       <input type="number" class="edit-kcal"   value="${f.calories}" placeholder="kcal" min="0" step="0.1" required>
       <input type="number" class="edit-protein" value="${f.protein}" placeholder="protein" min="0" step="0.1">
@@ -46,6 +47,7 @@ function _renderFoodsTable(foods) {
       <input type="number" class="edit-fat"    value="${f.fat}" placeholder="fat" min="0" step="0.1">
       <input type="number" class="edit-fiber"  value="${f.fiber || ''}" placeholder="fiber" min="0" step="0.1">
       <input type="number" class="edit-piece"  value="${f.piece_grams || ''}" placeholder="piece g" min="0" step="0.1">
+      <label class="liquid-check"><input type="checkbox" class="edit-liquid" ${f.is_liquid ? 'checked' : ''}> 💧</label>
       <button class="edit-save btn-primary" data-id="${f.id}">Save</button>
       <button class="edit-cancel btn-secondary" data-id="${f.id}">Cancel</button>
     </div></td>`;
@@ -87,6 +89,7 @@ function _renderFoodsTable(foods) {
         fat:         +row.querySelector('.edit-fat').value || 0,
         fiber:       +row.querySelector('.edit-fiber').value || 0,
         piece_grams: +row.querySelector('.edit-piece').value || null,
+        is_liquid:   row.querySelector('.edit-liquid').checked,
       });
       foodsOnEnter();
     });
@@ -109,6 +112,35 @@ function _renderFoodsTable(foods) {
 }
 
 function foodsInitEvents() {
+  // Barcode lookup → pre-fill add form
+  document.getElementById('foods-barcode-btn').addEventListener('click', async () => {
+    const barcode = document.getElementById('foods-barcode').value.trim();
+    const statusEl = document.getElementById('foods-barcode-status');
+    if (!barcode) return;
+    statusEl.textContent = '...';
+    statusEl.className = 'barcode-status';
+    const result = await api.barcode.lookup(barcode);
+    if (result) {
+      statusEl.textContent = t('barcode.found');
+      statusEl.className = 'barcode-status barcode-ok';
+      document.getElementById('f-name').value    = result['name_' + getCurrentLang()] || result.name;
+      document.getElementById('f-kcal').value    = result.calories;
+      document.getElementById('f-protein').value = result.protein;
+      document.getElementById('f-carbs').value   = result.carbs;
+      document.getElementById('f-fat').value     = result.fat;
+      document.getElementById('f-fiber').value   = result.fiber;
+      document.getElementById('f-liquid').checked = !!result.is_liquid;
+      document.getElementById('f-name').focus();
+    } else {
+      statusEl.textContent = t('barcode.notFound');
+      statusEl.className = 'barcode-status barcode-err';
+    }
+    document.getElementById('foods-barcode').value = '';
+  });
+  document.getElementById('foods-barcode').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); document.getElementById('foods-barcode-btn').click(); }
+  });
+
   // Add food form
   document.getElementById('foods-add-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -122,10 +154,24 @@ function foodsInitEvents() {
       fat:         +document.getElementById('f-fat').value     || 0,
       fiber:       +document.getElementById('f-fiber').value   || 0,
       piece_grams: +document.getElementById('f-piece').value   || null,
+      is_liquid:   document.getElementById('f-liquid').checked,
     });
     e.target.reset();
     document.querySelectorAll('.preset-btn[data-form="foods"]').forEach(b => b.classList.remove('preset-active'));
     foodsOnEnter();
+  });
+
+  // Import button
+  document.getElementById('foods-import-btn').addEventListener('click', async () => {
+    const filePath = await api.import.selectFile();
+    if (!filePath) return;
+    try {
+      const result = await api.import.foods({ filePath });
+      alert(t('import.success').replace('{n}', result.imported).replace('{s}', result.skipped));
+      foodsOnEnter();
+    } catch (e) {
+      alert(t('import.error'));
+    }
   });
 
   // Macro preset buttons

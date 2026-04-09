@@ -1,5 +1,6 @@
 const { ipcMain } = require('electron');
 const { getDb } = require('../db');
+const { pushUndo } = require('./undo.ipc');
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -27,9 +28,17 @@ function registerLogIpc() {
   });
 
   ipcMain.handle('log:add', (_, { food_id, grams, meal, date }) => {
-    const result = getDb().prepare(
+    const db = getDb();
+    const d = date || today();
+    const result = db.prepare(
       'INSERT INTO log (date, food_id, grams, meal) VALUES (?, ?, ?, ?)'
-    ).run(date || today(), food_id, grams, meal || 'Snack');
+    ).run(d, food_id, grams, meal || 'Snack');
+    pushUndo('log:add', { id: result.lastInsertRowid });
+    // Auto-add water for liquid foods (grams ≈ ml)
+    const food = db.prepare('SELECT is_liquid FROM foods WHERE id = ?').get(food_id);
+    if (food && food.is_liquid) {
+      db.prepare('INSERT INTO water_log (date, ml) VALUES (?, ?)').run(d, grams);
+    }
     return { id: result.lastInsertRowid };
   });
 
@@ -38,11 +47,14 @@ function registerLogIpc() {
     const d = date || today();
     return db.transaction(() => {
       const foodResult = db.prepare(
-        'INSERT INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams) VALUES (?, ?, ?, ?, ?, ?, ?)'
-      ).run(food.name, food.calories, food.protein || 0, food.carbs || 0, food.fat || 0, food.fiber || 0, food.piece_grams || null);
+        'INSERT INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(food.name, food.calories, food.protein || 0, food.carbs || 0, food.fat || 0, food.fiber || 0, food.piece_grams || null, food.is_liquid ? 1 : 0);
       const logResult = db.prepare(
         'INSERT INTO log (date, food_id, grams, meal) VALUES (?, ?, ?, ?)'
       ).run(d, foodResult.lastInsertRowid, grams, meal || 'Snack');
+      if (food.is_liquid) {
+        db.prepare('INSERT INTO water_log (date, ml) VALUES (?, ?)').run(d, grams);
+      }
       return { id: logResult.lastInsertRowid, food_id: foodResult.lastInsertRowid };
     })();
   });
@@ -55,7 +67,10 @@ function registerLogIpc() {
   });
 
   ipcMain.handle('log:delete', (_, { id }) => {
-    getDb().prepare('DELETE FROM log WHERE id = ?').run(id);
+    const db = getDb();
+    const row = db.prepare('SELECT date, food_id, grams, meal FROM log WHERE id = ?').get(id);
+    if (row) pushUndo('log:delete', { date: row.date, food_id: row.food_id, grams: row.grams, meal: row.meal });
+    db.prepare('DELETE FROM log WHERE id = ?').run(id);
     return { ok: true };
   });
 

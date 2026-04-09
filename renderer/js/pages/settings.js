@@ -38,16 +38,65 @@ function settingsInitEvents() {
       _updateLangButtons(lang);
     });
   });
+
+  // Theme buttons
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const theme = btn.dataset.theme;
+      await api.settings.save({ theme });
+      applyTheme(theme);
+    });
+  });
+
+  // Export buttons
+  document.getElementById('export-json').addEventListener('click', async () => {
+    const result = await api.export.data('json');
+    const status = document.getElementById('export-status');
+    if (result.ok) {
+      status.textContent = t('export.success');
+      status.style.color = 'var(--green)';
+    } else {
+      status.textContent = '';
+    }
+    status.style.display = result.ok ? '' : 'none';
+    if (result.ok) setTimeout(() => { status.style.display = 'none'; }, 3000);
+  });
+
+  document.getElementById('export-csv').addEventListener('click', async () => {
+    const result = await api.export.data('csv');
+    const status = document.getElementById('export-status');
+    if (result.ok) {
+      status.textContent = t('export.success');
+      status.style.color = 'var(--green)';
+    } else {
+      status.textContent = '';
+    }
+    status.style.display = result.ok ? '' : 'none';
+    if (result.ok) setTimeout(() => { status.style.display = 'none'; }, 3000);
+  });
 }
 
 // ── Settings page ───────────────────────────────────────────────────────────
 
 function settingsPageOnEnter() {
   _updateLangButtons(getCurrentLang());
+  _updateThemeButtons();
 }
 
 function _updateLangButtons(lang) {
   document.querySelectorAll('.lang-btn').forEach(btn => {
     btn.classList.toggle('lang-active', btn.dataset.lang === lang);
   });
+}
+
+function _updateThemeButtons() {
+  const current = document.body.classList.contains('light') ? 'light' : 'dark';
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.classList.toggle('lang-active', btn.dataset.theme === current);
+  });
+}
+
+function applyTheme(theme) {
+  document.body.classList.toggle('light', theme === 'light');
+  _updateThemeButtons();
 }

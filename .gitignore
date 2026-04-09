@@ -3,3 +3,5 @@ dist/
 out/
 *.db
 .DS_Store
+.agents/
+.claude/skills/

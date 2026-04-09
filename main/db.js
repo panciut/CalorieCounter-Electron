@@ -67,6 +67,11 @@ function initDb() {
       ml REAL NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS daily_notes (
+      date TEXT PRIMARY KEY,
+      note TEXT NOT NULL DEFAULT ''
+    );
+
     CREATE TABLE IF NOT EXISTS supplements (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -81,6 +86,34 @@ function initDb() {
       FOREIGN KEY (supplement_id) REFERENCES supplements(id) ON DELETE CASCADE,
       UNIQUE(supplement_id, date)
     );
+
+    CREATE TABLE IF NOT EXISTS meal_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE
+    );
+
+    CREATE TABLE IF NOT EXISTS template_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      template_id INTEGER NOT NULL,
+      food_id INTEGER NOT NULL,
+      grams REAL NOT NULL,
+      meal TEXT NOT NULL DEFAULT 'Snack',
+      FOREIGN KEY (template_id) REFERENCES meal_templates(id) ON DELETE CASCADE,
+      FOREIGN KEY (food_id) REFERENCES foods(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS body_measurements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      waist REAL, chest REAL, arms REAL, thighs REAL, hips REAL, neck REAL
+    );
+
+    CREATE TABLE IF NOT EXISTS undo_stack (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+      action TEXT NOT NULL,
+      data TEXT NOT NULL
+    );
   `);
 
   // Migrations: add columns that may not exist in imported databases
@@ -89,6 +122,7 @@ function initDb() {
     "ALTER TABLE foods ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE log ADD COLUMN meal TEXT NOT NULL DEFAULT 'Snack'",
     "ALTER TABLE foods ADD COLUMN fiber REAL NOT NULL DEFAULT 0",
+    "ALTER TABLE foods ADD COLUMN is_liquid INTEGER NOT NULL DEFAULT 0",
   ];
   for (const stmt of migrations) {
     try { database.exec(stmt); } catch (_) {}
@@ -107,6 +141,7 @@ function initDb() {
     ['fiber_goal', '25'],
     ['water_goal', '2000'],
     ['language', 'en'],
+    ['theme', 'dark'],
   ]) {
     insertSetting.run(key, val);
   }

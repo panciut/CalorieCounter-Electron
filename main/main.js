@@ -9,7 +9,15 @@ const registerRecipesIpc  = require('./ipc/recipes.ipc');
 const registerWaterIpc    = require('./ipc/water.ipc');
 const registerWeightIpc   = require('./ipc/weight.ipc');
 const registerSettingsIpc     = require('./ipc/settings.ipc');
+const registerBarcodeIpc     = require('./ipc/barcode.ipc');
+const registerNotesIpc       = require('./ipc/notes.ipc');
+const registerStreaksIpc     = require('./ipc/streaks.ipc');
 const registerSupplementsIpc = require('./ipc/supplements.ipc');
+const registerTemplatesIpc  = require('./ipc/templates.ipc');
+const registerImportIpc     = require('./ipc/import.ipc');
+const registerExportIpc     = require('./ipc/export.ipc');
+const registerMeasurementsIpc = require('./ipc/measurements.ipc');
+const { registerUndoIpc }     = require('./ipc/undo.ipc');
 
 let mainWindow;
 
@@ -53,7 +61,15 @@ app.whenReady().then(() => {
   registerWaterIpc();
   registerWeightIpc();
   registerSettingsIpc();
+  registerBarcodeIpc();
+  registerNotesIpc();
+  registerStreaksIpc();
   registerSupplementsIpc();
+  registerTemplatesIpc();
+  registerImportIpc();
+  registerExportIpc();
+  registerMeasurementsIpc();
+  registerUndoIpc();
 
   createWindow();
 

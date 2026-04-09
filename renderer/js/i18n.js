@@ -64,6 +64,24 @@ const _translations = {
     'dash.switchToGrams':   'switch to grams',
     'dash.switchToPieces':  'switch to pieces',
     'dash.logRecipe':       'Log recipe',
+    'dash.remaining':       'remaining',
+    'dash.overBy':          'Over by',
+    'barcode.addByBarcode': 'Add by barcode',
+    'barcode.placeholder':  'Enter barcode...',
+    'barcode.lookup':       'Lookup',
+    'barcode.notFound':     'Product not found',
+    'barcode.found':        'Product found!',
+    'barcode.scanTitle':    'Scan Barcode',
+    'barcode.pointCamera':  'Point camera at barcode...',
+    'barcode.selectCamera': 'Select a camera and press Start',
+    'barcode.startScan':    'Start',
+    'barcode.cameraError':  'Could not access camera',
+    'streak.current':       'Current streak',
+    'streak.best':          'Best streak',
+    'streak.days':          'days',
+    'dash.notes':           'Notes',
+    'dash.notesPlaceholder':'Add notes for today...',
+    'dash.frequent':        'Frequent',
     'dash.custom':          '+ Custom',
 
     // ── Foods page ──
@@ -171,6 +189,9 @@ const _translations = {
     'settings.goalWeight':  'Goal weight (kg)',
     'settings.waterGoal':   'Daily water goal (ml)',
     'settings.language':    'Language',
+    'settings.theme':       'Theme',
+    'settings.dark':        'Dark',
+    'settings.light':       'Light',
 
     // ── Water dialog ──
     'water.addWater':       'Add water',
@@ -185,6 +206,44 @@ const _translations = {
     'th.fat':      'fat',
     'th.fiber':    'fiber',
     'th.piece':    'piece',
+    'th.liquid':   '💧',
+    'foods.liquid': 'Liquid',
+
+    // ── Templates ──
+    'nav.templates':       'Templates',
+    'templates.title':     'Meal Templates',
+    'templates.saveToday': 'Save today as template',
+    'templates.apply':     'Apply',
+    'templates.noTemplates': 'No templates yet.',
+    'templates.name':      'Template name',
+    'templates.applied':   'Template applied!',
+    'templates.items':     'items',
+
+    // ── Import ──
+    'import.foods':   'Import',
+    'import.success': 'Imported {n} foods, {s} skipped',
+    'import.error':   'Import failed',
+
+    // ── Export ──
+    'export.title':   'Export Data',
+    'export.json':    'Export JSON',
+    'export.csv':     'Export CSV',
+    'export.success': 'Data exported successfully',
+
+    // ── Measurements ──
+    'nav.measurements': 'Measurements',
+    'meas.title':       'Body Measurements',
+    'meas.addTitle':    'Log Measurements',
+    'meas.waist':       'Waist (cm)',
+    'meas.chest':       'Chest (cm)',
+    'meas.arms':        'Arms (cm)',
+    'meas.thighs':      'Thighs (cm)',
+    'meas.hips':        'Hips (cm)',
+    'meas.neck':        'Neck (cm)',
+    'meas.noEntries':   'No measurements yet.',
+
+    // ── Undo ──
+    'undo.undone':      'Undone',
   },
 
   it: {
@@ -249,6 +308,24 @@ const _translations = {
     'dash.switchToGrams':   'cambia a grammi',
     'dash.switchToPieces':  'cambia a pezzi',
     'dash.logRecipe':       'Registra ricetta',
+    'dash.remaining':       'rimanenti',
+    'dash.overBy':          'Oltre di',
+    'barcode.addByBarcode': 'Aggiungi tramite codice a barre',
+    'barcode.placeholder':  'Inserisci codice a barre...',
+    'barcode.lookup':       'Cerca',
+    'barcode.notFound':     'Prodotto non trovato',
+    'barcode.found':        'Prodotto trovato!',
+    'barcode.scanTitle':    'Scansiona Codice a Barre',
+    'barcode.pointCamera':  'Punta la fotocamera sul codice a barre...',
+    'barcode.selectCamera': 'Seleziona una fotocamera e premi Avvia',
+    'barcode.startScan':    'Avvia',
+    'barcode.cameraError':  'Impossibile accedere alla fotocamera',
+    'streak.current':       'Serie attuale',
+    'streak.best':          'Miglior serie',
+    'streak.days':          'giorni',
+    'dash.notes':           'Note',
+    'dash.notesPlaceholder':'Aggiungi note per oggi...',
+    'dash.frequent':        'Frequenti',
     'dash.custom':          '+ Personalizzato',
 
     // ── Foods page ──
@@ -356,6 +433,9 @@ const _translations = {
     'settings.goalWeight':  'Peso obiettivo (kg)',
     'settings.waterGoal':   'Obiettivo acqua (ml)',
     'settings.language':    'Lingua',
+    'settings.theme':       'Tema',
+    'settings.dark':        'Scuro',
+    'settings.light':       'Chiaro',
 
     // ── Water dialog ──
     'water.addWater':       'Aggiungi acqua',
@@ -370,6 +450,44 @@ const _translations = {
     'th.fat':      'grassi',
     'th.fiber':    'fibre',
     'th.piece':    'pezzo',
+    'th.liquid':   '💧',
+    'foods.liquid': 'Liquido',
+
+    // ── Templates ──
+    'nav.templates':       'Modelli',
+    'templates.title':     'Modelli pasto',
+    'templates.saveToday': 'Salva oggi come modello',
+    'templates.apply':     'Applica',
+    'templates.noTemplates': 'Nessun modello.',
+    'templates.name':      'Nome modello',
+    'templates.applied':   'Modello applicato!',
+    'templates.items':     'elementi',
+
+    // ── Import ──
+    'import.foods':   'Importa',
+    'import.success': 'Importati {n} cibi, {s} saltati',
+    'import.error':   'Importazione fallita',
+
+    // ── Export ──
+    'export.title':   'Esporta Dati',
+    'export.json':    'Esporta JSON',
+    'export.csv':     'Esporta CSV',
+    'export.success': 'Dati esportati con successo',
+
+    // ── Measurements ──
+    'nav.measurements': 'Misure',
+    'meas.title':       'Misure Corporee',
+    'meas.addTitle':    'Registra Misure',
+    'meas.waist':       'Vita (cm)',
+    'meas.chest':       'Petto (cm)',
+    'meas.arms':        'Braccia (cm)',
+    'meas.thighs':      'Cosce (cm)',
+    'meas.hips':        'Fianchi (cm)',
+    'meas.neck':        'Collo (cm)',
+    'meas.noEntries':   'Nessuna misura registrata.',
+
+    // ── Undo ──
+    'undo.undone':      'Annullato',
   },
 };
 
