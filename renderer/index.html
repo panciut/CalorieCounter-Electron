@@ -19,7 +19,6 @@
   <a href="#" class="nav-link" data-page="measurements"><kbd>0</kbd><span data-i18n="nav.measurements">Measurements</span></a>
   <a href="#" class="nav-link" data-page="goals"><kbd>7</kbd><span data-i18n="nav.goals">Goals</span></a>
   <a href="#" class="nav-link" data-page="settings"><kbd>8</kbd><span data-i18n="nav.settings">Settings</span></a>
-  <a href="#" class="nav-link" data-page="templates"><kbd>9</kbd><span data-i18n="nav.templates">Templates</span></a>
 </nav>
 
 <main>
@@ -126,8 +125,7 @@
     <section>
       <div class="section-header">
         <h2 data-i18n="dash.logFood">Log food</h2>
-        <button type="button" class="btn-secondary" id="dash-apply-template" data-i18n="templates.apply">Apply</button>
-        <button type="button" class="btn-secondary" id="dash-open-quick" data-i18n="dash.newFood">+ New food</button>
+<button type="button" class="btn-secondary" id="dash-open-quick" data-i18n="dash.newFood">+ New food</button>
       </div>
       <div class="food-search-wrap">
         <input type="text" id="dash-food-input" class="search-input" data-i18n-placeholder="dash.searchPlaceholder" placeholder="Search food or recipe…" autocomplete="off">
@@ -211,6 +209,7 @@
     </section>
 
     <section>
+      <input type="text" id="foods-search" class="search-input" data-i18n-placeholder="foods.searchPlaceholder" placeholder="Search foods…" autocomplete="off" style="margin-bottom:12px;width:100%;box-sizing:border-box">
       <div id="foods-table-wrap"></div>
     </section>
   </section>

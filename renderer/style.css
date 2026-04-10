@@ -757,7 +757,7 @@ dialog::backdrop {
   display: flex;
   gap: 12px;
 }
-.lang-btn {
+.lang-btn, .theme-btn {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -771,8 +771,8 @@ dialog::backdrop {
   font-weight: 500;
   transition: border-color 0.15s, background 0.15s;
 }
-.lang-btn:hover { border-color: var(--accent); background: var(--card-hover); }
-.lang-btn.lang-active { border-color: var(--accent); background: rgba(196,92,0,0.12); }
+.lang-btn:hover, .theme-btn:hover { border-color: var(--accent); background: var(--card-hover); }
+.lang-btn.lang-active, .theme-btn.lang-active { border-color: var(--accent); background: rgba(196,92,0,0.12); }
 .lang-flag { font-size: 28px; line-height: 1; }
 
 /* ── Supplements checklist ── */

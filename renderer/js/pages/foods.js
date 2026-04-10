@@ -1,6 +1,9 @@
+let _allFoods = [];
+
 async function foodsOnEnter() {
-  const foods = await api.foods.getAll();
-  _renderFoodsTable(foods);
+  _allFoods = await api.foods.getAll();
+  const q = document.getElementById('foods-search').value.trim().toLowerCase();
+  _renderFoodsTable(q ? _allFoods.filter(f => f.name.toLowerCase().includes(q)) : _allFoods);
 }
 
 function _renderFoodsTable(foods) {
@@ -112,6 +115,12 @@ function _renderFoodsTable(foods) {
 }
 
 function foodsInitEvents() {
+  // Search filter
+  document.getElementById('foods-search').addEventListener('input', () => {
+    const q = document.getElementById('foods-search').value.trim().toLowerCase();
+    _renderFoodsTable(q ? _allFoods.filter(f => f.name.toLowerCase().includes(q)) : _allFoods);
+  });
+
   // Barcode lookup → pre-fill add form
   document.getElementById('foods-barcode-btn').addEventListener('click', async () => {
     const barcode = document.getElementById('foods-barcode').value.trim();

@@ -197,6 +197,7 @@ const _translations = {
     'water.addWater':       'Add water',
     'water.amountMl':       'Amount (ml)',
     'water.manual':         'Water',
+    'foods.searchPlaceholder': 'Search foods…',
 
     // ── Table headers ──
     'th.food':     'Food',
@@ -442,6 +443,7 @@ const _translations = {
     'water.addWater':       'Aggiungi acqua',
     'water.amountMl':       'Quantit\u00e0 (ml)',
     'water.manual':         'Acqua',
+    'foods.searchPlaceholder': 'Cerca alimenti…',
 
     // ── Table headers ──
     'th.food':     'Cibo',
