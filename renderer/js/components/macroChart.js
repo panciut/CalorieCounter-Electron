@@ -1,10 +1,10 @@
 let _macroPieChart = null;
-let _macroPieMacros = { protein: 0, carbs: 0, fat: 0 };
+let _macroPieMacros = { protein: 0, carbs: 0, fat: 0, calories: 0 };
 
 const _centerPlugin = {
   id: 'centerLabel',
   afterDraw(chart) {
-    const { protein, carbs, fat } = _macroPieMacros;
+    const { protein, carbs, fat, calories } = _macroPieMacros;
     const total = protein + carbs + fat;
     const { ctx, chartArea: { width, height, left, top } } = chart;
     if (!total) return;
@@ -13,17 +13,16 @@ const _centerPlugin = {
     ctx.fillStyle = '#e8e8ed';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const kcal = Math.round(protein * 4 + carbs * 4 + fat * 9);
-    ctx.fillText(kcal + ' kcal', left + width / 2, top + height / 2);
+    ctx.fillText(Math.round(calories) + ' kcal', left + width / 2, top + height / 2);
     ctx.restore();
   },
 };
 
-function createOrUpdateMacroPie(canvasId, { protein, carbs, fat }) {
+function createOrUpdateMacroPie(canvasId, { protein, carbs, fat, calories }) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
 
-  _macroPieMacros = { protein, carbs, fat };
+  _macroPieMacros = { protein, carbs, fat, calories };
   const total = protein + carbs + fat;
   const data = {
     labels: ['Protein', 'Carbs', 'Fat'],

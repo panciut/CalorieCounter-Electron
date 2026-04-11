@@ -4,8 +4,14 @@ const { getDb } = require('../db');
 function registerSettingsIpc() {
   ipcMain.handle('settings:get', () => {
     const defaults = {
-      cal_goal: 2000, protein_goal: 150, carbs_goal: 250,
-      fat_goal: 70, fiber_goal: 25, weight_goal: 0, water_goal: 2000, language: 'en', theme: 'dark',
+      cal_min: 1800, cal_max: 2200, cal_rec: 2000,
+      protein_min: 120, protein_max: 180, protein_rec: 150,
+      carbs_min: 200,  carbs_max: 300,  carbs_rec: 250,
+      fat_min: 55,     fat_max: 85,     fat_rec: 70,
+      fiber_min: 20,   fiber_max: 35,   fiber_rec: 30,
+      weight_goal: 0, water_goal: 2000,
+      language: 'en', theme: 'dark',
+      tol_1: 5, tol_2: 10, tol_3: 20,
     };
     const stringKeys = new Set(['language', 'theme']);
     for (const { key, value } of getDb().prepare('SELECT key, value FROM settings').all()) {

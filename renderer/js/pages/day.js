@@ -72,6 +72,11 @@ function _dayFoodSelected(food) {
 }
 
 function dayInitEvents() {
+  // Meal pill selection
+  document.querySelectorAll('#day-meal-pills .meal-pill').forEach(btn => {
+    btn.addEventListener('click', () => _setMealPill('day-meal-pills', 'day-meal', btn.dataset.meal));
+  });
+
   document.getElementById('day-back').addEventListener('click', (e) => {
     e.preventDefault();
     if (_dayFromWeek) navigate('week', _dayFromWeek);
@@ -103,6 +108,7 @@ function dayInitEvents() {
     document.getElementById('day-toggle-unit').style.display = 'none';
     document.getElementById('day-grams').value  = '';
     document.getElementById('day-pieces').value = '';
+    _setMealPill('day-meal-pills', 'day-meal', 'Snack');
   });
 
   document.getElementById('day-toggle-unit').addEventListener('click', (e) => {

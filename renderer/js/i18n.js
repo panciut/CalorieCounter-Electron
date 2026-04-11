@@ -5,6 +5,7 @@ const _translations = {
   en: {
     // ── Nav ──
     'nav.today':     'Today',
+    'nav.week':      'This Week',
     'nav.foods':     'Foods',
     'nav.recipes':   'Recipes',
     'nav.history':   'History',
@@ -65,6 +66,7 @@ const _translations = {
     'dash.switchToPieces':  'switch to pieces',
     'dash.logRecipe':       'Log recipe',
     'dash.remaining':       'remaining',
+    'dash.belowMin':        'below minimum',
     'dash.overBy':          'Over by',
     'barcode.addByBarcode': 'Add by barcode',
     'barcode.placeholder':  'Enter barcode...',
@@ -155,6 +157,7 @@ const _translations = {
     'week.avgCarbs':        'avg carbs',
     'week.avgFat':          'avg fat',
     'week.avgFiber':        'avg fiber',
+    'week.today':           'today',
 
     // ── Day page ──
     'day.back':             '← Back',
@@ -180,6 +183,12 @@ const _translations = {
     'weight.legendGoal':    'Goal',
 
     // ── Settings / Goals page ──
+    'goals.calcTitle':      'Calculate from body stats',
+    'goals.calcNote':       'Fills in recommended ranges. Edit freely after.',
+    'goals.calcWeight':     'Body weight',
+    'goals.calcCalories':   'Daily calories',
+    'goals.calcBtn':        'Calculate',
+    'goals.rec':            'rec',
     'settings.title':       'Goals',
     'settings.dailyCal':    'Daily calories',
     'settings.protein':     'Protein (g)',
@@ -188,6 +197,14 @@ const _translations = {
     'settings.fiber':       'Fiber (g)',
     'settings.goalWeight':  'Goal weight (kg)',
     'settings.waterGoal':   'Daily water goal (ml)',
+    'settings.tolTitle':    'Bar color tolerance (% deviation from goal)',
+    'settings.tolGreen':    'On target',
+    'settings.tolYellow':   'Caution',
+    'settings.tolOrange':   'Off',
+    'settings.tolRed':      'Way off',
+    'settings.tol1':        'Green → Yellow (%)',
+    'settings.tol2':        'Yellow → Orange (%)',
+    'settings.tol3':        'Orange → Red (%)',
     'settings.language':    'Language',
     'settings.theme':       'Theme',
     'settings.dark':        'Dark',
@@ -251,6 +268,7 @@ const _translations = {
   it: {
     // ── Nav ──
     'nav.today':     'Oggi',
+    'nav.week':      'Questa Settimana',
     'nav.foods':     'Cibi',
     'nav.recipes':   'Ricette',
     'nav.history':   'Storico',
@@ -311,6 +329,7 @@ const _translations = {
     'dash.switchToPieces':  'cambia a pezzi',
     'dash.logRecipe':       'Registra ricetta',
     'dash.remaining':       'rimanenti',
+    'dash.belowMin':        'sotto il minimo',
     'dash.overBy':          'Oltre di',
     'barcode.addByBarcode': 'Aggiungi tramite codice a barre',
     'barcode.placeholder':  'Inserisci codice a barre...',
@@ -401,6 +420,7 @@ const _translations = {
     'week.avgCarbs':        'media carbo',
     'week.avgFat':          'media grassi',
     'week.avgFiber':        'media fibre',
+    'week.today':           'oggi',
 
     // ── Day page ──
     'day.back':             '\u2190 Indietro',
@@ -426,6 +446,12 @@ const _translations = {
     'weight.legendGoal':    'Obiettivo',
 
     // ── Settings / Goals page ──
+    'goals.calcTitle':      'Calcola dai dati corporei',
+    'goals.calcNote':       'Compila i range consigliati. Modificabili liberamente dopo.',
+    'goals.calcWeight':     'Peso corporeo',
+    'goals.calcCalories':   'Calorie giornaliere',
+    'goals.calcBtn':        'Calcola',
+    'goals.rec':            'cons',
     'settings.title':       'Obiettivi',
     'settings.dailyCal':    'Calorie giornaliere',
     'settings.protein':     'Proteine (g)',
@@ -434,6 +460,14 @@ const _translations = {
     'settings.fiber':       'Fibre (g)',
     'settings.goalWeight':  'Peso obiettivo (kg)',
     'settings.waterGoal':   'Obiettivo acqua (ml)',
+    'settings.tolTitle':    'Tolleranza colore barre (% di scostamento)',
+    'settings.tolGreen':    'In target',
+    'settings.tolYellow':   'Attenzione',
+    'settings.tolOrange':   'Fuori',
+    'settings.tolRed':      'Molto fuori',
+    'settings.tol1':        'Verde → Giallo (%)',
+    'settings.tol2':        'Giallo → Arancione (%)',
+    'settings.tol3':        'Arancione → Rosso (%)',
     'settings.language':    'Lingua',
     'settings.theme':       'Tema',
     'settings.dark':        'Scuro',

@@ -150,11 +150,42 @@ small { font-weight: 400; color: var(--text-sec); font-size: 13px; }
 .goals { display: flex; flex-direction: column; gap: 12px; flex: 1; }
 .goal-row { display: flex; align-items: center; gap: 12px; }
 .goal-label { font-size: 11px; color: var(--text-sec); text-transform: uppercase; letter-spacing: .7px; min-width: 90px; flex-shrink: 0; }
-.progress-track { flex: 1; height: 6px; background: rgba(255,240,220,0.08); border-radius: 3px; overflow: hidden; }
-.progress-bar { height: 100%; border-radius: 3px; transition: width 0.4s var(--ease); }
+.progress-track { flex: 1; height: 6px; background: rgba(255,240,220,0.08); border-radius: 3px; overflow: visible; position: relative; }
+.progress-bar { height: 100%; border-radius: 3px; transition: width 0.4s var(--ease); overflow: hidden; }
+.bar-min-tick { position: absolute; top: -4px; width: 2px; height: 14px; background: var(--green); opacity: 0.55; border-radius: 1px; pointer-events: none; transition: left 0.4s var(--ease); }
+.bar-rec-tick { position: absolute; top: -3px; width: 2px; height: 12px; background: rgba(255,255,255,0.5); border-radius: 1px; pointer-events: none; transition: left 0.4s var(--ease); }
+.bar-max-tick { position: absolute; top: -5px; width: 2px; height: 16px; background: var(--red); opacity: 0.6; border-radius: 1px; pointer-events: none; transition: left 0.4s var(--ease); }
 .bar-green  { background: var(--green); }
-.bar-yellow { background: var(--yellow); }
-.bar-red    { background: var(--red); }
+.bar-yellow  { background: var(--yellow); }
+.bar-orange  { background: #ff8c00; }
+.bar-red     { background: var(--red); }
+
+/* ── Tolerance section in Goals ── */
+.settings-section-divider {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-sec);
+  padding: 24px 0 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+}
+.tol-bars-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-sec);
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.tol-swatch {
+  display: inline-block;
+  width: 28px;
+  height: 8px;
+  border-radius: 4px;
+}
 .goal-numbers { font-size: 12px; color: var(--text-sec); width: 130px; text-align: right; flex-shrink: 0; font-variant-numeric: tabular-nums; }
 
 .macro-chart-wrap {
@@ -187,6 +218,35 @@ small { font-weight: 400; color: var(--text-sec); font-size: 13px; }
   gap: 8px;
   flex-wrap: wrap;
   align-items: center;
+}
+
+.meal-pills {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.meal-pill {
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--text-sec);
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+
+.meal-pill:hover {
+  background: var(--card-hover);
+  color: var(--text);
+}
+
+.meal-pill--active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
 }
 
 .inline-form input,
@@ -371,9 +431,9 @@ td a:hover { text-decoration: underline; }
 .fav-btn:hover  { color: var(--yellow); }
 
 /* ── Settings form ── */
-.settings-form { display: flex; flex-direction: column; gap: 12px; max-width: 340px; }
-.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.settings-row label { font-size: 14px; color: var(--text); }
+.settings-form { display: flex; flex-direction: column; gap: 20px; max-width: 640px; }
+.settings-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 4px 0; }
+.settings-row label { font-size: 14px; color: var(--text); min-width: 180px; }
 .settings-row input {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -386,6 +446,59 @@ td a:hover { text-decoration: underline; }
 }
 .settings-row input::placeholder { color: var(--text-sec); }
 .settings-row input:focus { border-color: var(--accent); }
+
+/* ── Remove number input spinners globally ── */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
+/* ── Macro calculator card ── */
+.macro-calc-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  max-width: 640px;
+  margin-bottom: 28px;
+}
+.macro-calc-card h2 { margin-bottom: 4px; }
+.calc-note { font-size: 12px; color: var(--text-sec); margin-bottom: 18px; }
+.calc-inputs {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.calc-field { display: flex; flex-direction: column; gap: 6px; }
+.calc-field label { font-size: 12px; color: var(--text-sec); }
+.calc-input-wrap { display: flex; align-items: center; gap: 6px; }
+.calc-input-wrap input { width: 90px; }
+.calc-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.calc-pill {
+  font-size: 12px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--accent2);
+  border-radius: 6px;
+  padding: 3px 10px;
+  font-weight: 500;
+}
+
+/* ── Range inputs (min–max) ── */
+.range-row { align-items: center; }
+.range-pair { display: flex; align-items: center; gap: 8px; }
+.range-pair input { width: 86px; }
+.range-sep  { color: var(--text-sec); font-weight: 500; }
+.range-unit { font-size: 12px; color: var(--text-sec); margin-left: 2px; margin-right: 4px; }
+.range-rec-sep   { color: var(--text-sec); opacity: 0.4; margin: 0 4px; }
+.range-rec-label { font-size: 11px; color: var(--text-sec); text-transform: uppercase; letter-spacing: .5px; }
+.rec-input  { width: 76px !important; opacity: 0.75; border-style: dashed !important; }
 
 /* ── Section header ── */
 .section-header {
@@ -476,6 +589,24 @@ dialog::backdrop {
 .dialog-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 4px; }
 
 .optional { font-size: 10px; color: var(--text-sec); font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+/* ── Week page ── */
+.week-today td { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.week-empty-day td { opacity: 0.45; }
+.week-day-name { font-size: 11px; color: var(--text-sec); margin-right: 6px; text-transform: capitalize; }
+.week-today-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+.week-cal-num { display: inline-block; min-width: 36px; }
+.week-cal-bar { margin-top: 4px; height: 3px; }
 
 /* ── Chart cards ── */
 .chart-card {

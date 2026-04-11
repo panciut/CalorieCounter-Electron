@@ -3,7 +3,7 @@ async function historyOnEnter() {
     api.log.getWeeklySummaries(),
     api.settings.get(),
   ]);
-  _renderHistoryChart(weeks, settings.cal_goal);
+  _renderHistoryChart(weeks, settings.cal_max || settings.cal_min || 0);
   _renderHistoryTable(weeks);
 }
 

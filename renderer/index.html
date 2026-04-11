@@ -11,6 +11,7 @@
 <nav>
   <span class="app-title">CalorieCounter</span>
   <a href="#" class="nav-link active" data-page="dashboard"><kbd>1</kbd><span data-i18n="nav.today">Today</span></a>
+  <a href="#" class="nav-link" data-page="week"><kbd>W</kbd><span data-i18n="nav.week">This Week</span></a>
   <a href="#" class="nav-link" data-page="foods"><kbd>2</kbd><span data-i18n="nav.foods">Foods</span></a>
   <a href="#" class="nav-link" data-page="recipes"><kbd>3</kbd><span data-i18n="nav.recipes">Recipes</span></a>
   <a href="#" class="nav-link" data-page="history"><kbd>4</kbd><span data-i18n="nav.history">History</span></a>
@@ -41,27 +42,27 @@
       <div class="goals">
         <div class="goal-row">
           <span class="goal-label" data-i18n="macro.kcal">Calories</span>
-          <div class="progress-track"><div class="progress-bar bar-green" id="bar-cal" style="width:0%"></div></div>
+          <div class="progress-track"><div class="progress-bar bar-green" id="bar-cal" style="width:0%"></div><div class="bar-min-tick" id="tick-min-cal" style="display:none"></div><div class="bar-rec-tick" id="tick-cal" style="display:none"></div><div class="bar-max-tick" id="tick-max-cal" style="display:none"></div></div>
           <span class="goal-numbers" id="num-cal"></span>
         </div>
         <div class="goal-row">
           <span class="goal-label" data-i18n="macro.protein">Protein</span>
-          <div class="progress-track"><div class="progress-bar bar-green" id="bar-protein" style="width:0%"></div></div>
+          <div class="progress-track"><div class="progress-bar bar-green" id="bar-protein" style="width:0%"></div><div class="bar-min-tick" id="tick-min-protein" style="display:none"></div><div class="bar-rec-tick" id="tick-protein" style="display:none"></div><div class="bar-max-tick" id="tick-max-protein" style="display:none"></div></div>
           <span class="goal-numbers" id="num-protein"></span>
         </div>
         <div class="goal-row">
           <span class="goal-label" data-i18n="macro.carbs">Carbs</span>
-          <div class="progress-track"><div class="progress-bar bar-green" id="bar-carbs" style="width:0%"></div></div>
+          <div class="progress-track"><div class="progress-bar bar-green" id="bar-carbs" style="width:0%"></div><div class="bar-min-tick" id="tick-min-carbs" style="display:none"></div><div class="bar-rec-tick" id="tick-carbs" style="display:none"></div><div class="bar-max-tick" id="tick-max-carbs" style="display:none"></div></div>
           <span class="goal-numbers" id="num-carbs"></span>
         </div>
         <div class="goal-row">
           <span class="goal-label" data-i18n="macro.fat">Fat</span>
-          <div class="progress-track"><div class="progress-bar bar-green" id="bar-fat" style="width:0%"></div></div>
+          <div class="progress-track"><div class="progress-bar bar-green" id="bar-fat" style="width:0%"></div><div class="bar-min-tick" id="tick-min-fat" style="display:none"></div><div class="bar-rec-tick" id="tick-fat" style="display:none"></div><div class="bar-max-tick" id="tick-max-fat" style="display:none"></div></div>
           <span class="goal-numbers" id="num-fat"></span>
         </div>
         <div class="goal-row">
           <span class="goal-label" data-i18n="macro.fiber">Fiber</span>
-          <div class="progress-track"><div class="progress-bar bar-green" id="bar-fiber" style="width:0%"></div></div>
+          <div class="progress-track"><div class="progress-bar bar-green" id="bar-fiber" style="width:0%"></div><div class="bar-min-tick" id="tick-min-fiber" style="display:none"></div><div class="bar-rec-tick" id="tick-fiber" style="display:none"></div><div class="bar-max-tick" id="tick-max-fiber" style="display:none"></div></div>
           <span class="goal-numbers" id="num-fiber"></span>
         </div>
       </div>
@@ -138,7 +139,13 @@
           <input type="number" id="dash-grams"  data-i18n-placeholder="common.grams" placeholder="grams"  min="0.1" step="0.1">
           <input type="number" id="dash-pieces" data-i18n-placeholder="common.pieces" placeholder="pieces" min="0.1" step="0.1" style="display:none">
           <a href="#" id="dash-toggle-unit" class="unit-toggle" style="display:none">switch to grams</a>
-          <select id="dash-meal" class="meal-select"></select>
+          <input type="hidden" id="dash-meal" value="Snack">
+          <div class="meal-pills" id="dash-meal-pills">
+            <button type="button" class="meal-pill" data-meal="Breakfast" data-i18n="meal.breakfast">Breakfast</button>
+            <button type="button" class="meal-pill" data-meal="Lunch" data-i18n="meal.lunch">Lunch</button>
+            <button type="button" class="meal-pill" data-meal="Dinner" data-i18n="meal.dinner">Dinner</button>
+            <button type="button" class="meal-pill meal-pill--active" data-meal="Snack" data-i18n="meal.snack">Snack</button>
+          </div>
           <button type="button" id="dash-log-btn" class="btn-primary" data-i18n="common.add">Add</button>
           <button type="button" id="dash-log-cancel" class="btn-secondary" data-i18n="common.cancel">Cancel</button>
         </div>
@@ -263,7 +270,13 @@
           <input type="number" id="day-grams"  data-i18n-placeholder="common.grams" placeholder="grams"  min="0.1" step="0.1">
           <input type="number" id="day-pieces" data-i18n-placeholder="common.pieces" placeholder="pieces" min="0.1" step="0.1" style="display:none">
           <a href="#" id="day-toggle-unit" class="unit-toggle" style="display:none">switch to grams</a>
-          <select id="day-meal" class="meal-select"></select>
+          <input type="hidden" id="day-meal" value="Snack">
+          <div class="meal-pills" id="day-meal-pills">
+            <button type="button" class="meal-pill" data-meal="Breakfast" data-i18n="meal.breakfast">Breakfast</button>
+            <button type="button" class="meal-pill" data-meal="Lunch" data-i18n="meal.lunch">Lunch</button>
+            <button type="button" class="meal-pill" data-meal="Dinner" data-i18n="meal.dinner">Dinner</button>
+            <button type="button" class="meal-pill meal-pill--active" data-meal="Snack" data-i18n="meal.snack">Snack</button>
+          </div>
           <button type="button" id="day-log-btn" class="btn-primary" data-i18n="common.add">Add</button>
           <button type="button" id="day-log-cancel" class="btn-secondary" data-i18n="common.cancel">Cancel</button>
         </div>
@@ -323,15 +336,6 @@
     </section>
   </section>
 
-  <!-- ═══════════ TEMPLATES ═══════════ -->
-  <section id="page-templates" class="page" style="display:none">
-    <h1 data-i18n="templates.title">Meal Templates</h1>
-    <section>
-      <button type="button" class="btn-secondary" id="tpl-save-today" data-i18n="templates.saveToday">Save today as template</button>
-    </section>
-    <div id="templates-list"></div>
-  </section>
-
   <!-- ═══════════ MEASUREMENTS ═══════════ -->
   <section id="page-measurements" class="page" style="display:none">
     <h1 data-i18n="meas.title">Body Measurements</h1>
@@ -358,15 +362,44 @@
   <!-- ═══════════ GOALS ═══════════ -->
   <section id="page-goals" class="page" style="display:none">
     <h1 data-i18n="nav.goals">Goals</h1>
+
+    <!-- Auto-calculator -->
+    <section class="macro-calc-card">
+      <h2 data-i18n="goals.calcTitle">Calculate from body stats</h2>
+      <p class="calc-note" data-i18n="goals.calcNote">Fills in recommended ranges. Edit freely after.</p>
+      <div class="calc-inputs">
+        <div class="calc-field">
+          <label data-i18n="goals.calcWeight">Body weight</label>
+          <div class="calc-input-wrap"><input type="number" id="calc-weight" min="30" max="300" step="0.5" placeholder="kg"><span class="range-unit">kg</span></div>
+        </div>
+        <div class="calc-field calc-field-calories">
+          <label data-i18n="goals.calcCalories">Using calories</label>
+          <span id="calc-calories-display" class="calc-calories-val">—</span>
+        </div>
+        <button type="button" id="calc-btn" class="btn-primary" data-i18n="goals.calcBtn">Calculate</button>
+      </div>
+      <div id="calc-preview" class="calc-preview" style="display:none"></div>
+    </section>
+
     <section>
       <form class="settings-form" id="settings-form">
-        <div class="settings-row"><label data-i18n="settings.dailyCal">Daily calories</label>    <input type="number" id="s-cal"     min="0" step="1" required></div>
-        <div class="settings-row"><label data-i18n="settings.protein">Protein (g)</label>       <input type="number" id="s-protein" min="0" step="1" required></div>
-        <div class="settings-row"><label data-i18n="settings.carbs">Carbs (g)</label>         <input type="number" id="s-carbs"   min="0" step="1" required></div>
-        <div class="settings-row"><label data-i18n="settings.fat">Fat (g)</label>           <input type="number" id="s-fat"     min="0" step="1" required></div>
-        <div class="settings-row"><label data-i18n="settings.fiber">Fiber (g)</label>         <input type="number" id="s-fiber"   min="0" step="1" required></div>
+        <div class="settings-row range-row"><label data-i18n="settings.dailyCal">Calories</label><div class="range-pair"><input type="number" id="s-cal-min" min="0" step="10" placeholder="min"><span class="range-sep">–</span><input type="number" id="s-cal-max" min="0" step="10" placeholder="max"><span class="range-unit">kcal</span><span class="range-rec-sep">·</span><span class="range-rec-label" data-i18n="goals.rec">rec</span><input type="number" id="s-cal-rec" min="0" step="10" class="rec-input" placeholder="—"><span class="range-unit">kcal</span></div></div>
+        <div class="settings-row range-row"><label data-i18n="settings.protein">Protein</label>  <div class="range-pair"><input type="number" id="s-protein-min" min="0" step="1" placeholder="min"><span class="range-sep">–</span><input type="number" id="s-protein-max" min="0" step="1" placeholder="max"><span class="range-unit">g</span><span class="range-rec-sep">·</span><span class="range-rec-label" data-i18n="goals.rec">rec</span><input type="number" id="s-protein-rec" min="0" step="1" class="rec-input" placeholder="—"><span class="range-unit">g</span></div></div>
+        <div class="settings-row range-row"><label data-i18n="settings.carbs">Carbs</label>      <div class="range-pair"><input type="number" id="s-carbs-min" min="0" step="1" placeholder="min"><span class="range-sep">–</span><input type="number" id="s-carbs-max" min="0" step="1" placeholder="max"><span class="range-unit">g</span><span class="range-rec-sep">·</span><span class="range-rec-label" data-i18n="goals.rec">rec</span><input type="number" id="s-carbs-rec" min="0" step="1" class="rec-input" placeholder="—"><span class="range-unit">g</span></div></div>
+        <div class="settings-row range-row"><label data-i18n="settings.fat">Fat</label>          <div class="range-pair"><input type="number" id="s-fat-min" min="0" step="1" placeholder="min"><span class="range-sep">–</span><input type="number" id="s-fat-max" min="0" step="1" placeholder="max"><span class="range-unit">g</span><span class="range-rec-sep">·</span><span class="range-rec-label" data-i18n="goals.rec">rec</span><input type="number" id="s-fat-rec" min="0" step="1" class="rec-input" placeholder="—"><span class="range-unit">g</span></div></div>
+        <div class="settings-row range-row"><label data-i18n="settings.fiber">Fiber</label>      <div class="range-pair"><input type="number" id="s-fiber-min" min="0" step="1" placeholder="min"><span class="range-sep">–</span><input type="number" id="s-fiber-max" min="0" step="1" placeholder="max"><span class="range-unit">g</span><span class="range-rec-sep">·</span><span class="range-rec-label" data-i18n="goals.rec">rec</span><input type="number" id="s-fiber-rec" min="0" step="1" class="rec-input" placeholder="—"><span class="range-unit">g</span></div></div>
         <div class="settings-row"><label data-i18n="settings.goalWeight">Goal weight (kg)</label>  <input type="number" id="s-weight"  min="0" step="0.1" placeholder="e.g. 75"></div>
         <div class="settings-row"><label data-i18n="settings.waterGoal">Daily water goal (ml)</label> <input type="number" id="s-water" min="0" step="100"></div>
+        <div class="settings-section-divider" data-i18n="settings.tolTitle">Bar color tolerance (% deviation from goal)</div>
+        <div class="tol-bars-preview">
+          <span class="tol-swatch bar-green"></span><span data-i18n="settings.tolGreen">On target</span>
+          <span class="tol-swatch bar-yellow"></span><span data-i18n="settings.tolYellow">Caution</span>
+          <span class="tol-swatch bar-orange"></span><span data-i18n="settings.tolOrange">Off</span>
+          <span class="tol-swatch bar-red"></span><span data-i18n="settings.tolRed">Way off</span>
+        </div>
+        <div class="settings-row"><label data-i18n="settings.tol1">Green → Yellow (%)</label> <input type="number" id="s-tol1" min="1" max="100" step="1"></div>
+        <div class="settings-row"><label data-i18n="settings.tol2">Yellow → Orange (%)</label><input type="number" id="s-tol2" min="1" max="100" step="1"></div>
+        <div class="settings-row"><label data-i18n="settings.tol3">Orange → Red (%)</label>   <input type="number" id="s-tol3" min="1" max="100" step="1"></div>
         <button type="submit" data-i18n="common.save">Save</button>
       </form>
       <p id="settings-saved" style="display:none; color:var(--green); margin-top:8px; font-size:14px" data-i18n="common.saved">Saved!</p>
@@ -572,38 +605,6 @@
   </div>
 </dialog>
 
-<!-- Template name dialog -->
-<dialog id="template-name-dialog">
-  <div class="dialog-header">
-    <h2 data-i18n="templates.name">Template name</h2>
-    <button type="button" class="dialog-close" data-close="template-name-dialog">✕</button>
-  </div>
-  <div class="dialog-form">
-    <div class="dialog-field">
-      <label data-i18n="templates.name">Template name</label>
-      <input type="text" id="tpl-name-input" placeholder="My template" autocomplete="off">
-    </div>
-    <div class="dialog-actions">
-      <button type="button" class="btn-secondary" data-close="template-name-dialog" data-i18n="common.cancel">Cancel</button>
-      <button type="button" id="tpl-name-submit" class="btn-primary" data-i18n="common.save">Save</button>
-    </div>
-  </div>
-</dialog>
-
-<!-- Template pick dialog (dashboard) -->
-<dialog id="template-pick-dialog">
-  <div class="dialog-header">
-    <h2 data-i18n="templates.title">Meal Templates</h2>
-    <button type="button" class="dialog-close" data-close="template-pick-dialog">✕</button>
-  </div>
-  <div class="dialog-form">
-    <div id="tpl-pick-list"></div>
-    <div class="dialog-actions">
-      <button type="button" class="btn-secondary" data-close="template-pick-dialog" data-i18n="common.cancel">Cancel</button>
-    </div>
-  </div>
-</dialog>
-
 <!-- Barcode scanner dialog -->
 <dialog id="barcode-scanner-dialog">
   <div class="dialog-header">
@@ -639,7 +640,7 @@
 <script src="js/pages/weight.js"></script>
 <script src="js/pages/supplements.js"></script>
 <script src="js/pages/measurements.js"></script>
-<script src="js/pages/templates.js"></script>
+
 <script src="js/pages/settings.js"></script>
 <script src="js/undo.js"></script>
 <script src="js/router.js"></script>

@@ -21,6 +21,13 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
+  // W key: navigate to this week
+  if (!inInput && !modKey && !e.altKey && e.key === 'w') {
+    e.preventDefault();
+    navigate('week');
+    return;
+  }
+
   // Number keys 1–6: navigate pages (only when not typing in an input)
   if (!inInput && !modKey && !e.altKey) {
     const pageMap = {
@@ -32,7 +39,6 @@ document.addEventListener('keydown', (e) => {
       '6': 'supplements',
       '7': 'goals',
       '8': 'settings',
-      '9': 'templates',
       '0': 'measurements',
     };
     if (pageMap[e.key]) {

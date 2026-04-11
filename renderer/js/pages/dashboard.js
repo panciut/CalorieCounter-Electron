@@ -17,16 +17,23 @@ async function dashOnEnter() {
   _dashToday = new Date().toISOString().slice(0, 10);
   document.getElementById('dash-date').textContent = fmtDate(_dashToday);
 
-  const [entries, favorites, foods, settings, waterData, recipes, notesData, frequent] = await Promise.all([
-    api.log.getDay(_dashToday),
-    api.foods.getFavorites(),
-    api.foods.getAll(),
-    api.settings.get(),
-    api.water.getDay(_dashToday),
-    api.recipes.getAll(),
-    api.notes.get(_dashToday),
-    api.foods.getFrequent(10),
-  ]);
+  let entries, favorites, foods, settings, waterData, recipes, notesData, frequent;
+  try {
+    [entries, favorites, foods, settings, waterData, recipes, notesData, frequent] = await Promise.all([
+      api.log.getDay(_dashToday),
+      api.foods.getFavorites(),
+      api.foods.getAll(),
+      api.settings.get(),
+      api.water.getDay(_dashToday),
+      api.recipes.getAll(),
+      api.notes.get(_dashToday),
+      api.foods.getFrequent(10),
+    ]);
+  } catch (err) {
+    console.error('[dashOnEnter] data load failed:', err);
+    setTimeout(() => dashOnEnter(), 400);
+    return;
+  }
 
   _dashFoods    = foods;
   _dashSettings = settings;
@@ -47,6 +54,24 @@ async function dashOnEnter() {
   });
 }
 
+// ── Shared bar-color helper ──────────────────────────────────────────────────
+// Green when actual is within [min, max].
+// Outside the range, deviation is measured as % of the boundary value.
+// tol_1 = grace zone still green, tol_2 = yellow→orange, tol_3 = orange→red.
+function getBarColor(actual, min, max, settings) {
+  if (actual >= min && actual <= max) return 'bar-green';
+  const t1 = settings.tol_1 || 5;
+  const t2 = settings.tol_2 || 10;
+  const t3 = settings.tol_3 || 20;
+  const dev = actual < min
+    ? (min - actual) / min * 100
+    : (actual - max) / max * 100;
+  if (dev <= t1) return 'bar-green';
+  if (dev <= t2) return 'bar-yellow';
+  if (dev <= t3) return 'bar-orange';
+  return 'bar-red';
+}
+
 // ── Render helpers ───────────────────────────────────────────────────────────
 
 function _dashRenderTotals(entries, settings) {
@@ -64,35 +89,59 @@ function _dashRenderTotals(entries, settings) {
   document.getElementById('dash-fat').textContent     = fat + 'g';
   document.getElementById('dash-fiber').textContent   = fib + 'g';
 
-  // Budget remaining
-  const remaining = Math.round(settings.cal_goal - cal);
+  // Budget remaining (based on cal_max)
+  const calMax = settings.cal_max || 2200;
+  const calMin = settings.cal_min || 1800;
+  const remaining = Math.round(calMax - cal);
   const remEl = document.getElementById('dash-remaining');
-  if (remaining > 0) {
+  if (cal < calMin) {
+    const under = Math.round(calMin - cal);
+    remEl.textContent = under + ' ' + t('macro.kcal') + ' ' + t('dash.belowMin');
+    remEl.className = 'budget-remaining budget-red';
+  } else if (remaining > 0) {
     remEl.textContent = remaining + ' ' + t('macro.kcal') + ' ' + t('dash.remaining');
-    remEl.className = 'budget-remaining ' + (remaining > settings.cal_goal * 0.3 ? 'budget-green' : 'budget-yellow');
+    remEl.className = 'budget-remaining budget-green';
   } else {
     remEl.textContent = t('dash.overBy') + ' ' + Math.abs(remaining) + ' ' + t('macro.kcal');
     remEl.className = 'budget-remaining budget-red';
   }
 
   const bars = [
-    { id: 'cal',    actual: cal,   goal: settings.cal_goal,     unit: 'kcal' },
-    { id: 'protein',actual: pro,   goal: settings.protein_goal, unit: 'g' },
-    { id: 'carbs',  actual: carbs, goal: settings.carbs_goal,   unit: 'g' },
-    { id: 'fat',    actual: fat,   goal: settings.fat_goal,     unit: 'g' },
-    { id: 'fiber',  actual: fib,   goal: settings.fiber_goal,   unit: 'g' },
+    { id: 'cal',    actual: cal,   min: calMin,                    max: calMax,                    rec: settings.cal_rec     || 0, unit: 'kcal' },
+    { id: 'protein',actual: pro,   min: settings.protein_min || 0, max: settings.protein_max || 0, rec: settings.protein_rec || 0, unit: 'g' },
+    { id: 'carbs',  actual: carbs, min: settings.carbs_min   || 0, max: settings.carbs_max   || 0, rec: settings.carbs_rec   || 0, unit: 'g' },
+    { id: 'fat',    actual: fat,   min: settings.fat_min     || 0, max: settings.fat_max     || 0, rec: settings.fat_rec     || 0, unit: 'g' },
+    { id: 'fiber',  actual: fib,   min: settings.fiber_min   || 0, max: settings.fiber_max   || 0, rec: settings.fiber_rec   || 0, unit: 'g' },
   ];
 
-  for (const { id, actual, goal, unit } of bars) {
-    const pct = goal ? Math.min(100, Math.round(actual / goal * 100)) : 0;
+  const SCALE = 1.30; // track represents 130% of max, giving visible overflow headroom
+
+  for (const { id, actual, min, max, rec, unit } of bars) {
+    const scale = max * SCALE;
+    const pct = scale ? Math.min(100, actual / scale * 100) : 0;
     const bar = document.getElementById('bar-' + id);
     bar.style.width = pct + '%';
-    bar.className = 'progress-bar ' + (actual > goal ? 'bar-red' : actual >= goal * 0.9 ? 'bar-yellow' : 'bar-green');
+    bar.className = 'progress-bar ' + getBarColor(actual, min, max, settings);
     document.getElementById('num-' + id).textContent =
-      actual + unit + ' / ' + Math.round(goal) + unit;
+      actual + unit + ' · ' + Math.round(min) + '–' + Math.round(max) + unit;
+
+    const minTick = document.getElementById('tick-min-' + id);
+    const recTick = document.getElementById('tick-'     + id);
+    const maxTick = document.getElementById('tick-max-' + id);
+
+    if (scale) {
+      if (minTick && min) { minTick.style.left = (min / scale * 100) + '%'; minTick.style.display = ''; }
+      else if (minTick)   { minTick.style.display = 'none'; }
+
+      if (recTick && rec) { recTick.style.left = (rec / scale * 100) + '%'; recTick.style.display = ''; }
+      else if (recTick)   { recTick.style.display = 'none'; }
+
+      if (maxTick && max) { maxTick.style.left = (100 / SCALE) + '%'; maxTick.style.display = ''; }
+      else if (maxTick)   { maxTick.style.display = 'none'; }
+    }
   }
 
-  createOrUpdateMacroPie('macro-pie-canvas', { protein: pro, carbs, fat });
+  createOrUpdateMacroPie('macro-pie-canvas', { protein: pro, carbs, fat, calories: cal });
 }
 
 function _dashRenderFavorites(favorites) {
@@ -431,7 +480,19 @@ function _dashRenderRecipeTotals() {
 
 // ── Event wiring (called once) ───────────────────────────────────────────────
 
+function _setMealPill(containerId, hiddenId, meal) {
+  document.getElementById(hiddenId).value = meal;
+  document.querySelectorAll(`#${containerId} .meal-pill`).forEach(btn => {
+    btn.classList.toggle('meal-pill--active', btn.dataset.meal === meal);
+  });
+}
+
 function dashInitEvents() {
+  // Meal pill selection
+  document.querySelectorAll('#dash-meal-pills .meal-pill').forEach(btn => {
+    btn.addEventListener('click', () => _setMealPill('dash-meal-pills', 'dash-meal', btn.dataset.meal));
+  });
+
   // Log food add
   document.getElementById('dash-log-btn').addEventListener('click', async () => {
     if (!_dashSelected) return;
@@ -458,6 +519,7 @@ function dashInitEvents() {
     document.getElementById('dash-toggle-unit').style.display = 'none';
     document.getElementById('dash-grams').value = '';
     document.getElementById('dash-pieces').value = '';
+    _setMealPill('dash-meal-pills', 'dash-meal', 'Snack');
   });
 
   document.getElementById('dash-toggle-unit').addEventListener('click', (e) => {

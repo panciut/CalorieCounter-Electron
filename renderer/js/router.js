@@ -9,7 +9,6 @@ const _pages = {
   weight:      { id: 'page-weight',      onEnter: (p) => weightOnEnter(p) },
   supplements:  { id: 'page-supplements',  onEnter: (p) => supplementsOnEnter(p) },
   measurements: { id: 'page-measurements', onEnter: (p) => measurementsOnEnter(p) },
-  templates:    { id: 'page-templates',    onEnter: (p) => templatesOnEnter(p) },
   goals:        { id: 'page-goals',        onEnter: (p) => goalsOnEnter(p) },
   settings:  { id: 'page-settings',  onEnter: (p) => settingsPageOnEnter(p) },
 };
@@ -58,7 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
   measurementsInitEvents();
   weightInitEvents();
   dayInitEvents();
-  templatesInitEvents();
 
   // Global shortcut from main process: focus quick-add
   window.electronAPI.on('shortcut:quickAdd', () => {
@@ -69,7 +67,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 150);
   });
 
-  // Load language, apply translations, then boot
+  // Show dashboard immediately so the page isn't blank on startup
+  navigate('dashboard');
+
+  // Load language, apply translations, then re-render with correct settings
   api.settings.get().then(s => {
     setLanguage(s.language || 'en');
     applyTheme(s.theme || 'dark');
