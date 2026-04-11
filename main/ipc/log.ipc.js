@@ -2,13 +2,20 @@ const { ipcMain } = require('electron');
 const { getDb } = require('../db');
 const { pushUndo } = require('./undo.ipc');
 
-const today = () => new Date().toISOString().slice(0, 10);
+// Use local date to avoid UTC timezone bug
+const today = () => {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
 
 function registerLogIpc() {
   ipcMain.handle('log:getDay', (_, { date }) => {
     const d = date || today();
     return getDb().prepare(`
-      SELECT l.id, l.food_id, l.meal, f.name, l.grams,
+      SELECT l.id, l.food_id, l.meal, l.status, f.name, l.grams,
         ROUND(f.calories * l.grams / 100, 2) AS calories,
         ROUND(f.protein  * l.grams / 100, 2) AS protein,
         ROUND(f.carbs    * l.grams / 100, 2) AS carbs,
@@ -22,17 +29,47 @@ function registerLogIpc() {
     `).all(d);
   });
 
-  ipcMain.handle('log:add', (_, { food_id, grams, meal, date }) => {
+  ipcMain.handle('log:getPlanned', (_, { date }) => {
+    const d = date || today();
+    return getDb().prepare(`
+      SELECT l.id, l.food_id, l.meal, l.status, f.name, l.grams,
+        ROUND(f.calories * l.grams / 100, 2) AS calories,
+        ROUND(f.protein  * l.grams / 100, 2) AS protein,
+        ROUND(f.carbs    * l.grams / 100, 2) AS carbs,
+        ROUND(f.fat      * l.grams / 100, 2) AS fat,
+        ROUND(f.fiber    * l.grams / 100, 2) AS fiber
+      FROM log l
+      JOIN foods f ON l.food_id = f.id
+      WHERE l.date = ? AND l.status = 'planned'
+      ORDER BY l.id
+    `).all(d);
+  });
+
+  ipcMain.handle('log:confirmPlanned', (_, { id }) => {
+    getDb().prepare("UPDATE log SET status = 'logged' WHERE id = ?").run(id);
+    return { ok: true };
+  });
+
+  ipcMain.handle('log:confirmAllPlanned', (_, { date }) => {
+    const d = date || today();
+    getDb().prepare("UPDATE log SET status = 'logged' WHERE date = ? AND status = 'planned'").run(d);
+    return { ok: true };
+  });
+
+  ipcMain.handle('log:add', (_, { food_id, grams, meal, date, status }) => {
     const db = getDb();
     const d = date || today();
+    const s = status || 'logged';
     const result = db.prepare(
-      'INSERT INTO log (date, food_id, grams, meal) VALUES (?, ?, ?, ?)'
-    ).run(d, food_id, grams, meal || 'Snack');
-    pushUndo('log:add', { id: result.lastInsertRowid });
-    // Auto-add water for liquid foods (grams ≈ ml)
-    const food = db.prepare('SELECT name, is_liquid FROM foods WHERE id = ?').get(food_id);
-    if (food && food.is_liquid) {
-      db.prepare('INSERT INTO water_log (date, ml, source, log_id) VALUES (?, ?, ?, ?)').run(d, grams, food.name, result.lastInsertRowid);
+      'INSERT INTO log (date, food_id, grams, meal, status) VALUES (?, ?, ?, ?, ?)'
+    ).run(d, food_id, grams, meal || 'Snack', s);
+    if (s === 'logged') {
+      pushUndo('log:add', { id: result.lastInsertRowid });
+      // Auto-add water for liquid foods (grams ≈ ml)
+      const food = db.prepare('SELECT name, is_liquid FROM foods WHERE id = ?').get(food_id);
+      if (food && food.is_liquid) {
+        db.prepare('INSERT INTO water_log (date, ml, source, log_id) VALUES (?, ?, ?, ?)').run(d, grams, food.name, result.lastInsertRowid);
+      }
     }
     return { id: result.lastInsertRowid };
   });
@@ -45,7 +82,7 @@ function registerLogIpc() {
         'INSERT INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
       ).run(food.name, food.calories, food.protein || 0, food.carbs || 0, food.fat || 0, food.fiber || 0, food.piece_grams || null, food.is_liquid ? 1 : 0);
       const logResult = db.prepare(
-        'INSERT INTO log (date, food_id, grams, meal) VALUES (?, ?, ?, ?)'
+        "INSERT INTO log (date, food_id, grams, meal, status) VALUES (?, ?, ?, ?, 'logged')"
       ).run(d, foodResult.lastInsertRowid, grams, meal || 'Snack');
       if (food.is_liquid) {
         db.prepare('INSERT INTO water_log (date, ml, source, log_id) VALUES (?, ?, ?, ?)').run(d, grams, food.name, logResult.lastInsertRowid);
@@ -66,17 +103,17 @@ function registerLogIpc() {
     const row = db.prepare('SELECT date, food_id, grams, meal FROM log WHERE id = ?').get(id);
     if (row) pushUndo('log:delete', { date: row.date, food_id: row.food_id, grams: row.grams, meal: row.meal });
     db.prepare('DELETE FROM log WHERE id = ?').run(id);
-    // Remove linked water entry if exists
     db.prepare('DELETE FROM water_log WHERE log_id = ?').run(id);
     return { ok: true };
   });
 
+  // Weekly summaries only count logged (not planned) entries
   ipcMain.handle('log:getWeeklySummaries', () =>
     getDb().prepare(`
       SELECT
         strftime('%Y-%W', date) AS week,
         MIN(date) AS week_start,
-        COUNT(date) AS days_logged,
+        COUNT(DISTINCT date) AS days_logged,
         ROUND(AVG(day_calories), 2) AS avg_calories,
         ROUND(AVG(day_protein),   2) AS avg_protein,
         ROUND(AVG(day_carbs),     2) AS avg_carbs,
@@ -90,6 +127,7 @@ function registerLogIpc() {
           SUM(f.fat      * l.grams / 100) AS day_fat,
           SUM(f.fiber    * l.grams / 100) AS day_fiber
         FROM log l JOIN foods f ON l.food_id = f.id
+        WHERE l.status = 'logged'
         GROUP BY l.date
       )
       GROUP BY week
@@ -109,6 +147,7 @@ function registerLogIpc() {
       FROM log l
       JOIN foods f ON l.food_id = f.id
       WHERE l.date BETWEEN ? AND date(?, '+6 days')
+        AND l.status = 'logged'
       GROUP BY l.date
       ORDER BY l.date ASC
     `).all(weekStart, weekStart)

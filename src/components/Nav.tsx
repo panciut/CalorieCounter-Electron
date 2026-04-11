@@ -6,20 +6,24 @@ import type { PageName } from '../types';
 interface NavItem {
   page: PageName;
   labelKey: string;
-  shortcut: string;
+  shortcut?: string;
 }
 
 const NAV_ITEMS: NavItem[] = [
   { page: 'dashboard',    labelKey: 'nav.today',        shortcut: '1' },
-  { page: 'week',         labelKey: 'nav.week',          shortcut: '2' },
-  { page: 'foods',        labelKey: 'nav.foods',         shortcut: '3' },
-  { page: 'recipes',      labelKey: 'nav.recipes',       shortcut: '4' },
-  { page: 'history',      labelKey: 'nav.history',       shortcut: '5' },
-  { page: 'weight',       labelKey: 'nav.weight',        shortcut: '6' },
-  { page: 'supplements',  labelKey: 'nav.supplements',   shortcut: '7' },
-  { page: 'measurements', labelKey: 'nav.measurements',  shortcut: '8' },
-  { page: 'goals',        labelKey: 'nav.goals',         shortcut: '9' },
-  { page: 'settings',     labelKey: 'nav.settings',      shortcut: '0' },
+  { page: 'plan',         labelKey: 'nav.plan',          shortcut: '2' },
+  { page: 'exercise',     labelKey: 'nav.exercise',      shortcut: '3' },
+  { page: 'net',          labelKey: 'nav.net',           shortcut: '4' },
+  { page: 'week',         labelKey: 'nav.week',          shortcut: '5' },
+  { page: 'foods',        labelKey: 'nav.foods',         shortcut: '6' },
+  { page: 'pantry',       labelKey: 'nav.pantry',        shortcut: '7' },
+  { page: 'recipes',      labelKey: 'nav.recipes',       shortcut: '8' },
+  { page: 'history',      labelKey: 'nav.history',       shortcut: '9' },
+  { page: 'weight',       labelKey: 'nav.body',          shortcut: '0' },
+  { page: 'goals',        labelKey: 'nav.goals' },
+  { page: 'supplements',  labelKey: 'nav.supplements' },
+  { page: 'measurements', labelKey: 'nav.measurements' },
+  { page: 'settings',     labelKey: 'nav.settings' },
 ];
 
 interface NavProps {
@@ -47,14 +51,18 @@ export default function Nav({ activePage }: NavProps) {
               : 'text-text-sec hover:bg-card-hover hover:text-text',
           ].join(' ')}
         >
-          <kbd className={[
-            'text-xs px-1.5 py-0.5 rounded font-mono shrink-0',
-            activePage === page
-              ? 'bg-accent/20 text-accent'
-              : 'bg-card text-text-sec border border-border',
-          ].join(' ')}>
-            {shortcut}
-          </kbd>
+          {shortcut ? (
+            <kbd className={[
+              'text-xs px-1.5 py-0.5 rounded font-mono shrink-0',
+              activePage === page
+                ? 'bg-accent/20 text-accent'
+                : 'bg-card text-text-sec border border-border',
+            ].join(' ')}>
+              {shortcut}
+            </kbd>
+          ) : (
+            <span className="w-[26px] shrink-0" />
+          )}
           <span>{t(labelKey)}</span>
         </button>
       ))}

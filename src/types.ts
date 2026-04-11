@@ -31,6 +31,7 @@ export interface LogEntry {
   fiber: number;
   meal: Meal;
   date: string;
+  status: 'logged' | 'planned';
 }
 
 export interface Recipe {
@@ -57,6 +58,32 @@ export interface RecipeIngredient {
   fat: number;
   fiber: number;
   editGrams?: number;
+}
+
+export interface Exercise {
+  id: number;
+  date: string;
+  type: string;
+  duration_min: number;
+  calories_burned: number;
+  notes: string | null;
+  source: 'manual' | 'apple_health';
+  sets?: ExerciseSet[];
+}
+
+export interface ExerciseSet {
+  id: number;
+  exercise_id: number;
+  set_number: number;
+  reps: number | null;
+  weight_kg: number | null;
+}
+
+export interface ExerciseType {
+  id: number;
+  name: string;
+  met_value: number;
+  category: string;
 }
 
 export interface ActualRecipe {
@@ -116,6 +143,10 @@ export interface WeightEntry {
   id: number;
   date: string;
   weight: number;
+  fat_pct: number | null;
+  muscle_mass: number | null;
+  water_pct: number | null;
+  bone_mass: number | null;
 }
 
 export interface WaterEntry {
@@ -181,6 +212,68 @@ export interface WeekDayDetail {
   fiber: number;
 }
 
+export interface PantryItem {
+  id: number;
+  food_id: number;
+  food_name: string;
+  piece_grams: number | null;
+  quantity_g: number;
+  updated_at: string;
+}
+
+export interface PantryIngredientCheck {
+  food_id: number;
+  food_name: string;
+  need_g: number;
+  have_g: number;
+}
+
+export interface ShoppingItem {
+  id: number;
+  food_id: number;
+  food_name: string;
+  quantity_g: number;
+  checked: number; // 0 or 1
+}
+
+export interface CalorieTrendPoint {
+  date: string;
+  calories_in: number;
+  calories_out: number;
+  net: number;
+}
+
+export interface MacroTrendPoint {
+  date: string;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+}
+
+export interface ExerciseTrendPoint {
+  date: string;
+  count: number;
+  total_min: number;
+  total_burned: number;
+}
+
+export type GoalType = 'lose' | 'maintain' | 'gain';
+
+export interface TDEEResult {
+  tdee: number | null;
+  confidence: 'low' | 'medium' | 'high';
+  data_points: number;
+}
+
+export interface GoalSuggestion {
+  cal_rec: number;
+  cal_min: number;
+  cal_max: number;
+  protein_rec: number;
+  rate_per_week_kg: number;
+}
+
 export interface BarcodeResult {
   name: string;
   name_en?: string;
@@ -197,7 +290,11 @@ export interface BarcodeResult {
 
 export type PageName =
   | 'dashboard'
+  | 'plan'
+  | 'exercise'
+  | 'net'
   | 'foods'
+  | 'pantry'
   | 'recipes'
   | 'history'
   | 'week'

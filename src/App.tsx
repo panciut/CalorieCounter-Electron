@@ -8,7 +8,11 @@ import { useT } from './i18n/useT';
 
 // Pages
 import DashboardPage    from './pages/DashboardPage';
+import PlanPage         from './pages/PlanPage';
+import ExercisePage     from './pages/ExercisePage';
+import NetPage          from './pages/NetPage';
 import FoodsPage        from './pages/FoodsPage';
+import PantryPage       from './pages/PantryPage';
 import RecipesPage      from './pages/RecipesPage';
 import HistoryPage      from './pages/HistoryPage';
 import WeekPage         from './pages/WeekPage';
@@ -49,7 +53,11 @@ function AppInner() {
       <Nav activePage={page} />
       <main className="flex-1 overflow-y-auto">
         {page === 'dashboard'    && <DashboardPage />}
+        {page === 'plan'         && <PlanPage />}
+        {page === 'exercise'     && <ExercisePage />}
+        {page === 'net'          && <NetPage />}
         {page === 'foods'        && <FoodsPage />}
+        {page === 'pantry'       && <PantryPage />}
         {page === 'recipes'      && <RecipesPage />}
         {page === 'history'      && <HistoryPage />}
         {page === 'week'         && <WeekPage weekStart={param?.weekStart} />}

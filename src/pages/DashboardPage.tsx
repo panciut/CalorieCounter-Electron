@@ -13,9 +13,10 @@ import EntryTable from '../components/EntryTable';
 import Modal from '../components/Modal';
 import { today, fmtDate } from '../lib/dateUtil';
 import { getBarColor } from '../lib/macroCalc';
+import ExerciseSection from '../components/ExerciseSection';
 import type {
   LogEntry, Food, Recipe, RecipeIngredient, Meal,
-  WaterEntry, Streak, SupplementDay, FrequentFood,
+  WaterEntry, Streak, SupplementDay, FrequentFood, WeightEntry,
 } from '../types';
 
 // ── Quick-food dialog ─────────────────────────────────────────────────────────
@@ -116,7 +117,8 @@ export default function DashboardPage() {
   const { t } = useT();
   const { showToast } = useToast();
 
-  const dateStr = today();
+  const [dateStr, setDateStr]       = useState(today());
+  const [planMode, setPlanMode]     = useState(false);
 
   const [entries, setEntries]       = useState<LogEntry[]>([]);
   const [foods, setFoods]           = useState<Food[]>([]);
@@ -127,6 +129,8 @@ export default function DashboardPage() {
   const [waterEntries, setWaterEntries] = useState<WaterEntry[]>([]);
   const [supplements, setSupplements] = useState<SupplementDay[]>([]);
   const [streak, setStreak]         = useState<Streak>({ current: 0, best: 0 });
+  const [weightKg, setWeightKg]     = useState(0);
+  const [exerciseKcal, setExerciseKcal] = useState(0);
   const [note, setNote]             = useState('');
   const noteSaveTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
 
@@ -167,14 +171,23 @@ export default function DashboardPage() {
     load();
     api.streaks.get().then(setStreak);
     api.supplements.getDay(dateStr).then(setSupplements);
+    api.weight.getAll().then((entries: WeightEntry[]) => {
+      if (entries.length > 0) setWeightKg(entries[entries.length - 1].weight);
+    });
   }, [load, dateStr]);
 
   // ── Totals ──────────────────────────────────────────────────────────────────
 
-  const totals = entries.reduce(
+  const loggedEntries  = entries.filter(e => e.status === 'logged');
+  const plannedEntries = entries.filter(e => e.status === 'planned');
+
+  const sumEntries = (es: LogEntry[]) => es.reduce(
     (acc, e) => ({ cal: acc.cal + e.calories, protein: acc.protein + e.protein, carbs: acc.carbs + e.carbs, fat: acc.fat + e.fat, fiber: acc.fiber + (e.fiber||0) }),
     { cal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
   );
+
+  const totals  = sumEntries(loggedEntries);
+  const planned = sumEntries(plannedEntries);
 
   const cal    = Math.round(totals.cal * 100) / 100;
   const pro    = Math.round(totals.protein * 100) / 100;
@@ -183,13 +196,14 @@ export default function DashboardPage() {
   const fiber  = Math.round(totals.fiber * 100) / 100;
 
   const calRec = settings.cal_rec || Math.round(((settings.cal_min||1800)+(settings.cal_max||2200))/2);
-  const remaining = calRec - cal;
+  const netCal = cal - exerciseKcal;
+  const remaining = calRec - netCal;
   const remainingAbs = Math.abs(Math.round(remaining));
-  const remColor = getBarColor(cal, settings.cal_min||1800, settings.cal_max||2200, settings);
+  const remColor = getBarColor(netCal, settings.cal_min||1800, settings.cal_max||2200, settings);
   const remColorMap: Record<string, string> = { 'bar-green':'text-green','bar-yellow':'text-yellow','bar-orange':'text-orange-400','bar-red':'text-red' };
 
   const bars: BarDef[] = [
-    { id:'cal',     label:t('macro.kcal'),    actual:cal,   min:settings.cal_min||1800, max:settings.cal_max||2200, rec:settings.cal_rec||0,     unit:'kcal' },
+    { id:'cal',     label:t('macro.kcal'),    actual:netCal,   min:settings.cal_min||1800, max:settings.cal_max||2200, rec:settings.cal_rec||0,     unit:'kcal' },
     { id:'protein', label:t('macro.protein'), actual:pro,   min:settings.protein_min||0, max:settings.protein_max||0, rec:settings.protein_rec||0, unit:'g' },
     { id:'carbs',   label:t('macro.carbs'),   actual:carbs, min:settings.carbs_min||0, max:settings.carbs_max||0, rec:settings.carbs_rec||0, unit:'g' },
     { id:'fat',     label:t('macro.fat'),     actual:fat,   min:settings.fat_min||0,   max:settings.fat_max||0,   rec:settings.fat_rec||0,   unit:'g' },
@@ -227,9 +241,11 @@ export default function DashboardPage() {
     ? (usePieces && selectedFood.piece_grams ? Math.round(parseFloat(amount||'0') * selectedFood.piece_grams * 100)/100 : parseFloat(amount||'0'))
     : 0;
 
+  const logStatus = planMode ? 'planned' : 'logged';
+
   async function handleLogFood() {
     if (!selectedFood || !effectiveGrams) return;
-    await api.log.add({ food_id: selectedFood.id, grams: effectiveGrams, meal, date: dateStr });
+    await api.log.add({ food_id: selectedFood.id, grams: effectiveGrams, meal, date: dateStr, status: logStatus });
     setSelectedFood(null); setAmount(''); load();
   }
 
@@ -237,10 +253,20 @@ export default function DashboardPage() {
     if (!selectedRecipe) return;
     for (const ing of selectedRecipe.ingredients) {
       if (ing.editGrams > 0) {
-        await api.log.add({ food_id: ing.food_id, grams: ing.editGrams, meal, date: dateStr });
+        await api.log.add({ food_id: ing.food_id, grams: ing.editGrams, meal, date: dateStr, status: logStatus });
       }
     }
     setSelectedRecipe(null); load();
+  }
+
+  async function handleConfirmPlanned(id: number) {
+    await api.log.confirmPlanned(id);
+    load();
+  }
+
+  async function handleConfirmAll() {
+    await api.log.confirmAllPlanned(dateStr);
+    load();
   }
 
   // ── Water ───────────────────────────────────────────────────────────────────
@@ -296,22 +322,71 @@ export default function DashboardPage() {
   return (
     <div className="p-6 max-w-4xl mx-auto flex flex-col gap-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-text">{fmtDate(dateStr)}</h1>
-        <button onClick={()=>setQuickFoodOpen(true)} className="text-sm text-accent border border-accent/40 rounded-lg px-3 py-1.5 hover:bg-accent/10 cursor-pointer transition-colors">
-          {t('dash.quickAdd')}
-        </button>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-bold text-text">{fmtDate(dateStr)}</h1>
+          <input
+            type="date"
+            value={dateStr}
+            onChange={e => setDateStr(e.target.value)}
+            className="text-xs bg-card border border-border rounded-lg px-2 py-1 text-text-sec focus:outline-none focus:border-accent cursor-pointer"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Plan mode toggle */}
+          <button
+            onClick={() => setPlanMode(v => !v)}
+            className={[
+              'text-sm border rounded-lg px-3 py-1.5 cursor-pointer transition-colors',
+              planMode
+                ? 'bg-accent/15 border-accent text-accent font-medium'
+                : 'border-border text-text-sec hover:border-accent/50 hover:text-text',
+            ].join(' ')}
+          >
+            {planMode ? '📋 Planning' : '📋 Plan'}
+          </button>
+          <button onClick={()=>setQuickFoodOpen(true)} className="text-sm text-accent border border-accent/40 rounded-lg px-3 py-1.5 hover:bg-accent/10 cursor-pointer transition-colors">
+            {t('dash.quickAdd')}
+          </button>
+        </div>
       </div>
+
+      {/* Confirm all planned banner */}
+      {plannedEntries.length > 0 && (
+        <div className="flex items-center justify-between gap-3 bg-accent/8 border border-accent/25 rounded-xl px-4 py-2.5">
+          <div className="text-sm text-text">
+            <span className="font-medium text-accent">{plannedEntries.length}</span> planned {plannedEntries.length === 1 ? 'entry' : 'entries'} ·{' '}
+            <span className="text-text-sec">{Math.round(planned.cal)} kcal planned</span>
+          </div>
+          <button
+            onClick={handleConfirmAll}
+            className="text-sm font-medium text-accent border border-accent/40 rounded-lg px-3 py-1 hover:bg-accent/10 cursor-pointer transition-colors"
+          >
+            Confirm All
+          </button>
+        </div>
+      )}
 
       {/* Macros summary card */}
       <div className="bg-card border border-border rounded-xl p-5 flex gap-4 items-start">
         <MacroChart protein={pro} carbs={carbs} fat={fat} calories={cal} />
         <div className="flex-1 flex flex-col gap-3">
           {/* Budget */}
-          <div className={`text-sm font-semibold ${remColorMap[remColor]||'text-text'}`}>
-            {remaining >= 0
-              ? `${remainingAbs} ${t('macro.kcal')} ${t('dash.remaining')}`
-              : `${t('dash.overBy')} ${remainingAbs} ${t('macro.kcal')}`}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className={`text-sm font-semibold ${remColorMap[remColor]||'text-text'}`}>
+              {remaining >= 0
+                ? `${remainingAbs} ${t('macro.kcal')} ${t('dash.remaining')}`
+                : `${t('dash.overBy')} ${remainingAbs} ${t('macro.kcal')}`}
+            </div>
+            {exerciseKcal > 0 && (
+              <div className="flex items-center gap-1.5 text-xs text-text-sec">
+                <span className="tabular-nums">{Math.round(cal)} in</span>
+                <span>−</span>
+                <span className="text-green tabular-nums">{Math.round(exerciseKcal)} burned</span>
+                <span>=</span>
+                <span className="font-medium text-text tabular-nums">{Math.round(netCal)} net</span>
+              </div>
+            )}
           </div>
           {/* Macro bars */}
           <MacroBars bars={bars} settings={settings} />
@@ -391,6 +466,9 @@ export default function DashboardPage() {
         )}
       </div>
 
+      {/* Exercise */}
+      <ExerciseSection date={dateStr} weightKg={weightKg} onCaloriesChange={setExerciseKcal} />
+
       {/* Favorites + frequent */}
       {favorites.length > 0 && (
         <div>
@@ -453,7 +531,9 @@ export default function DashboardPage() {
             </div>
             <MealPills selected={meal} onChange={setMeal} />
             <div className="flex gap-2">
-              <button onClick={handleLogFood} disabled={!effectiveGrams} className="bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:opacity-90 disabled:opacity-40">{t('common.add')}</button>
+              <button onClick={handleLogFood} disabled={!effectiveGrams} className="bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:opacity-90 disabled:opacity-40">
+                {planMode ? 'Add to Plan' : t('common.add')}
+              </button>
               <button onClick={handleClear} className="border border-border text-text-sec px-4 py-2 rounded-lg text-sm cursor-pointer hover:text-text">{t('common.cancel')}</button>
             </div>
           </div>
@@ -488,7 +568,9 @@ export default function DashboardPage() {
             </div>
             <MealPills selected={meal} onChange={setMeal} />
             <div className="flex gap-2">
-              <button onClick={handleLogRecipe} className="bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:opacity-90">{t('dash.logRecipe')}</button>
+              <button onClick={handleLogRecipe} className="bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:opacity-90">
+                {planMode ? 'Add to Plan' : t('dash.logRecipe')}
+              </button>
               <button onClick={handleClear} className="border border-border text-text-sec px-4 py-2 rounded-lg text-sm cursor-pointer hover:text-text">{t('common.cancel')}</button>
             </div>
           </div>
@@ -500,7 +582,7 @@ export default function DashboardPage() {
         <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider mb-3">{t('dash.todayEntries')}</h3>
         {entries.length === 0
           ? <p className="text-text-sec text-sm">{t('dash.nothingLogged')}</p>
-          : <EntryTable entries={entries} foods={foods} onRefresh={load} />}
+          : <EntryTable entries={entries} foods={foods} onRefresh={load} onConfirm={handleConfirmPlanned} />}
       </div>
 
       {/* Notes */}

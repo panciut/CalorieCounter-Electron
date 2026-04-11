@@ -4,14 +4,24 @@ const { app } = require('electron');
 
 let db;
 
+function getDbPath() {
+  return path.join(app.getPath('userData'), 'calories.db');
+}
+
 function getDb() {
   if (!db) {
-    const dbPath = path.join(app.getPath('userData'), 'calories.db');
-    db = new Database(dbPath);
+    db = new Database(getDbPath());
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
   }
   return db;
+}
+
+function closeDb() {
+  if (db) {
+    db.close();
+    db = null;
+  }
 }
 
 function initDb() {
@@ -59,6 +69,32 @@ function initDb() {
       grams REAL NOT NULL,
       FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE,
       FOREIGN KEY (food_id) REFERENCES foods(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS exercises (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      type TEXT NOT NULL,
+      duration_min REAL NOT NULL DEFAULT 0,
+      calories_burned REAL NOT NULL DEFAULT 0,
+      notes TEXT,
+      source TEXT NOT NULL DEFAULT 'manual'
+    );
+
+    CREATE TABLE IF NOT EXISTS exercise_sets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      exercise_id INTEGER NOT NULL,
+      set_number INTEGER NOT NULL,
+      reps INTEGER,
+      weight_kg REAL,
+      FOREIGN KEY (exercise_id) REFERENCES exercises(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS exercise_types (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      met_value REAL NOT NULL DEFAULT 5.0,
+      category TEXT NOT NULL DEFAULT 'other'
     );
 
     CREATE TABLE IF NOT EXISTS actual_recipes (
@@ -132,6 +168,22 @@ function initDb() {
       action TEXT NOT NULL,
       data TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS pantry (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      food_id INTEGER NOT NULL UNIQUE,
+      quantity_g REAL NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (food_id) REFERENCES foods(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS shopping_list (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      food_id INTEGER NOT NULL,
+      quantity_g REAL NOT NULL DEFAULT 0,
+      checked INTEGER NOT NULL DEFAULT 0,
+      FOREIGN KEY (food_id) REFERENCES foods(id) ON DELETE CASCADE
+    );
   `);
 
   // Migrations: add columns that may not exist in imported databases
@@ -143,6 +195,11 @@ function initDb() {
     "ALTER TABLE foods ADD COLUMN is_liquid INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE water_log ADD COLUMN source TEXT",
     "ALTER TABLE water_log ADD COLUMN log_id INTEGER",
+    "ALTER TABLE log ADD COLUMN status TEXT NOT NULL DEFAULT 'logged'",
+    "ALTER TABLE weight_log ADD COLUMN fat_pct REAL",
+    "ALTER TABLE weight_log ADD COLUMN muscle_mass REAL",
+    "ALTER TABLE weight_log ADD COLUMN water_pct REAL",
+    "ALTER TABLE weight_log ADD COLUMN bone_mass REAL",
   ];
   for (const stmt of migrations) {
     try { database.exec(stmt); } catch (_) {}
@@ -165,6 +222,25 @@ function initDb() {
   ]) {
     insertSetting.run(key, val);
   }
+
+  // Seed default exercise types
+  const insertExType = database.prepare(
+    'INSERT OR IGNORE INTO exercise_types (name, met_value, category) VALUES (?, ?, ?)'
+  );
+  for (const [name, met, cat] of [
+    ['Running',        9.8, 'cardio'],
+    ['Cycling',        7.5, 'cardio'],
+    ['Swimming',       8.0, 'cardio'],
+    ['Walking',        3.5, 'cardio'],
+    ['HIIT',           8.0, 'cardio'],
+    ['Weight Training',6.0, 'strength'],
+    ['Calisthenics',   8.0, 'strength'],
+    ['Yoga',           3.0, 'flexibility'],
+    ['Stretching',     2.5, 'flexibility'],
+    ['Other',          5.0, 'other'],
+  ]) {
+    insertExType.run(name, met, cat);
+  }
 }
 
-module.exports = { getDb, initDb };
+module.exports = { getDb, getDbPath, closeDb, initDb };

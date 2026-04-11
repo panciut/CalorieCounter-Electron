@@ -10,9 +10,10 @@ interface FoodSearchProps {
   placeholder?: string;
   value?: string;
   onClear?: () => void;
+  clearAfterSelect?: boolean;
 }
 
-export default function FoodSearch({ items, onSelect, placeholder = 'Search…', value, onClear }: FoodSearchProps) {
+export default function FoodSearch({ items, onSelect, placeholder = 'Search…', value, onClear, clearAfterSelect = false }: FoodSearchProps) {
   const [query, setQuery] = useState(value ?? '');
   const [activeIdx, setActiveIdx] = useState(-1);
   const [open, setOpen] = useState(false);
@@ -54,11 +55,11 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
   }, []);
 
   const select = useCallback((item: SearchItem) => {
-    setQuery(item.name);
+    setQuery(clearAfterSelect ? '' : item.name);
     setOpen(false);
     setActiveIdx(-1);
     onSelect(item);
-  }, [onSelect]);
+  }, [onSelect, clearAfterSelect]);
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (!open || !results.length) return;

@@ -3,18 +3,18 @@ import { useNavigate } from './useNavigate';
 import { getThisMonday } from '../lib/dateUtil';
 import type { PageName } from '../types';
 
-// Matches NAV_ITEMS in Nav.tsx exactly (1-0 by position)
+// Matches NAV_ITEMS shortcuts in Nav.tsx exactly (1-0 by position)
 const KEY_MAP: Record<string, PageName> = {
   '1': 'dashboard',
-  '2': 'week',
-  '3': 'foods',
-  '4': 'recipes',
-  '5': 'history',
-  '6': 'weight',
-  '7': 'supplements',
-  '8': 'measurements',
-  '9': 'goals',
-  '0': 'settings',
+  '2': 'plan',
+  '3': 'exercise',
+  '4': 'net',
+  '5': 'week',
+  '6': 'foods',
+  '7': 'pantry',
+  '8': 'recipes',
+  '9': 'history',
+  '0': 'weight',
 };
 
 export function useKeyboardShortcuts() {

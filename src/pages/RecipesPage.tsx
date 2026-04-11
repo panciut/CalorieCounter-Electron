@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { today } from '../lib/dateUtil';
-import type { Recipe, RecipeIngredient, ActualRecipe, ActualRecipeIngredient, Food, Meal } from '../types';
+import type { Recipe, RecipeIngredient, ActualRecipe, ActualRecipeIngredient, Food, Meal, PantryIngredientCheck } from '../types';
 
 const MEALS: Meal[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
@@ -26,11 +26,22 @@ function BundlesTab() {
   const [logMeal, setLogMeal]           = useState<Meal>('Lunch');
   const [logDate, setLogDate]           = useState(today());
   const [logScale, setLogScale]         = useState('1');
+  const [canMakeFilter, setCanMakeFilter] = useState(false);
+  const [canMakeMap, setCanMakeMap]       = useState<Map<number, { can_make: boolean; missing_count: number }>>(new Map());
+
+  const loadBundles = useCallback(async () => {
+    const [b, m] = await Promise.all([
+      api.recipes.getAll(),
+      api.pantry.canMakeAll('bundle'),
+    ]);
+    setBundles(b);
+    setCanMakeMap(new Map(m.map(x => [x.recipe_id, x])));
+  }, []);
 
   useEffect(() => {
-    api.recipes.getAll().then(setBundles);
+    loadBundles();
     api.foods.getAll().then(setFoods);
-  }, []);
+  }, [loadBundles]);
 
   async function openDetail(id: number) {
     const r = await api.recipes.get(id);
@@ -45,9 +56,9 @@ function BundlesTab() {
       ingredients: detail.ingredients.map(i => ({ food_id: i.food_id, grams: Number(i.editGrams) || i.grams })),
     });
     showToast('Bundle saved');
-    await api.recipes.getAll().then(setBundles);
     setDetailId(null);
     setDetail(null);
+    loadBundles();
   }
 
   async function doLog() {
@@ -60,39 +71,79 @@ function BundlesTab() {
   async function doDelete() {
     if (!deleteTarget) return;
     await api.recipes.delete(deleteTarget.id);
-    setBundles(b => b.filter(r => r.id !== deleteTarget.id));
     showToast('Bundle deleted');
     setDeleteTarget(null);
+    loadBundles();
+  }
+
+  async function addMissingToShopping(bundleId: number) {
+    const check = await api.pantry.canMake(bundleId, 'bundle');
+    if (!check.missing.length) { showToast('Nothing missing — pantry has everything'); return; }
+    await Promise.all(check.missing.map(m => api.shopping.add({ food_id: m.food_id, quantity_g: Math.ceil(m.need_g - m.have_g) })));
+    showToast(`Added ${check.missing.length} item${check.missing.length > 1 ? 's' : ''} to shopping list`);
   }
 
   const inputCls = 'w-full rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent';
   const selCls   = 'rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent';
 
+  const visibleBundles = canMakeFilter ? bundles.filter(b => canMakeMap.get(b.id)?.can_make) : bundles;
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-sm text-text-sec">Fixed-portion shortcuts — log a set of foods in one tap.</p>
-        <button
-          onClick={() => setCreating(true)}
-          className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer"
-        >
-          + New Bundle
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCanMakeFilter(v => !v)}
+            className={[
+              'text-xs px-3 py-1.5 rounded-lg border cursor-pointer transition-colors',
+              canMakeFilter
+                ? 'border-accent bg-accent/10 text-accent'
+                : 'border-border text-text-sec hover:border-accent/50',
+            ].join(' ')}
+          >
+            🥗 Can make
+          </button>
+          <button
+            onClick={() => setCreating(true)}
+            className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer"
+          >
+            + New Bundle
+          </button>
+        </div>
       </div>
 
-      {bundles.length === 0 ? (
-        <p className="text-text-sec text-center py-12 text-sm">No bundles yet.</p>
+      {visibleBundles.length === 0 ? (
+        <p className="text-text-sec text-center py-12 text-sm">
+          {canMakeFilter ? 'No bundles you can make with current pantry.' : 'No bundles yet.'}
+        </p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {bundles.map(b => (
+          {visibleBundles.map(b => {
+            const cm = canMakeMap.get(b.id);
+            return (
             <div
               key={b.id}
               onClick={() => openDetail(b.id)}
               className="bg-card border border-border rounded-xl p-4 cursor-pointer hover:bg-card-hover transition-colors space-y-2"
             >
               <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="font-semibold text-text">{b.name}</h3>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-semibold text-text">{b.name}</h3>
+                    {cm && (
+                      <span className={[
+                        'text-xs px-1.5 py-0.5 rounded font-medium shrink-0',
+                        cm.can_make
+                          ? 'bg-green/10 text-green'
+                          : cm.missing_count <= 2
+                            ? 'bg-yellow/10 text-yellow'
+                            : 'bg-red/10 text-red',
+                      ].join(' ')}>
+                        {cm.can_make ? '✓ can make' : `${cm.missing_count} missing`}
+                      </span>
+                    )}
+                  </div>
                   {b.description && <p className="text-xs text-text-sec mt-0.5">{b.description}</p>}
                 </div>
                 <div className="flex gap-1.5 shrink-0">
@@ -106,15 +157,22 @@ function BundlesTab() {
                   >Delete</button>
                 </div>
               </div>
-              <div className="flex gap-3 text-xs text-text-sec">
+              <div className="flex gap-3 text-xs text-text-sec flex-wrap items-center">
                 <span>{n((b as unknown as Record<string,unknown>).total_calories ?? b.calories)} kcal</span>
                 <span>P {n((b as unknown as Record<string,unknown>).total_protein ?? b.protein)}g</span>
                 <span>C {n((b as unknown as Record<string,unknown>).total_carbs ?? b.carbs)}g</span>
                 <span>F {n((b as unknown as Record<string,unknown>).total_fat ?? b.fat)}g</span>
-                <span className="ml-auto">{b.ingredient_count} items</span>
+                <span>{b.ingredient_count} items</span>
+                {cm && !cm.can_make && (
+                  <button
+                    onClick={e => { e.stopPropagation(); addMissingToShopping(b.id); }}
+                    className="ml-auto text-xs px-2 py-0.5 rounded border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors"
+                  >+ shopping list</button>
+                )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -336,11 +394,24 @@ function RecipesTab() {
   const [logGrams, setLogGrams]         = useState('');
   const [logMeal, setLogMeal]           = useState<Meal>('Lunch');
   const [logDate, setLogDate]           = useState(today());
+  const [canMakeFilter, setCanMakeFilter] = useState(false);
+  const [canMakeMap, setCanMakeMap]       = useState<Map<number, { can_make: boolean; missing_count: number }>>(new Map());
+  const [logPantryCheck, setLogPantryCheck] = useState<{ can_make: boolean; missing: PantryIngredientCheck[] } | null>(null);
+  const [deductOnLog, setDeductOnLog]     = useState(false);
+
+  const loadRecipes = useCallback(async () => {
+    const [r, m] = await Promise.all([
+      api.actualRecipes.getAll(),
+      api.pantry.canMakeAll('actual'),
+    ]);
+    setRecipes(r);
+    setCanMakeMap(new Map(m.map(x => [x.recipe_id, x])));
+  }, []);
 
   useEffect(() => {
-    api.actualRecipes.getAll().then(setRecipes);
+    loadRecipes();
     api.foods.getAll().then(setFoods);
-  }, []);
+  }, [loadRecipes]);
 
   async function openDetail(id: number) {
     const r = await api.actualRecipes.get(id);
@@ -362,20 +433,36 @@ function RecipesTab() {
         ingredients: updated.ingredients.map(i => ({ food_id: i.food_id, grams: i.grams })),
       });
     }
-    await api.actualRecipes.getAll().then(setRecipes);
     showToast('Recipe saved');
     setDetailId(null);
     setDetail(null);
+    loadRecipes();
+  }
+
+  async function openLogTarget(r: ActualRecipe) {
+    setLogTarget(r);
+    setLogGrams(String(r.yield_g || ''));
+    setDeductOnLog(false);
+    const check = await api.pantry.canMake(r.id, 'actual');
+    setLogPantryCheck({ can_make: check.can_make, missing: check.missing });
   }
 
   async function doLog() {
     if (!logTarget) return;
     const g = parseFloat(logGrams);
     if (!g || g <= 0) return;
+    const scale = logTarget.yield_g > 0 ? g / logTarget.yield_g : 1;
     await api.actualRecipes.log({ recipe_id: logTarget.id, grams_eaten: g, meal: logMeal, date: logDate });
-    showToast('Logged');
+    if (deductOnLog && logTarget.yield_g > 0) {
+      await api.pantry.deductRecipe(logTarget.id, scale, 'actual');
+      showToast('Logged & pantry updated');
+    } else {
+      showToast('Logged');
+    }
     setLogTarget(null);
     setLogGrams('');
+    setLogPantryCheck(null);
+    loadRecipes();
   }
 
   async function doDelete() {
@@ -384,6 +471,13 @@ function RecipesTab() {
     setRecipes(r => r.filter(x => x.id !== deleteTarget.id));
     showToast('Recipe deleted');
     setDeleteTarget(null);
+  }
+
+  async function addMissingToShopping(recipeId: number) {
+    const check = await api.pantry.canMake(recipeId, 'actual');
+    if (!check.missing.length) { showToast('Nothing missing — pantry has everything'); return; }
+    await Promise.all(check.missing.map(m => api.shopping.add({ food_id: m.food_id, quantity_g: Math.ceil(m.need_g - m.have_g) })));
+    showToast(`Added ${check.missing.length} item${check.missing.length > 1 ? 's' : ''} to shopping list`);
   }
 
   const inputCls = 'w-full rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent';
@@ -401,36 +495,69 @@ function RecipesTab() {
     };
   })();
 
+  const visibleRecipes = canMakeFilter ? recipes.filter(r => canMakeMap.get(r.id)?.can_make) : recipes;
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-sm text-text-sec">Full recipes with yield — log by how much you ate.</p>
-        <button
-          onClick={() => setCreating(true)}
-          className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer"
-        >
-          + New Recipe
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setCanMakeFilter(v => !v)}
+            className={[
+              'text-xs px-3 py-1.5 rounded-lg border cursor-pointer transition-colors',
+              canMakeFilter
+                ? 'border-accent bg-accent/10 text-accent'
+                : 'border-border text-text-sec hover:border-accent/50',
+            ].join(' ')}
+          >
+            🥗 Can make
+          </button>
+          <button
+            onClick={() => setCreating(true)}
+            className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer"
+          >
+            + New Recipe
+          </button>
+        </div>
       </div>
 
-      {recipes.length === 0 ? (
-        <p className="text-text-sec text-center py-12 text-sm">No recipes yet.</p>
+      {visibleRecipes.length === 0 ? (
+        <p className="text-text-sec text-center py-12 text-sm">
+          {canMakeFilter ? 'No recipes you can make with current pantry.' : 'No recipes yet.'}
+        </p>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {recipes.map(r => (
+          {visibleRecipes.map(r => {
+            const cm = canMakeMap.get(r.id);
+            return (
             <div
               key={r.id}
               onClick={() => openDetail(r.id)}
               className="bg-card border border-border rounded-xl p-4 cursor-pointer hover:bg-card-hover transition-colors space-y-2"
             >
               <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h3 className="font-semibold text-text">{r.name}</h3>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-semibold text-text">{r.name}</h3>
+                    {cm && (
+                      <span className={[
+                        'text-xs px-1.5 py-0.5 rounded font-medium shrink-0',
+                        cm.can_make
+                          ? 'bg-green/10 text-green'
+                          : cm.missing_count <= 2
+                            ? 'bg-yellow/10 text-yellow'
+                            : 'bg-red/10 text-red',
+                      ].join(' ')}>
+                        {cm.can_make ? '✓ can make' : `${cm.missing_count} missing`}
+                      </span>
+                    )}
+                  </div>
                   {r.description && <p className="text-xs text-text-sec mt-0.5">{r.description}</p>}
                 </div>
                 <div className="flex gap-1.5 shrink-0">
                   <button
-                    onClick={e => { e.stopPropagation(); setLogTarget(r); setLogGrams(String(r.yield_g || '')); }}
+                    onClick={e => { e.stopPropagation(); openLogTarget(r); }}
                     className="px-2.5 py-1 rounded-lg bg-accent/10 text-accent text-xs font-medium hover:bg-accent/20 transition-colors cursor-pointer"
                   >Log</button>
                   <button
@@ -439,15 +566,22 @@ function RecipesTab() {
                   >Delete</button>
                 </div>
               </div>
-              <div className="flex gap-3 text-xs text-text-sec flex-wrap">
+              <div className="flex gap-3 text-xs text-text-sec flex-wrap items-center">
                 <span>{n(r.total_calories)} kcal</span>
                 <span>P {n(r.total_protein)}g</span>
                 <span>C {n(r.total_carbs)}g</span>
                 <span>F {n(r.total_fat)}g</span>
-                {r.yield_g > 0 && <span className="ml-auto">Yield {r.yield_g}g</span>}
+                {r.yield_g > 0 && <span>Yield {r.yield_g}g</span>}
+                {cm && !cm.can_make && (
+                  <button
+                    onClick={e => { e.stopPropagation(); addMissingToShopping(r.id); }}
+                    className="ml-auto text-xs px-2 py-0.5 rounded border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors"
+                  >+ shopping list</button>
+                )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -466,9 +600,9 @@ function RecipesTab() {
           onClose={() => setCreating(false)}
           onCreate={async (data) => {
             await api.actualRecipes.create(data);
-            await api.actualRecipes.getAll().then(setRecipes);
             showToast('Recipe created');
             setCreating(false);
+            loadRecipes();
           }}
         />
       )}
@@ -502,9 +636,30 @@ function RecipesTab() {
                 <label className="text-xs text-text-sec">Date</label>
                 <input type="date" className={inputCls} value={logDate} onChange={e => setLogDate(e.target.value)} />
               </div>
+              {logTarget.yield_g > 0 && logPantryCheck && (
+                <button
+                  onClick={() => setDeductOnLog(v => !v)}
+                  className={[
+                    'w-full flex items-center gap-2 text-xs px-3 py-2 rounded-lg border transition-colors cursor-pointer',
+                    deductOnLog
+                      ? 'border-accent bg-accent/10 text-accent'
+                      : 'border-border text-text-sec hover:border-accent/50',
+                  ].join(' ')}
+                >
+                  <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${deductOnLog ? 'border-accent bg-accent' : 'border-border'}`}>
+                    {deductOnLog && <span className="text-white text-xs leading-none">✓</span>}
+                  </span>
+                  <span>
+                    Use from pantry
+                    {!logPantryCheck.can_make && logPantryCheck.missing.length > 0 && (
+                      <span className="ml-1 text-yellow"> (missing {logPantryCheck.missing.map(m => m.food_name).join(', ')})</span>
+                    )}
+                  </span>
+                </button>
+              )}
             </div>
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setLogTarget(null)} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
+              <button onClick={() => { setLogTarget(null); setLogPantryCheck(null); }} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
               <button onClick={doLog} className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer">Log</button>
             </div>
           </div>

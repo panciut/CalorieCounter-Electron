@@ -4,7 +4,7 @@ import { useT } from "../i18n/useT";
 import { useToast } from "../components/Toast";
 import { calcMacroRanges } from "../lib/macroCalc";
 import { api } from "../api";
-import type { Settings } from "../types";
+import type { Settings, GoalType, TDEEResult, GoalSuggestion } from "../types";
 
 type MacroField = "protein" | "carbs" | "fat" | "fiber";
 
@@ -18,6 +18,12 @@ export default function GoalsPage() {
   const [form, setForm] = useState<Partial<Settings>>({});
   const [calcWeight, setCalcWeight] = useState("");
   const [preview, setPreview] = useState<ReturnType<typeof calcMacroRanges> | null>(null);
+
+  // TDEE / goal intelligence state
+  const [goalType, setGoalType]         = useState<GoalType>('maintain');
+  const [tdeeResult, setTdeeResult]     = useState<TDEEResult | null>(null);
+  const [suggestion, setSuggestion]     = useState<GoalSuggestion | null>(null);
+  const [tdeeLoading, setTdeeLoading]   = useState(false);
 
   useEffect(() => {
     setForm({ ...settings });
@@ -54,6 +60,36 @@ export default function GoalsPage() {
     setPreview(null);
   }
 
+  async function handleEstimateTDEE() {
+    setTdeeLoading(true);
+    try {
+      const res = await api.goals.calculateTDEE();
+      setTdeeResult(res);
+      setSuggestion(null);
+    } finally {
+      setTdeeLoading(false);
+    }
+  }
+
+  async function handleSuggest() {
+    if (!tdeeResult?.tdee) return;
+    const sug = await api.goals.suggest({ goal_type: goalType, tdee: tdeeResult.tdee });
+    setSuggestion(sug);
+  }
+
+  function applyTdeeSuggestion() {
+    if (!suggestion) return;
+    setForm(f => ({
+      ...f,
+      cal_rec: suggestion.cal_rec,
+      cal_min: suggestion.cal_min,
+      cal_max: suggestion.cal_max,
+      protein_rec: suggestion.protein_rec,
+    }));
+    setSuggestion(null);
+    setTdeeResult(null);
+  }
+
   const inputCls =
     "w-full rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 
@@ -79,9 +115,105 @@ export default function GoalsPage() {
     );
   }
 
+  const goalTypeLabels: Record<GoalType, string> = {
+    lose: 'Lose weight',
+    maintain: 'Maintain',
+    gain: 'Gain weight',
+  };
+
+  const confidenceColor = { low: 'text-red', medium: 'text-yellow', high: 'text-green' };
+
   return (
     <div className="max-w-2xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-bold text-text">{t("settings.title")}</h1>
+
+      {/* ── TDEE / Goal Intelligence ─────────────────────────────────────── */}
+      <div className="bg-card rounded-2xl p-5 space-y-4 border border-border">
+        <div>
+          <h2 className="text-lg font-semibold text-text">Goal Intelligence</h2>
+          <p className="text-sm text-text-sec mt-0.5">Estimate your TDEE from logged data and get smart calorie targets.</p>
+        </div>
+
+        {/* Goal type */}
+        <div className="space-y-1.5">
+          <label className="text-xs text-text-sec">My goal</label>
+          <div className="flex gap-2">
+            {(['lose', 'maintain', 'gain'] as GoalType[]).map(g => (
+              <button
+                key={g}
+                onClick={() => { setGoalType(g); setSuggestion(null); }}
+                className={[
+                  'flex-1 text-sm py-1.5 rounded-lg border cursor-pointer transition-colors',
+                  goalType === g ? 'border-accent bg-accent/10 text-accent font-medium' : 'border-border text-text-sec hover:text-text',
+                ].join(' ')}
+              >
+                {goalTypeLabels[g]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Estimate TDEE */}
+        <button
+          onClick={handleEstimateTDEE}
+          disabled={tdeeLoading}
+          className="w-full rounded-xl bg-card border border-border text-text-sec py-2 text-sm hover:border-accent hover:text-accent cursor-pointer disabled:opacity-40 transition-colors"
+        >
+          {tdeeLoading ? 'Calculating…' : 'Estimate TDEE from my history'}
+        </button>
+
+        {tdeeResult && (
+          <div className="rounded-xl border border-border p-4 space-y-3">
+            {tdeeResult.tdee ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs text-text-sec">Estimated TDEE</div>
+                    <div className="text-2xl font-bold text-text tabular-nums">{tdeeResult.tdee} kcal</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-text-sec">Confidence</div>
+                    <div className={`text-sm font-medium capitalize ${confidenceColor[tdeeResult.confidence]}`}>
+                      {tdeeResult.confidence}
+                    </div>
+                    <div className="text-xs text-text-sec">{tdeeResult.data_points} days of data</div>
+                  </div>
+                </div>
+                <button
+                  onClick={handleSuggest}
+                  className="w-full rounded-xl bg-accent text-white py-2 text-sm font-semibold hover:opacity-90 cursor-pointer"
+                >
+                  Suggest targets for "{goalTypeLabels[goalType]}"
+                </button>
+              </>
+            ) : (
+              <p className="text-sm text-text-sec text-center py-2">
+                Not enough data yet ({tdeeResult.data_points} days logged). Log at least 5 days of food to estimate TDEE.
+              </p>
+            )}
+          </div>
+        )}
+
+        {suggestion && (
+          <div className="rounded-xl border border-accent/30 bg-accent/5 p-4 space-y-3">
+            <div className="text-sm font-semibold text-text">Suggested targets</div>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <div className="flex justify-between"><span className="text-text-sec">Calories rec.</span><span className="font-medium text-text tabular-nums">{suggestion.cal_rec} kcal</span></div>
+              <div className="flex justify-between"><span className="text-text-sec">Range</span><span className="text-text tabular-nums">{suggestion.cal_min}–{suggestion.cal_max}</span></div>
+              <div className="flex justify-between"><span className="text-text-sec">Protein rec.</span><span className="font-medium text-text tabular-nums">{suggestion.protein_rec}g</span></div>
+              {suggestion.rate_per_week_kg !== 0 && (
+                <div className="flex justify-between"><span className="text-text-sec">Rate</span><span className={`tabular-nums font-medium ${suggestion.rate_per_week_kg < 0 ? 'text-green' : 'text-accent'}`}>{suggestion.rate_per_week_kg > 0 ? '+' : ''}{suggestion.rate_per_week_kg} kg/wk</span></div>
+              )}
+            </div>
+            <button
+              onClick={applyTdeeSuggestion}
+              className="w-full rounded-xl bg-accent text-white py-2 text-sm font-semibold hover:opacity-90 cursor-pointer"
+            >
+              Apply to my goals
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Macro Calculator */}
       <div className="bg-card rounded-2xl p-5 space-y-4 border border-border">

@@ -9,6 +9,7 @@ interface EntryTableProps {
   entries: LogEntry[];
   foods: Food[];
   onRefresh: () => void;
+  onConfirm?: (id: number) => void;
 }
 
 interface EditState {
@@ -18,7 +19,7 @@ interface EditState {
   meal: Meal;
 }
 
-export default function EntryTable({ entries, foods, onRefresh }: EntryTableProps) {
+export default function EntryTable({ entries, foods, onRefresh, onConfirm }: EntryTableProps) {
   const { t, tMeal } = useT();
   const [editing, setEditing] = useState<EditState | null>(null);
 
@@ -64,8 +65,16 @@ export default function EntryTable({ entries, foods, onRefresh }: EntryTableProp
             <tbody>
               {groups[meal].map(e => (
                 <Fragment key={e.id}>
-                  <tr className="border-t border-border/40 hover:bg-card-hover/30">
-                    <td className="py-1.5 pr-2">{e.name}</td>
+                  <tr className={[
+                    'border-t border-border/40 hover:bg-card-hover/30',
+                    e.status === 'planned' ? 'opacity-60' : '',
+                  ].join(' ')}>
+                    <td className="py-1.5 pr-2">
+                      <span className={e.status === 'planned' ? 'italic text-text-sec' : ''}>{e.name}</span>
+                      {e.status === 'planned' && (
+                        <span className="ml-1.5 text-[10px] text-accent border border-accent/40 rounded px-1 py-0.5">plan</span>
+                      )}
+                    </td>
                     <td className="py-1.5 text-right tabular-nums">{Math.round(e.grams * 10) / 10}</td>
                     <td className="py-1.5 text-right tabular-nums">{e.calories}</td>
                     <td className="py-1.5 text-right tabular-nums text-text-sec">{e.protein}g</td>
@@ -73,6 +82,10 @@ export default function EntryTable({ entries, foods, onRefresh }: EntryTableProp
                     <td className="py-1.5 text-right tabular-nums text-text-sec">{e.fat}g</td>
                     <td className="py-1.5 text-right tabular-nums text-text-sec">{e.fiber || 0}g</td>
                     <td className="py-1.5 text-right">
+                      {e.status === 'planned' && onConfirm && (
+                        <button onClick={() => onConfirm(e.id)}
+                          className="text-accent hover:opacity-75 px-1 cursor-pointer transition-colors text-xs" title="Confirm">✓</button>
+                      )}
                       <button onClick={() => setEditing({ id: e.id, food_id: e.food_id, grams: e.grams, meal: e.meal as Meal })}
                         className="text-text-sec hover:text-text px-1 cursor-pointer transition-colors">✎</button>
                       <button onClick={() => handleDelete(e.id)}

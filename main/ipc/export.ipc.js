@@ -1,15 +1,17 @@
-const { ipcMain } = require('electron');
-const { dialog } = require('electron');
-const { getDb } = require('../db');
+const { ipcMain, dialog, app } = require('electron');
+const { getDb, getDbPath } = require('../db');
 const fs = require('fs');
 
+function q(s) { return `"${String(s ?? '').replace(/"/g, '""')}"`; }
+
 function registerExportIpc() {
+  // ── Export data as JSON or CSV ────────────────────────────────────────────
   ipcMain.handle('export:data', async (_, { format }) => {
     const db = getDb();
 
-    const foods = db.prepare('SELECT * FROM foods').all();
-    const log = db.prepare(`
-      SELECT l.id, l.date, f.name AS food_name, l.grams, l.meal,
+    const foods      = db.prepare('SELECT * FROM foods').all();
+    const log        = db.prepare(`
+      SELECT l.id, l.date, f.name AS food_name, l.grams, l.meal, l.status,
         ROUND(f.calories * l.grams / 100, 2) AS calories,
         ROUND(f.protein  * l.grams / 100, 2) AS protein,
         ROUND(f.carbs    * l.grams / 100, 2) AS carbs,
@@ -18,72 +20,78 @@ function registerExportIpc() {
       FROM log l JOIN foods f ON l.food_id = f.id
       ORDER BY l.date DESC, l.id
     `).all();
-    const weightLog = db.prepare('SELECT * FROM weight_log ORDER BY date DESC').all();
-    const waterLog = db.prepare('SELECT * FROM water_log ORDER BY date DESC').all();
-    const dailyNotes = db.prepare('SELECT * FROM daily_notes ORDER BY date DESC').all();
+    const weightLog  = db.prepare('SELECT * FROM weight_log ORDER BY date DESC').all();
+    const waterLog   = db.prepare('SELECT * FROM water_log ORDER BY date DESC').all();
+    const exercises  = db.prepare('SELECT * FROM exercises ORDER BY date DESC').all();
+    const notes      = db.prepare('SELECT * FROM daily_notes ORDER BY date DESC').all();
     const supplements = db.prepare('SELECT * FROM supplements').all();
 
     const ext = format === 'json' ? 'json' : 'csv';
     const result = await dialog.showSaveDialog({
-      defaultPath: `calorie-counter-export.${ext}`,
-      filters: [
-        { name: ext.toUpperCase(), extensions: [ext] },
-      ],
+      defaultPath: `calorie-counter-export-${new Date().toISOString().slice(0,10)}.${ext}`,
+      filters: [{ name: ext.toUpperCase(), extensions: [ext] }],
     });
-
     if (result.canceled || !result.filePath) return { ok: false };
 
     if (format === 'json') {
-      const data = { foods, log, weight_log: weightLog, water_log: waterLog, daily_notes: dailyNotes, supplements };
+      const data = { foods, log, weight_log: weightLog, water_log: waterLog, exercises, daily_notes: notes, supplements };
       fs.writeFileSync(result.filePath, JSON.stringify(data, null, 2), 'utf-8');
     } else {
       let csv = '';
 
-      // Foods
       csv += '## Foods\n';
-      csv += 'id,name,calories,protein,carbs,fat,fiber,piece_grams,favorite\n';
-      for (const f of foods) {
-        csv += `${f.id},"${(f.name || '').replace(/"/g, '""')}",${f.calories},${f.protein},${f.carbs},${f.fat},${f.fiber},${f.piece_grams || ''},${f.favorite}\n`;
-      }
+      csv += 'id,name,calories,protein,carbs,fat,fiber,piece_grams,is_liquid,favorite\n';
+      for (const f of foods)
+        csv += `${f.id},${q(f.name)},${f.calories},${f.protein},${f.carbs},${f.fat},${f.fiber},${f.piece_grams ?? ''},${f.is_liquid ?? 0},${f.favorite ?? 0}\n`;
 
-      // Log
-      csv += '\n## Log\n';
-      csv += 'id,date,food_name,grams,meal,calories,protein,carbs,fat,fiber\n';
-      for (const l of log) {
-        csv += `${l.id},${l.date},"${(l.food_name || '').replace(/"/g, '""')}",${l.grams},${l.meal},${l.calories},${l.protein},${l.carbs},${l.fat},${l.fiber}\n`;
-      }
+      csv += '\n## Food Log\n';
+      csv += 'id,date,food_name,grams,meal,status,calories,protein,carbs,fat,fiber\n';
+      for (const l of log)
+        csv += `${l.id},${l.date},${q(l.food_name)},${l.grams},${l.meal},${l.status ?? 'logged'},${l.calories},${l.protein},${l.carbs},${l.fat},${l.fiber}\n`;
 
-      // Weight log
-      csv += '\n## Weight\n';
-      csv += 'id,date,weight\n';
-      for (const w of weightLog) {
-        csv += `${w.id},${w.date},${w.weight}\n`;
-      }
+      csv += '\n## Weight & Body Composition\n';
+      csv += 'id,date,weight,fat_pct,muscle_mass,water_pct,bone_mass\n';
+      for (const w of weightLog)
+        csv += `${w.id},${w.date},${w.weight},${w.fat_pct ?? ''},${w.muscle_mass ?? ''},${w.water_pct ?? ''},${w.bone_mass ?? ''}\n`;
 
-      // Water log
-      csv += '\n## Water\n';
-      csv += 'id,date,ml\n';
-      for (const w of waterLog) {
-        csv += `${w.id},${w.date},${w.ml}\n`;
-      }
+      csv += '\n## Exercises\n';
+      csv += 'id,date,type,duration_min,calories_burned,notes,source\n';
+      for (const e of exercises)
+        csv += `${e.id},${e.date},${q(e.type)},${e.duration_min},${e.calories_burned},${q(e.notes ?? '')},${e.source}\n`;
 
-      // Daily notes
-      csv += '\n## Notes\n';
+      csv += '\n## Water Log\n';
+      csv += 'id,date,ml,source\n';
+      for (const w of waterLog)
+        csv += `${w.id},${w.date},${w.ml},${q(w.source ?? '')}\n`;
+
+      csv += '\n## Daily Notes\n';
       csv += 'date,note\n';
-      for (const n of dailyNotes) {
-        csv += `${n.date},"${(n.note || '').replace(/"/g, '""')}"\n`;
-      }
+      for (const n of notes)
+        csv += `${n.date},${q(n.note)}\n`;
 
-      // Supplements
       csv += '\n## Supplements\n';
       csv += 'id,name,qty\n';
-      for (const s of supplements) {
-        csv += `${s.id},"${(s.name || '').replace(/"/g, '""')}",${s.qty}\n`;
-      }
+      for (const s of supplements)
+        csv += `${s.id},${q(s.name)},${s.qty}\n`;
 
       fs.writeFileSync(result.filePath, csv, 'utf-8');
     }
 
+    return { ok: true, path: result.filePath };
+  });
+
+  // ── Export full database backup (.db file) ────────────────────────────────
+  ipcMain.handle('export:backup', async () => {
+    const result = await dialog.showSaveDialog({
+      defaultPath: `calorie-counter-backup-${new Date().toISOString().slice(0,10)}.db`,
+      filters: [{ name: 'SQLite Database', extensions: ['db'] }],
+    });
+    if (result.canceled || !result.filePath) return { ok: false };
+
+    const db = getDb();
+    // Checkpoint WAL so the backup is complete
+    db.pragma('wal_checkpoint(FULL)');
+    fs.copyFileSync(getDbPath(), result.filePath);
     return { ok: true, path: result.filePath };
   });
 }

@@ -7,6 +7,7 @@ const registerFoodsIpc    = require('./ipc/foods.ipc');
 const registerLogIpc      = require('./ipc/log.ipc');
 const registerRecipesIpc       = require('./ipc/recipes.ipc');
 const registerActualRecipesIpc = require('./ipc/actual_recipes.ipc');
+const registerExercisesIpc     = require('./ipc/exercises.ipc');
 const registerWaterIpc    = require('./ipc/water.ipc');
 const registerWeightIpc   = require('./ipc/weight.ipc');
 const registerSettingsIpc     = require('./ipc/settings.ipc');
@@ -19,6 +20,9 @@ const registerImportIpc     = require('./ipc/import.ipc');
 const registerExportIpc     = require('./ipc/export.ipc');
 const registerMeasurementsIpc = require('./ipc/measurements.ipc');
 const { registerUndoIpc }     = require('./ipc/undo.ipc');
+const registerPantryIpc       = require('./ipc/pantry.ipc');
+const registerAnalyticsIpc    = require('./ipc/analytics.ipc');
+const registerGoalsTdeeIpc    = require('./ipc/goals_tdee.ipc');
 
 let mainWindow;
 
@@ -65,6 +69,7 @@ app.whenReady().then(() => {
   registerLogIpc();
   registerRecipesIpc();
   registerActualRecipesIpc();
+  registerExercisesIpc();
   registerWaterIpc();
   registerWeightIpc();
   registerSettingsIpc();
@@ -77,6 +82,9 @@ app.whenReady().then(() => {
   registerExportIpc();
   registerMeasurementsIpc();
   registerUndoIpc();
+  registerPantryIpc();
+  registerAnalyticsIpc();
+  registerGoalsTdeeIpc();
 
   createWindow();
 

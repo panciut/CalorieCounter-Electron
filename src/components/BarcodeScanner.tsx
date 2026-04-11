@@ -6,21 +6,30 @@ interface BarcodeScannerProps {
   onError?: (err: string) => void;
 }
 
+function classifyCamera(label: string): 'iphone' | 'mac' {
+  const l = label.toLowerCase();
+  if (l.includes('iphone') || l.includes('continuity') || l.includes('isight') || l.includes('ipad')) return 'iphone';
+  return 'mac';
+}
+
 export default function BarcodeScanner({ onResult, onError }: BarcodeScannerProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const scannerRef = useRef<Html5Qrcode | null>(null);
-  const [cameras, setCameras] = useState<{ id: string; label: string }[]>([]);
+  const containerRef  = useRef<HTMLDivElement>(null);
+  const scannerRef    = useRef<Html5Qrcode | null>(null);
+  const scannedRef    = useRef(false);
+
+  const [cameras, setCameras]             = useState<{ id: string; label: string }[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<string>('');
-  const [scanning, setScanning] = useState(false);
-  const [error, setError] = useState('');
-  const scannedRef = useRef(false);
+  const [scanning, setScanning]           = useState(false);
+  const [error, setError]                 = useState('');
 
   useEffect(() => {
     Html5Qrcode.getCameras()
       .then(devices => {
         if (devices.length) {
           setCameras(devices);
-          setSelectedCamera(devices[0].id);
+          // Default: prefer Mac built-in camera
+          const mac = devices.find(d => classifyCamera(d.label) === 'mac') ?? devices[0];
+          setSelectedCamera(mac.id);
         } else {
           setError('No cameras found');
         }
@@ -31,8 +40,7 @@ export default function BarcodeScanner({ onResult, onError }: BarcodeScannerProp
   useEffect(() => {
     if (!selectedCamera || !containerRef.current) return;
 
-    const scannerId = 'barcode-reader';
-    const scanner = new Html5Qrcode(scannerId, {
+    const scanner = new Html5Qrcode('barcode-reader', {
       formatsToSupport: [
         Html5QrcodeSupportedFormats.EAN_13,
         Html5QrcodeSupportedFormats.EAN_8,
@@ -57,7 +65,7 @@ export default function BarcodeScanner({ onResult, onError }: BarcodeScannerProp
           setScanning(false);
           onResult(decodedText);
         },
-        () => { /* scan misses — ignore */ }
+        () => {}
       )
       .then(() => setScanning(true))
       .catch(err => {
@@ -65,24 +73,48 @@ export default function BarcodeScanner({ onResult, onError }: BarcodeScannerProp
         onError?.(String(err));
       });
 
-    return () => {
-      scanner.stop().catch(() => {});
-    };
+    return () => { scanner.stop().catch(() => {}); };
   }, [selectedCamera]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const macCameras     = cameras.filter(c => classifyCamera(c.label) === 'mac');
+  const iphoneCameras  = cameras.filter(c => classifyCamera(c.label) === 'iphone');
 
   return (
     <div className="flex flex-col gap-3">
-      {cameras.length > 1 && (
-        <select
-          value={selectedCamera}
-          onChange={e => setSelectedCamera(e.target.value)}
-          className="bg-card border border-border rounded px-2 py-1 text-sm text-text outline-none focus:border-accent"
-        >
-          {cameras.map(c => (
-            <option key={c.id} value={c.id}>{c.label || c.id}</option>
+      {/* Camera source buttons */}
+      {cameras.length > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          {macCameras.map(c => (
+            <button
+              key={c.id}
+              onClick={() => setSelectedCamera(c.id)}
+              className={[
+                'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border cursor-pointer transition-colors',
+                selectedCamera === c.id
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-border text-text-sec hover:border-accent/50',
+              ].join(' ')}
+            >
+              💻 {macCameras.length > 1 ? c.label : 'Mac camera'}
+            </button>
           ))}
-        </select>
+          {iphoneCameras.map(c => (
+            <button
+              key={c.id}
+              onClick={() => setSelectedCamera(c.id)}
+              className={[
+                'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border cursor-pointer transition-colors',
+                selectedCamera === c.id
+                  ? 'border-accent bg-accent/10 text-accent'
+                  : 'border-border text-text-sec hover:border-accent/50',
+              ].join(' ')}
+            >
+              📱 iPhone camera
+            </button>
+          ))}
+        </div>
       )}
+
       <div
         id="barcode-reader"
         ref={containerRef}
