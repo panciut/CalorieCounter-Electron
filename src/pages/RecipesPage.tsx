@@ -1,343 +1,774 @@
-import { useEffect, useState } from 'react';
-import { useT } from '../i18n/useT';
-import { useToast } from '../components/Toast';
+import { useState, useEffect } from 'react';
 import { api } from '../api';
-import FoodSearch from '../components/FoodSearch';
-import type { SearchItem } from '../components/FoodSearch';
-import MealPills from '../components/MealPills';
-import Modal from '../components/Modal';
+import { useToast } from '../components/Toast';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { today } from '../lib/dateUtil';
-import type { Food, Recipe, RecipeIngredient, Meal } from '../types';
+import type { Recipe, RecipeIngredient, ActualRecipe, ActualRecipeIngredient, Food, Meal } from '../types';
 
-interface DraftIngredient { food: Food; grams: number; }
-
-const INPUT_CLASS = 'bg-bg border border-border rounded-lg px-3 py-2 text-text text-sm outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
+const MEALS: Meal[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
 function n(v: unknown) { return Math.round(Number(v) || 0); }
+function nf(v: unknown) { return Math.round((Number(v) || 0) * 10) / 10; }
 
-export default function RecipesPage() {
-  const { t } = useT();
+// ─────────────────────────────────────────────────────────────
+// BUNDLES TAB (original recipes)
+// ─────────────────────────────────────────────────────────────
+
+function BundlesTab() {
   const { showToast } = useToast();
-
-  const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const [foods, setFoods] = useState<Food[]>([]);
-
-  // Create dialog
-  const [showCreate, setShowCreate] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newDesc, setNewDesc] = useState('');
-  const [draftIngredients, setDraftIngredients] = useState<DraftIngredient[]>([]);
-  const [selectedFood, setSelectedFood] = useState<Food|null>(null);
-  const [selectedGrams, setSelectedGrams] = useState(100);
-
-  // Detail / edit dialog
-  const [detailRecipe, setDetailRecipe] = useState<Recipe|null>(null);
-  const [detailIngredients, setDetailIngredients] = useState<(RecipeIngredient & { editGrams: number })[]>([]);
-  const [addIngFood, setAddIngFood] = useState<Food|null>(null);
-  const [addIngGrams, setAddIngGrams] = useState(100);
-  const [editingName, setEditingName] = useState('');
-  const [editingDesc, setEditingDesc] = useState('');
-
-  // Log dialog
-  const [logRecipe, setLogRecipe] = useState<Recipe|null>(null);
-  const [logScale, setLogScale] = useState(1);
-  const [logMeal, setLogMeal] = useState<Meal>('Breakfast');
-  const [logDate, setLogDate] = useState(today());
+  const [bundles, setBundles]           = useState<Recipe[]>([]);
+  const [foods, setFoods]               = useState<Food[]>([]);
+  const [detailId, setDetailId]         = useState<number | null>(null);
+  const [detail, setDetail]             = useState<Recipe | null>(null);
+  const [creating, setCreating]         = useState(false);
+  const [logTarget, setLogTarget]       = useState<Recipe | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Recipe | null>(null);
+  const [logMeal, setLogMeal]           = useState<Meal>('Lunch');
+  const [logDate, setLogDate]           = useState(today());
+  const [logScale, setLogScale]         = useState('1');
 
   useEffect(() => {
-    loadRecipes();
+    api.recipes.getAll().then(setBundles);
     api.foods.getAll().then(setFoods);
   }, []);
 
-  async function loadRecipes() { setRecipes(await api.recipes.getAll()); }
-
-  // ── Create ──────────────────────────────────────────────────────────────────
-
-  function openCreate() {
-    setNewName(''); setNewDesc(''); setDraftIngredients([]); setSelectedFood(null); setSelectedGrams(100); setShowCreate(true);
-  }
-
-  function addDraftIngredient() {
-    if (!selectedFood || selectedGrams <= 0) return;
-    setDraftIngredients(prev=>[...prev,{food:selectedFood,grams:selectedGrams}]);
-    setSelectedFood(null); setSelectedGrams(100);
-  }
-
-  function draftMacro(field:'calories'|'protein'|'carbs'|'fat'|'fiber') {
-    return draftIngredients.reduce((s,d)=>s+(Number(d.food[field])||0)*d.grams/100,0);
-  }
-
-  async function handleCreate() {
-    if (!newName.trim()||!draftIngredients.length) return;
-    await api.recipes.create({ name:newName.trim(), description:newDesc.trim(), ingredients:draftIngredients.map(d=>({food_id:d.food.id,grams:d.grams})) });
-    setShowCreate(false); await loadRecipes();
-  }
-
-  // ── Detail / edit ────────────────────────────────────────────────────────────
-
-  async function openDetail(recipe: Recipe) {
-    const full = await api.recipes.get(recipe.id);
-    setDetailRecipe(full);
-    setDetailIngredients((full.ingredients||[]).map(ing=>({...ing, editGrams: Number(ing.grams)})));
-    setEditingName(full.name);
-    setEditingDesc(full.description||'');
-    setAddIngFood(null);
-    setAddIngGrams(100);
-  }
-
-  function addDetailIngredient() {
-    if (!addIngFood || addIngGrams <= 0) return;
-    const fake: RecipeIngredient & { editGrams: number } = {
-      id: -(Date.now()), food_id: addIngFood.id, name: addIngFood.name,
-      grams: addIngGrams, editGrams: addIngGrams,
-      calories: (Number(addIngFood.calories)||0)*addIngGrams/100,
-      protein:  (Number(addIngFood.protein)||0)*addIngGrams/100,
-      carbs:    (Number(addIngFood.carbs)||0)*addIngGrams/100,
-      fat:      (Number(addIngFood.fat)||0)*addIngGrams/100,
-      fiber:    (Number(addIngFood.fiber)||0)*addIngGrams/100,
-    };
-    setDetailIngredients(prev=>[...prev, fake]);
-    setAddIngFood(null); setAddIngGrams(100);
+  async function openDetail(id: number) {
+    const r = await api.recipes.get(id);
+    setDetail({ ...r, ingredients: r.ingredients?.map(i => ({ ...i, editGrams: i.grams })) });
+    setDetailId(id);
   }
 
   async function saveDetail() {
-    if (!detailRecipe) return;
+    if (!detail?.ingredients) return;
     await api.recipes.updateIngredients({
-      id: detailRecipe.id,
-      ingredients: detailIngredients.filter(i=>i.editGrams>0).map(i=>({ food_id: i.food_id, grams: i.editGrams })),
+      id: detail.id,
+      ingredients: detail.ingredients.map(i => ({ food_id: i.food_id, grams: Number(i.editGrams) || i.grams })),
     });
-    await api.settings.get(); // re-fetch to bust any cache — also fires a reload
-    setDetailRecipe(null);
-    await loadRecipes();
-    showToast(t('common.saved'));
+    showToast('Bundle saved');
+    await api.recipes.getAll().then(setBundles);
+    setDetailId(null);
+    setDetail(null);
   }
 
-  function detailTotal(field: 'calories'|'protein'|'carbs'|'fat'|'fiber') {
-    return detailIngredients.reduce((s,ing)=>{
-      const ratio = ing.editGrams / (ing.grams || 1);
-      return s + (Number(ing[field])||0) * ratio;
-    }, 0);
+  async function doLog() {
+    if (!logTarget) return;
+    await api.recipes.log({ recipe_id: logTarget.id, date: logDate, meal: logMeal, scale: parseFloat(logScale) || 1 });
+    showToast('Logged');
+    setLogTarget(null);
   }
 
-  // ── Delete ──────────────────────────────────────────────────────────────────
-
-  async function handleDelete(id: number, e: React.MouseEvent) {
-    e.stopPropagation();
-    await api.recipes.delete(id); await loadRecipes();
+  async function doDelete() {
+    if (!deleteTarget) return;
+    await api.recipes.delete(deleteTarget.id);
+    setBundles(b => b.filter(r => r.id !== deleteTarget.id));
+    showToast('Bundle deleted');
+    setDeleteTarget(null);
   }
 
-  // ── Log ─────────────────────────────────────────────────────────────────────
-
-  function openLog(recipe: Recipe, e: React.MouseEvent) {
-    e.stopPropagation();
-    setLogRecipe(recipe); setLogScale(1); setLogMeal('Breakfast'); setLogDate(today());
-  }
-
-  async function handleLog() {
-    if (!logRecipe) return;
-    await api.recipes.log({ recipe_id:logRecipe.id, date:logDate, meal:logMeal, scale:logScale });
-    setLogRecipe(null); showToast(t('recipes.log'));
-  }
-
-  const searchItems: SearchItem[] = foods.map(f=>({...f,isRecipe:false as const}));
+  const inputCls = 'w-full rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent';
+  const selCls   = 'rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent';
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-text">{t('recipes.title')}</h1>
-        <button onClick={openCreate} className="bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium hover:opacity-90 cursor-pointer">{t('recipes.new')}</button>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-text-sec">Fixed-portion shortcuts — log a set of foods in one tap.</p>
+        <button
+          onClick={() => setCreating(true)}
+          className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer"
+        >
+          + New Bundle
+        </button>
       </div>
 
-      {/* Recipe grid */}
-      {recipes.length === 0 ? (
-        <p className="text-text-sec text-center py-16">{t('recipes.noRecipes')}</p>
+      {bundles.length === 0 ? (
+        <p className="text-text-sec text-center py-12 text-sm">No bundles yet.</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {recipes.map(recipe=>(
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {bundles.map(b => (
             <div
-              key={recipe.id}
-              onClick={()=>openDetail(recipe)}
-              className="bg-card border border-border rounded-xl p-4 flex flex-col gap-3 relative cursor-pointer hover:border-accent/50 transition-colors"
+              key={b.id}
+              onClick={() => openDetail(b.id)}
+              className="bg-card border border-border rounded-xl p-4 cursor-pointer hover:bg-card-hover transition-colors space-y-2"
             >
-              <button onClick={e=>handleDelete(recipe.id,e)} className="absolute top-3 right-3 w-6 h-6 flex items-center justify-center text-text-sec hover:text-red cursor-pointer transition-colors text-xs">✕</button>
-              <div className="pr-6">
-                <h2 className="font-semibold text-text">{recipe.name}</h2>
-                {recipe.description && <p className="text-xs text-text-sec mt-0.5 line-clamp-2">{recipe.description}</p>}
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h3 className="font-semibold text-text">{b.name}</h3>
+                  {b.description && <p className="text-xs text-text-sec mt-0.5">{b.description}</p>}
+                </div>
+                <div className="flex gap-1.5 shrink-0">
+                  <button
+                    onClick={e => { e.stopPropagation(); setLogTarget(b); }}
+                    className="px-2.5 py-1 rounded-lg bg-accent/10 text-accent text-xs font-medium hover:bg-accent/20 transition-colors cursor-pointer"
+                  >Log</button>
+                  <button
+                    onClick={e => { e.stopPropagation(); setDeleteTarget(b); }}
+                    className="px-2.5 py-1 rounded-lg bg-red/10 text-red text-xs font-medium hover:bg-red/20 transition-colors cursor-pointer"
+                  >Delete</button>
+                </div>
               </div>
-              <span className="self-start text-xs bg-bg border border-border text-text-sec px-2 py-0.5 rounded-full">{recipe.ingredient_count} {t('recipes.ingredients')}</span>
-              <div className="grid grid-cols-4 gap-1 bg-bg rounded-lg p-2">
-                {([
-                  [t('macro.kcal'), recipe.calories, ''],
-                  [t('macro.protein'), recipe.protein, 'g'],
-                  [t('macro.carbs'), recipe.carbs, 'g'],
-                  [t('macro.fat'), recipe.fat, 'g'],
-                ] as [string, unknown, string][]).map(([label, val, unit])=>(
-                  <div key={label} className="flex flex-col items-center">
-                    <span className="text-xs text-text-sec">{label}</span>
-                    <span className="text-sm font-medium text-text tabular-nums">{n(val)}{unit}</span>
-                  </div>
-                ))}
+              <div className="flex gap-3 text-xs text-text-sec">
+                <span>{n((b as unknown as Record<string,unknown>).total_calories ?? b.calories)} kcal</span>
+                <span>P {n((b as unknown as Record<string,unknown>).total_protein ?? b.protein)}g</span>
+                <span>C {n((b as unknown as Record<string,unknown>).total_carbs ?? b.carbs)}g</span>
+                <span>F {n((b as unknown as Record<string,unknown>).total_fat ?? b.fat)}g</span>
+                <span className="ml-auto">{b.ingredient_count} items</span>
               </div>
-              <button onClick={e=>openLog(recipe,e)} className="mt-auto bg-accent text-white text-sm py-1.5 rounded-lg font-medium hover:opacity-90 cursor-pointer">{t('recipes.log')}</button>
             </div>
           ))}
         </div>
       )}
 
-      {/* ── Detail / Edit modal ─────────────────────────────────────────────── */}
-      <Modal isOpen={!!detailRecipe} onClose={()=>setDetailRecipe(null)} title={detailRecipe?.name ?? ''}>
-        {detailRecipe && (
-          <div className="flex flex-col gap-4">
-            {/* Name + desc */}
-            <div className="grid grid-cols-1 gap-2">
-              <input className={INPUT_CLASS} value={editingName} onChange={e=>setEditingName(e.target.value)} placeholder={t('rc.recipeName')} />
-              <input className={INPUT_CLASS} value={editingDesc} onChange={e=>setEditingDesc(e.target.value)} placeholder={`${t('rc.description')} (${t('rc.descOptional')})`} />
-            </div>
+      {detailId !== null && detail && (
+        <BundleDetailModal
+          detail={detail}
+          foods={foods}
+          onClose={() => { setDetailId(null); setDetail(null); }}
+          onSave={saveDetail}
+          onChange={setDetail}
+        />
+      )}
 
-            {/* Ingredient list */}
-            <div className="flex flex-col gap-1 max-h-64 overflow-y-auto">
-              <div className="grid grid-cols-[1fr_80px_auto_auto] gap-2 px-1 text-xs text-text-sec uppercase tracking-wider mb-1">
-                <span>{t('th.food')}</span>
-                <span className="text-right">{t('th.g')}</span>
-                <span className="text-right">{t('th.kcal')}</span>
-                <span></span>
+      {creating && (
+        <BundleCreateModal
+          foods={foods}
+          onClose={() => setCreating(false)}
+          onCreate={async (data) => {
+            await api.recipes.create(data);
+            await api.recipes.getAll().then(setBundles);
+            showToast('Bundle created');
+            setCreating(false);
+          }}
+        />
+      )}
+
+      {logTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm mx-4 space-y-4">
+            <h2 className="font-semibold text-text">Log "{logTarget.name}"</h2>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs text-text-sec">Scale (1 = full bundle)</label>
+                <input type="number" className={inputCls} value={logScale} step="0.1"
+                  onChange={e => setLogScale(e.target.value)} />
               </div>
-              {detailIngredients.map((ing, i) => {
-                const ratio = ing.editGrams / (ing.grams || 1);
-                const ingCal = Math.round((Number(ing.calories)||0) * ratio);
-                return (
-                  <div key={`${ing.id}-${i}`} className="grid grid-cols-[1fr_80px_auto_auto] gap-2 items-center bg-bg rounded-lg px-3 py-2">
-                    <span className="text-sm text-text truncate">{ing.name}</span>
-                    <input
-                      type="number"
-                      min={0}
-                      step={0.1}
-                      value={ing.editGrams}
-                      onChange={e=>{
-                        const val = parseFloat(e.target.value)||0;
-                        setDetailIngredients(prev=>prev.map((x,j)=>j===i?{...x,editGrams:val}:x));
-                      }}
-                      className={`w-full text-right ${INPUT_CLASS}`}
-                    />
-                    <span className="text-xs text-text-sec tabular-nums text-right">{ingCal} kcal</span>
-                    <button onClick={()=>setDetailIngredients(prev=>prev.filter((_,j)=>j!==i))} className="text-text-sec hover:text-red cursor-pointer text-xs px-1">✕</button>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Add ingredient */}
-            <div className="border-t border-border pt-3">
-              <p className="text-xs text-text-sec uppercase tracking-wider mb-2">{t('rc.addIngredient')}</p>
-              <FoodSearch items={searchItems} onSelect={item=>setAddIngFood(item as Food)} placeholder={t('rc.searchFood')} />
-              {addIngFood && (
-                <div className="flex gap-2 items-center mt-2">
-                  <span className="flex-1 text-sm text-text truncate">{addIngFood.name}</span>
-                  <input type="number" min={1} className={`w-24 ${INPUT_CLASS}`} value={addIngGrams} onChange={e=>setAddIngGrams(Number(e.target.value))} />
-                  <span className="text-xs text-text-sec">g</span>
-                  <button onClick={addDetailIngredient} className="bg-accent text-white px-3 py-1.5 rounded-lg text-sm cursor-pointer hover:opacity-90">{t('common.add')}</button>
-                </div>
-              )}
-            </div>
-
-            {/* Totals */}
-            <div className="grid grid-cols-4 gap-1 bg-bg rounded-lg p-2 border border-border">
-              {([
-                [t('macro.kcal'), detailTotal('calories'), ''],
-                [t('macro.protein'), detailTotal('protein'), 'g'],
-                [t('macro.carbs'), detailTotal('carbs'), 'g'],
-                [t('macro.fat'), detailTotal('fat'), 'g'],
-              ] as [string, number, string][]).map(([l,v,u])=>(
-                <div key={l} className="flex flex-col items-center">
-                  <span className="text-xs text-text-sec">{l}</span>
-                  <span className="text-sm font-semibold text-text tabular-nums">{n(v)}{u}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Actions */}
-            <div className="flex justify-between items-center gap-2 pt-1">
-              <button onClick={()=>{ setLogRecipe(detailRecipe); setDetailRecipe(null); setLogScale(1); setLogMeal('Breakfast'); setLogDate(today()); }} className="border border-border text-text-sec px-4 py-2 rounded-lg text-sm cursor-pointer hover:border-accent hover:text-accent transition-colors">{t('recipes.log')}</button>
-              <div className="flex gap-2">
-                <button onClick={()=>setDetailRecipe(null)} className="px-4 py-2 rounded-lg text-sm text-text-sec border border-border cursor-pointer hover:text-text">{t('common.cancel')}</button>
-                <button onClick={saveDetail} className="bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:opacity-90">{t('common.save')}</button>
+              <div className="space-y-1">
+                <label className="text-xs text-text-sec">Meal</label>
+                <select className={`${selCls} w-full`} value={logMeal} onChange={e => setLogMeal(e.target.value as Meal)}>
+                  {MEALS.map(m => <option key={m}>{m}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-text-sec">Date</label>
+                <input type="date" className={inputCls} value={logDate} onChange={e => setLogDate(e.target.value)} />
               </div>
             </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* ── Create modal ──────────────────────────────────────────────────── */}
-      <Modal isOpen={showCreate} onClose={()=>setShowCreate(false)} title={t('rc.newRecipe')}>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-text-sec">{t('rc.recipeName')}</label>
-            <input className={INPUT_CLASS} placeholder={t('rc.recipeNamePlaceholder')} value={newName} onChange={e=>setNewName(e.target.value)} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-text-sec">{t('rc.description')} <span className="opacity-60">({t('rc.descOptional')})</span></label>
-            <input className={INPUT_CLASS} placeholder={t('rc.descOptional')} value={newDesc} onChange={e=>setNewDesc(e.target.value)} />
-          </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-xs text-text-sec">{t('rc.addIngredient')}</label>
-            <FoodSearch items={searchItems} onSelect={item=>setSelectedFood(item as Food)} placeholder={t('rc.searchFood')} />
-            {selectedFood && (
-              <div className="flex gap-2 items-center">
-                <span className="flex-1 text-sm text-text truncate">{selectedFood.name}</span>
-                <input type="number" min={1} className={`w-24 ${INPUT_CLASS}`} value={selectedGrams} onChange={e=>setSelectedGrams(Number(e.target.value))} />
-                <span className="text-xs text-text-sec">g</span>
-                <button onClick={addDraftIngredient} className="bg-accent text-white px-3 py-1.5 rounded-lg text-sm cursor-pointer hover:opacity-90">{t('common.add')}</button>
-              </div>
-            )}
-          </div>
-          {draftIngredients.length > 0 && (
-            <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
-              {draftIngredients.map((d,i)=>(
-                <div key={i} className="flex items-center gap-2 bg-bg rounded-lg px-3 py-1.5">
-                  <span className="flex-1 text-sm text-text truncate">{d.food.name}</span>
-                  <span className="text-xs text-text-sec">{d.grams}g</span>
-                  <span className="text-xs text-text-sec">{n(d.food.calories*d.grams/100)}kcal</span>
-                  <button onClick={()=>setDraftIngredients(p=>p.filter((_,j)=>j!==i))} className="text-text-sec hover:text-red cursor-pointer text-xs">✕</button>
-                </div>
-              ))}
-              <div className="grid grid-cols-4 gap-1 bg-bg rounded-lg p-2 border border-border mt-1">
-                {[['kcal',draftMacro('calories')],['protein',draftMacro('protein')],['carbs',draftMacro('carbs')],['fat',draftMacro('fat')]].map(([l,v])=>(
-                  <div key={String(l)} className="flex flex-col items-center">
-                    <span className="text-xs text-text-sec">{l}</span>
-                    <span className="text-sm font-medium text-text tabular-nums">{n(v)}</span>
-                  </div>
-                ))}
-              </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setLogTarget(null)} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
+              <button onClick={doLog} className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer">Log</button>
             </div>
-          )}
-          <div className="flex justify-end gap-2 pt-1">
-            <button onClick={()=>setShowCreate(false)} className="px-4 py-2 rounded-lg text-sm text-text-sec border border-border cursor-pointer hover:text-text">{t('common.cancel')}</button>
-            <button onClick={handleCreate} disabled={!newName.trim()||!draftIngredients.length} className="bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:opacity-90 disabled:opacity-40">{t('rc.createRecipe')}</button>
           </div>
         </div>
-      </Modal>
+      )}
 
-      {/* ── Log modal ──────────────────────────────────────────────────────── */}
-      <Modal isOpen={!!logRecipe} onClose={()=>setLogRecipe(null)} title={logRecipe?`${t('rl.logRecipe')}: ${logRecipe.name}`:t('rl.logRecipe')}>
-        {logRecipe && (
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-text-sec">{t('rl.scale')}</label>
-              <input type="number" min={0.1} step={0.1} className={INPUT_CLASS} value={logScale} onChange={e=>setLogScale(Number(e.target.value))} />
+      {deleteTarget && (
+        <ConfirmDialog
+          message={`Delete bundle "${deleteTarget.name}"?`}
+          confirmLabel="Delete"
+          dangerous
+          onConfirm={doDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function BundleDetailModal({ detail, foods, onClose, onSave, onChange }: {
+  detail: Recipe;
+  foods: Food[];
+  onClose: () => void;
+  onSave: () => void;
+  onChange: (r: Recipe) => void;
+}) {
+  const [newFoodId, setNewFoodId] = useState('');
+  const [newGrams, setNewGrams]   = useState('');
+
+  function updateGrams(idx: number, val: string) {
+    const ings = [...(detail.ingredients ?? [])];
+    ings[idx] = { ...ings[idx], editGrams: parseFloat(val) || 0 };
+    onChange({ ...detail, ingredients: ings });
+  }
+
+  function removeIng(idx: number) {
+    const ings = [...(detail.ingredients ?? [])];
+    ings.splice(idx, 1);
+    onChange({ ...detail, ingredients: ings });
+  }
+
+  function addIng() {
+    const food = foods.find(f => f.id === Number(newFoodId));
+    if (!food || !newGrams) return;
+    const g = parseFloat(newGrams);
+    const newIng: RecipeIngredient = {
+      id: 0, food_id: food.id, name: food.name, grams: g, editGrams: g,
+      calories: food.calories * g / 100, protein: food.protein * g / 100,
+      carbs: food.carbs * g / 100, fat: food.fat * g / 100, fiber: food.fiber * g / 100,
+    };
+    onChange({ ...detail, ingredients: [...(detail.ingredients ?? []), newIng] });
+    setNewFoodId(''); setNewGrams('');
+  }
+
+  const inputCls = 'w-full rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg mx-4 space-y-4 max-h-[85vh] overflow-y-auto">
+        <h2 className="font-semibold text-text text-lg">{detail.name}</h2>
+        <div className="space-y-2">
+          {(detail.ingredients ?? []).map((ing, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="flex-1 text-sm text-text truncate">{ing.name}</span>
+              <input type="number"
+                className="w-20 rounded-lg border border-border bg-bg px-2 py-1 text-sm text-text focus:outline-none focus:border-accent text-right"
+                value={ing.editGrams ?? ing.grams}
+                onChange={e => updateGrams(i, e.target.value)} />
+              <span className="text-xs text-text-sec">g</span>
+              <button onClick={() => removeIng(i)} className="text-red text-xs hover:opacity-75 cursor-pointer">✕</button>
             </div>
-            <p className="text-sm text-text-sec bg-bg border border-border rounded-lg px-3 py-2">
-              {t('rl.willLog')} <span className="font-semibold text-accent">{n(Number(logRecipe.calories)*logScale)} kcal</span>
-            </p>
-            <MealPills selected={logMeal} onChange={setLogMeal} />
-            <input type="date" className={INPUT_CLASS} value={logDate} onChange={e=>setLogDate(e.target.value)} />
-            <div className="flex justify-end gap-2">
-              <button onClick={()=>setLogRecipe(null)} className="px-4 py-2 rounded-lg text-sm text-text-sec border border-border cursor-pointer">{t('common.cancel')}</button>
-              <button onClick={handleLog} className="bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:opacity-90">{t('recipes.log')}</button>
+          ))}
+        </div>
+        <div className="flex gap-2 border-t border-border pt-3">
+          <select
+            className="flex-1 rounded-lg border border-border bg-bg px-2 py-1.5 text-sm text-text focus:outline-none focus:border-accent"
+            value={newFoodId} onChange={e => setNewFoodId(e.target.value)}>
+            <option value="">Add ingredient…</option>
+            {foods.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </select>
+          <input type="number" placeholder="g"
+            className="w-20 rounded-lg border border-border bg-bg px-2 py-1.5 text-sm text-text focus:outline-none focus:border-accent"
+            value={newGrams} onChange={e => setNewGrams(e.target.value)} />
+          <button onClick={addIng} className="px-3 py-1.5 rounded-lg bg-accent/10 text-accent text-sm font-medium hover:bg-accent/20 cursor-pointer">Add</button>
+        </div>
+        <div className="flex gap-2 justify-end pt-1">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
+          <button onClick={onSave} className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer">Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BundleCreateModal({ foods, onClose, onCreate }: {
+  foods: Food[];
+  onClose: () => void;
+  onCreate: (data: { name: string; description: string; ingredients: { food_id: number; grams: number }[] }) => Promise<void>;
+}) {
+  const [name, setName]               = useState('');
+  const [desc, setDesc]               = useState('');
+  const [ingredients, setIngredients] = useState<{ food_id: number; name: string; grams: number }[]>([]);
+  const [newFoodId, setNewFoodId]     = useState('');
+  const [newGrams, setNewGrams]       = useState('');
+
+  function addIng() {
+    const food = foods.find(f => f.id === Number(newFoodId));
+    if (!food || !newGrams) return;
+    setIngredients(prev => [...prev, { food_id: food.id, name: food.name, grams: parseFloat(newGrams) }]);
+    setNewFoodId(''); setNewGrams('');
+  }
+
+  const inputCls = 'w-full rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg mx-4 space-y-4 max-h-[85vh] overflow-y-auto">
+        <h2 className="font-semibold text-text text-lg">New Bundle</h2>
+        <div className="space-y-3">
+          <input className={inputCls} placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
+          <input className={inputCls} placeholder="Description (optional)" value={desc} onChange={e => setDesc(e.target.value)} />
+        </div>
+        <div className="space-y-2">
+          {ingredients.map((ing, i) => (
+            <div key={i} className="flex items-center gap-2 text-sm text-text">
+              <span className="flex-1">{ing.name}</span>
+              <span className="text-text-sec">{ing.grams}g</span>
+              <button onClick={() => setIngredients(p => p.filter((_, j) => j !== i))} className="text-red hover:opacity-75 cursor-pointer">✕</button>
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2 border-t border-border pt-3">
+          <select
+            className="flex-1 rounded-lg border border-border bg-bg px-2 py-1.5 text-sm text-text focus:outline-none focus:border-accent"
+            value={newFoodId} onChange={e => setNewFoodId(e.target.value)}>
+            <option value="">Add ingredient…</option>
+            {foods.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </select>
+          <input type="number" placeholder="g"
+            className="w-20 rounded-lg border border-border bg-bg px-2 py-1.5 text-sm text-text focus:outline-none focus:border-accent"
+            value={newGrams} onChange={e => setNewGrams(e.target.value)} />
+          <button onClick={addIng} className="px-3 py-1.5 rounded-lg bg-accent/10 text-accent text-sm font-medium hover:bg-accent/20 cursor-pointer">Add</button>
+        </div>
+        <div className="flex gap-2 justify-end pt-1">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
+          <button
+            onClick={() => onCreate({ name, description: desc, ingredients })}
+            disabled={!name || ingredients.length === 0}
+            className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40 cursor-pointer"
+          >Create</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// RECIPES TAB (actual recipes with yield)
+// ─────────────────────────────────────────────────────────────
+
+function RecipesTab() {
+  const { showToast } = useToast();
+  const [recipes, setRecipes]           = useState<ActualRecipe[]>([]);
+  const [foods, setFoods]               = useState<Food[]>([]);
+  const [detailId, setDetailId]         = useState<number | null>(null);
+  const [detail, setDetail]             = useState<ActualRecipe | null>(null);
+  const [creating, setCreating]         = useState(false);
+  const [logTarget, setLogTarget]       = useState<ActualRecipe | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ActualRecipe | null>(null);
+  const [logGrams, setLogGrams]         = useState('');
+  const [logMeal, setLogMeal]           = useState<Meal>('Lunch');
+  const [logDate, setLogDate]           = useState(today());
+
+  useEffect(() => {
+    api.actualRecipes.getAll().then(setRecipes);
+    api.foods.getAll().then(setFoods);
+  }, []);
+
+  async function openDetail(id: number) {
+    const r = await api.actualRecipes.get(id);
+    setDetail(r);
+    setDetailId(id);
+  }
+
+  async function saveDetail(updated: ActualRecipe) {
+    await api.actualRecipes.update({
+      id: updated.id,
+      name: updated.name,
+      description: updated.description ?? '',
+      yield_g: updated.yield_g,
+      notes: updated.notes ?? '',
+    });
+    if (updated.ingredients) {
+      await api.actualRecipes.updateIngredients({
+        id: updated.id,
+        ingredients: updated.ingredients.map(i => ({ food_id: i.food_id, grams: i.grams })),
+      });
+    }
+    await api.actualRecipes.getAll().then(setRecipes);
+    showToast('Recipe saved');
+    setDetailId(null);
+    setDetail(null);
+  }
+
+  async function doLog() {
+    if (!logTarget) return;
+    const g = parseFloat(logGrams);
+    if (!g || g <= 0) return;
+    await api.actualRecipes.log({ recipe_id: logTarget.id, grams_eaten: g, meal: logMeal, date: logDate });
+    showToast('Logged');
+    setLogTarget(null);
+    setLogGrams('');
+  }
+
+  async function doDelete() {
+    if (!deleteTarget) return;
+    await api.actualRecipes.delete(deleteTarget.id);
+    setRecipes(r => r.filter(x => x.id !== deleteTarget.id));
+    showToast('Recipe deleted');
+    setDeleteTarget(null);
+  }
+
+  const inputCls = 'w-full rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent';
+  const selCls   = 'rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent';
+
+  const logPreview = (() => {
+    if (!logTarget || !logTarget.yield_g || !logGrams) return null;
+    const ratio = parseFloat(logGrams) / logTarget.yield_g;
+    if (isNaN(ratio) || ratio <= 0) return null;
+    return {
+      cal:     n(logTarget.total_calories * ratio),
+      protein: nf(logTarget.total_protein * ratio),
+      carbs:   nf(logTarget.total_carbs * ratio),
+      fat:     nf(logTarget.total_fat * ratio),
+    };
+  })();
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-text-sec">Full recipes with yield — log by how much you ate.</p>
+        <button
+          onClick={() => setCreating(true)}
+          className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer"
+        >
+          + New Recipe
+        </button>
+      </div>
+
+      {recipes.length === 0 ? (
+        <p className="text-text-sec text-center py-12 text-sm">No recipes yet.</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {recipes.map(r => (
+            <div
+              key={r.id}
+              onClick={() => openDetail(r.id)}
+              className="bg-card border border-border rounded-xl p-4 cursor-pointer hover:bg-card-hover transition-colors space-y-2"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <h3 className="font-semibold text-text">{r.name}</h3>
+                  {r.description && <p className="text-xs text-text-sec mt-0.5">{r.description}</p>}
+                </div>
+                <div className="flex gap-1.5 shrink-0">
+                  <button
+                    onClick={e => { e.stopPropagation(); setLogTarget(r); setLogGrams(String(r.yield_g || '')); }}
+                    className="px-2.5 py-1 rounded-lg bg-accent/10 text-accent text-xs font-medium hover:bg-accent/20 transition-colors cursor-pointer"
+                  >Log</button>
+                  <button
+                    onClick={e => { e.stopPropagation(); setDeleteTarget(r); }}
+                    className="px-2.5 py-1 rounded-lg bg-red/10 text-red text-xs font-medium hover:bg-red/20 transition-colors cursor-pointer"
+                  >Delete</button>
+                </div>
+              </div>
+              <div className="flex gap-3 text-xs text-text-sec flex-wrap">
+                <span>{n(r.total_calories)} kcal</span>
+                <span>P {n(r.total_protein)}g</span>
+                <span>C {n(r.total_carbs)}g</span>
+                <span>F {n(r.total_fat)}g</span>
+                {r.yield_g > 0 && <span className="ml-auto">Yield {r.yield_g}g</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {detailId !== null && detail && (
+        <RecipeDetailModal
+          detail={detail}
+          foods={foods}
+          onClose={() => { setDetailId(null); setDetail(null); }}
+          onSave={saveDetail}
+        />
+      )}
+
+      {creating && (
+        <RecipeCreateModal
+          foods={foods}
+          onClose={() => setCreating(false)}
+          onCreate={async (data) => {
+            await api.actualRecipes.create(data);
+            await api.actualRecipes.getAll().then(setRecipes);
+            showToast('Recipe created');
+            setCreating(false);
+          }}
+        />
+      )}
+
+      {logTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm mx-4 space-y-4">
+            <h2 className="font-semibold text-text">Log "{logTarget.name}"</h2>
+            <p className="text-xs text-text-sec">Total yield: {logTarget.yield_g}g</p>
+            <div className="space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs text-text-sec">How much did you eat? (g)</label>
+                <input type="number" className={inputCls} value={logGrams} placeholder="grams eaten"
+                  onChange={e => setLogGrams(e.target.value)} />
+              </div>
+              {logPreview && (
+                <div className="flex gap-3 text-xs rounded-lg bg-bg border border-border px-3 py-2">
+                  <span className="text-text font-medium">{logPreview.cal} kcal</span>
+                  <span className="text-text-sec">P {logPreview.protein}g</span>
+                  <span className="text-text-sec">C {logPreview.carbs}g</span>
+                  <span className="text-text-sec">F {logPreview.fat}g</span>
+                </div>
+              )}
+              <div className="space-y-1">
+                <label className="text-xs text-text-sec">Meal</label>
+                <select className={`${selCls} w-full`} value={logMeal} onChange={e => setLogMeal(e.target.value as Meal)}>
+                  {MEALS.map(m => <option key={m}>{m}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-text-sec">Date</label>
+                <input type="date" className={inputCls} value={logDate} onChange={e => setLogDate(e.target.value)} />
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setLogTarget(null)} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
+              <button onClick={doLog} className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer">Log</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <ConfirmDialog
+          message={`Delete recipe "${deleteTarget.name}"?`}
+          confirmLabel="Delete"
+          dangerous
+          onConfirm={doDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function RecipeDetailModal({ detail: initialDetail, foods, onClose, onSave }: {
+  detail: ActualRecipe;
+  foods: Food[];
+  onClose: () => void;
+  onSave: (r: ActualRecipe) => void;
+}) {
+  const [detail, setDetail]       = useState<ActualRecipe>(initialDetail);
+  const [newFoodId, setNewFoodId] = useState('');
+  const [newGrams, setNewGrams]   = useState('');
+  const [tab, setTab]             = useState<'ingredients' | 'notes'>('ingredients');
+
+  function updateIngGrams(idx: number, val: string) {
+    const ings = [...(detail.ingredients ?? [])];
+    ings[idx] = { ...ings[idx], grams: parseFloat(val) || 0 };
+    setDetail(d => ({ ...d, ingredients: ings }));
+  }
+
+  function removeIng(idx: number) {
+    setDetail(d => ({ ...d, ingredients: (d.ingredients ?? []).filter((_, i) => i !== idx) }));
+  }
+
+  function addIng() {
+    const food = foods.find(f => f.id === Number(newFoodId));
+    if (!food || !newGrams) return;
+    const g = parseFloat(newGrams);
+    const newIng: ActualRecipeIngredient = {
+      id: 0, food_id: food.id, name: food.name, grams: g,
+      calories: food.calories * g / 100, protein: food.protein * g / 100,
+      carbs: food.carbs * g / 100, fat: food.fat * g / 100, fiber: food.fiber * g / 100,
+    };
+    setDetail(d => ({ ...d, ingredients: [...(d.ingredients ?? []), newIng] }));
+    setNewFoodId(''); setNewGrams('');
+  }
+
+  const totalGrams = (detail.ingredients ?? []).reduce((s, i) => s + i.grams, 0);
+  const inputCls = 'w-full rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg mx-4 space-y-4 max-h-[90vh] overflow-y-auto">
+        <div className="space-y-3">
+          <input className={inputCls} value={detail.name}
+            onChange={e => setDetail(d => ({ ...d, name: e.target.value }))} placeholder="Recipe name" />
+          <input className={inputCls} value={detail.description ?? ''}
+            onChange={e => setDetail(d => ({ ...d, description: e.target.value }))} placeholder="Description (optional)" />
+          <div className="flex gap-3 items-end">
+            <div className="flex-1 space-y-1">
+              <label className="text-xs text-text-sec">Yield (total cooked weight, g)</label>
+              <input type="number" className={inputCls} value={detail.yield_g || ''}
+                placeholder="e.g. 800"
+                onChange={e => setDetail(d => ({ ...d, yield_g: parseFloat(e.target.value) || 0 }))} />
+            </div>
+            {totalGrams > 0 && (
+              <span className="text-xs text-text-sec pb-2">Raw: {n(totalGrams)}g</span>
+            )}
+          </div>
+        </div>
+
+        <div className="flex gap-1 border-b border-border">
+          {(['ingredients', 'notes'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              className={[
+                'px-4 py-2 text-sm font-medium capitalize transition-colors cursor-pointer border-b-2 -mb-px',
+                tab === t ? 'border-accent text-accent' : 'border-transparent text-text-sec hover:text-text',
+              ].join(' ')}>
+              {t}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'ingredients' && (
+          <div className="space-y-2">
+            {(detail.ingredients ?? []).map((ing, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="flex-1 text-sm text-text truncate">{ing.name}</span>
+                <input type="number"
+                  className="w-20 rounded-lg border border-border bg-bg px-2 py-1 text-sm text-text focus:outline-none focus:border-accent text-right"
+                  value={ing.grams} onChange={e => updateIngGrams(i, e.target.value)} />
+                <span className="text-xs text-text-sec">g</span>
+                <button onClick={() => removeIng(i)} className="text-red text-xs hover:opacity-75 cursor-pointer">✕</button>
+              </div>
+            ))}
+            <div className="flex gap-2 border-t border-border pt-3">
+              <select
+                className="flex-1 rounded-lg border border-border bg-bg px-2 py-1.5 text-sm text-text focus:outline-none focus:border-accent"
+                value={newFoodId} onChange={e => setNewFoodId(e.target.value)}>
+                <option value="">Add ingredient…</option>
+                {foods.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </select>
+              <input type="number" placeholder="g"
+                className="w-20 rounded-lg border border-border bg-bg px-2 py-1.5 text-sm text-text focus:outline-none focus:border-accent"
+                value={newGrams} onChange={e => setNewGrams(e.target.value)} />
+              <button onClick={addIng} className="px-3 py-1.5 rounded-lg bg-accent/10 text-accent text-sm font-medium hover:bg-accent/20 cursor-pointer">Add</button>
             </div>
           </div>
         )}
-      </Modal>
+
+        {tab === 'notes' && (
+          <textarea
+            className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none focus:border-accent resize-none"
+            rows={8}
+            placeholder="Preparation steps, tips, notes…"
+            value={detail.notes ?? ''}
+            onChange={e => setDetail(d => ({ ...d, notes: e.target.value }))}
+          />
+        )}
+
+        <div className="flex gap-2 justify-end pt-1">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
+          <button onClick={() => onSave(detail)} className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer">Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RecipeCreateModal({ foods, onClose, onCreate }: {
+  foods: Food[];
+  onClose: () => void;
+  onCreate: (data: { name: string; description: string; yield_g: number; notes: string; ingredients: { food_id: number; grams: number }[] }) => Promise<void>;
+}) {
+  const [name, setName]               = useState('');
+  const [desc, setDesc]               = useState('');
+  const [yieldG, setYieldG]           = useState('');
+  const [notes, setNotes]             = useState('');
+  const [ingredients, setIngredients] = useState<{ food_id: number; name: string; grams: number }[]>([]);
+  const [newFoodId, setNewFoodId]     = useState('');
+  const [newGrams, setNewGrams]       = useState('');
+  const [tab, setTab]                 = useState<'ingredients' | 'notes'>('ingredients');
+
+  function addIng() {
+    const food = foods.find(f => f.id === Number(newFoodId));
+    if (!food || !newGrams) return;
+    setIngredients(prev => [...prev, { food_id: food.id, name: food.name, grams: parseFloat(newGrams) }]);
+    setNewFoodId(''); setNewGrams('');
+  }
+
+  const inputCls = 'w-full rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+      <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg mx-4 space-y-4 max-h-[90vh] overflow-y-auto">
+        <h2 className="font-semibold text-text text-lg">New Recipe</h2>
+        <div className="space-y-3">
+          <input className={inputCls} placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
+          <input className={inputCls} placeholder="Description (optional)" value={desc} onChange={e => setDesc(e.target.value)} />
+          <div className="space-y-1">
+            <label className="text-xs text-text-sec">Yield (total cooked weight, g)</label>
+            <input type="number" className={inputCls} placeholder="e.g. 800" value={yieldG} onChange={e => setYieldG(e.target.value)} />
+          </div>
+        </div>
+
+        <div className="flex gap-1 border-b border-border">
+          {(['ingredients', 'notes'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              className={[
+                'px-4 py-2 text-sm font-medium capitalize transition-colors cursor-pointer border-b-2 -mb-px',
+                tab === t ? 'border-accent text-accent' : 'border-transparent text-text-sec hover:text-text',
+              ].join(' ')}>
+              {t}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'ingredients' && (
+          <div className="space-y-2">
+            {ingredients.map((ing, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm text-text">
+                <span className="flex-1">{ing.name}</span>
+                <span className="text-text-sec">{ing.grams}g</span>
+                <button onClick={() => setIngredients(p => p.filter((_, j) => j !== i))} className="text-red hover:opacity-75 cursor-pointer">✕</button>
+              </div>
+            ))}
+            <div className="flex gap-2 border-t border-border pt-3">
+              <select
+                className="flex-1 rounded-lg border border-border bg-bg px-2 py-1.5 text-sm text-text focus:outline-none focus:border-accent"
+                value={newFoodId} onChange={e => setNewFoodId(e.target.value)}>
+                <option value="">Add ingredient…</option>
+                {foods.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </select>
+              <input type="number" placeholder="g"
+                className="w-20 rounded-lg border border-border bg-bg px-2 py-1.5 text-sm text-text focus:outline-none focus:border-accent"
+                value={newGrams} onChange={e => setNewGrams(e.target.value)} />
+              <button onClick={addIng} className="px-3 py-1.5 rounded-lg bg-accent/10 text-accent text-sm font-medium hover:bg-accent/20 cursor-pointer">Add</button>
+            </div>
+          </div>
+        )}
+
+        {tab === 'notes' && (
+          <textarea
+            className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none focus:border-accent resize-none"
+            rows={8}
+            placeholder="Preparation steps, tips, notes…"
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+          />
+        )}
+
+        <div className="flex gap-2 justify-end pt-1">
+          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
+          <button
+            onClick={() => onCreate({ name, description: desc, yield_g: parseFloat(yieldG) || 0, notes, ingredients })}
+            disabled={!name}
+            className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40 cursor-pointer"
+          >Create</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// PAGE ROOT
+// ─────────────────────────────────────────────────────────────
+
+type Tab = 'recipes' | 'bundles';
+
+export default function RecipesPage() {
+  const [activeTab, setActiveTab] = useState<Tab>('recipes');
+
+  return (
+    <div className="p-6 max-w-5xl mx-auto space-y-5">
+      <h1 className="text-2xl font-bold text-text">Recipes</h1>
+
+      <div className="flex gap-1 border-b border-border">
+        {([
+          { id: 'recipes', label: 'Recipes' },
+          { id: 'bundles', label: 'Bundles' },
+        ] as { id: Tab; label: string }[]).map(t => (
+          <button
+            key={t.id}
+            onClick={() => setActiveTab(t.id)}
+            className={[
+              'px-5 py-2.5 text-sm font-medium transition-colors cursor-pointer border-b-2 -mb-px',
+              activeTab === t.id
+                ? 'border-accent text-accent'
+                : 'border-transparent text-text-sec hover:text-text',
+            ].join(' ')}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'recipes' ? <RecipesTab /> : <BundlesTab />}
     </div>
   );
 }

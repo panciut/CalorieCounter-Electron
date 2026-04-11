@@ -5,7 +5,8 @@ const { seedDev } = require('./seed_dev');
 
 const registerFoodsIpc    = require('./ipc/foods.ipc');
 const registerLogIpc      = require('./ipc/log.ipc');
-const registerRecipesIpc  = require('./ipc/recipes.ipc');
+const registerRecipesIpc       = require('./ipc/recipes.ipc');
+const registerActualRecipesIpc = require('./ipc/actual_recipes.ipc');
 const registerWaterIpc    = require('./ipc/water.ipc');
 const registerWeightIpc   = require('./ipc/weight.ipc');
 const registerSettingsIpc     = require('./ipc/settings.ipc');
@@ -63,6 +64,7 @@ app.whenReady().then(() => {
   registerFoodsIpc();
   registerLogIpc();
   registerRecipesIpc();
+  registerActualRecipesIpc();
   registerWaterIpc();
   registerWeightIpc();
   registerSettingsIpc();

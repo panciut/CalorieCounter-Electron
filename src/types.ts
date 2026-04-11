@@ -59,6 +59,34 @@ export interface RecipeIngredient {
   editGrams?: number;
 }
 
+export interface ActualRecipe {
+  id: number;
+  name: string;
+  description: string | null;
+  yield_g: number;
+  notes: string | null;
+  created_at: string;
+  total_calories: number;
+  total_protein: number;
+  total_carbs: number;
+  total_fat: number;
+  total_fiber: number;
+  ingredient_count: number;
+  ingredients?: ActualRecipeIngredient[];
+}
+
+export interface ActualRecipeIngredient {
+  id: number;
+  food_id: number;
+  name: string;
+  grams: number;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+}
+
 export interface Settings {
   cal_min: number;
   cal_max: number;

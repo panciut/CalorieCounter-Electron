@@ -61,6 +61,24 @@ function initDb() {
       FOREIGN KEY (food_id) REFERENCES foods(id)
     );
 
+    CREATE TABLE IF NOT EXISTS actual_recipes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      description TEXT,
+      yield_g REAL NOT NULL DEFAULT 0,
+      notes TEXT,
+      created_at TEXT NOT NULL DEFAULT (date('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS actual_recipe_ingredients (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      recipe_id INTEGER NOT NULL,
+      food_id INTEGER NOT NULL,
+      grams REAL NOT NULL,
+      FOREIGN KEY (recipe_id) REFERENCES actual_recipes(id) ON DELETE CASCADE,
+      FOREIGN KEY (food_id) REFERENCES foods(id)
+    );
+
     CREATE TABLE IF NOT EXISTS water_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       date TEXT NOT NULL,

@@ -1,5 +1,5 @@
 import type {
-  Food, FrequentFood, LogEntry, Meal, Recipe, Settings,
+  Food, FrequentFood, LogEntry, Meal, Recipe, ActualRecipe, Settings,
   WeightEntry, WaterDay, WaterEntry, DailyNote, Streak,
   Supplement, SupplementDay, Measurement,
   WeeklySummary, WeekDayDetail, BarcodeResult,
@@ -57,6 +57,20 @@ export const api = {
                          invoke<{ ok: boolean }>('recipes:log', data),
     updateIngredients: (data: { id: number; ingredients: { food_id: number; grams: number }[] }) =>
                          invoke<{ ok: boolean }>('recipes:updateIngredients', data),
+  },
+
+  actualRecipes: {
+    getAll:            () => invoke<ActualRecipe[]>('actualRecipes:getAll'),
+    get:               (id: number) => invoke<ActualRecipe>('actualRecipes:get', { id }),
+    create:            (data: { name: string; description: string; yield_g: number; notes: string; ingredients: { food_id: number; grams: number }[] }) =>
+                         invoke<{ id: number }>('actualRecipes:create', data),
+    update:            (data: { id: number; name: string; description: string; yield_g: number; notes: string }) =>
+                         invoke<{ ok: boolean }>('actualRecipes:update', data),
+    updateIngredients: (data: { id: number; ingredients: { food_id: number; grams: number }[] }) =>
+                         invoke<{ ok: boolean }>('actualRecipes:updateIngredients', data),
+    delete:            (id: number) => invoke<{ ok: boolean }>('actualRecipes:delete', { id }),
+    log:               (data: { recipe_id: number; grams_eaten: number; meal: Meal; date: string }) =>
+                         invoke<{ ok: boolean }>('actualRecipes:log', data),
   },
 
   water: {
