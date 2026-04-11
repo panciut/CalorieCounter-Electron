@@ -822,9 +822,10 @@ dialog::backdrop {
   font-variant-numeric: tabular-nums;
   transition: color 0.3s var(--ease);
 }
-.budget-green  { color: var(--green); }
-.budget-yellow { color: var(--yellow); }
-.budget-red    { color: var(--red); }
+.budget-remaining.bar-green  { color: var(--green); }
+.budget-remaining.bar-yellow { color: var(--yellow); }
+.budget-remaining.bar-orange { color: #ff8c00; }
+.budget-remaining.bar-red    { color: var(--red); }
 
 /* ── Macro preview (food selection) ── */
 .macro-preview {

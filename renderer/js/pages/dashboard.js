@@ -89,22 +89,18 @@ function _dashRenderTotals(entries, settings) {
   document.getElementById('dash-fat').textContent     = fat + 'g';
   document.getElementById('dash-fiber').textContent   = fib + 'g';
 
-  // Budget remaining (based on cal_max)
   const calMax = settings.cal_max || 2200;
   const calMin = settings.cal_min || 1800;
-  const remaining = Math.round(calMax - cal);
+  const calRec = settings.cal_rec || Math.round((calMin + calMax) / 2);
+  const remaining = Math.round(calRec - cal);
   const remEl = document.getElementById('dash-remaining');
-  if (cal < calMin) {
-    const under = Math.round(calMin - cal);
-    remEl.textContent = under + ' ' + t('macro.kcal') + ' ' + t('dash.belowMin');
-    remEl.className = 'budget-remaining budget-red';
-  } else if (remaining > 0) {
+  const remBarColor = getBarColor(cal, calMin, calMax, settings);
+  if (remaining > 0) {
     remEl.textContent = remaining + ' ' + t('macro.kcal') + ' ' + t('dash.remaining');
-    remEl.className = 'budget-remaining budget-green';
   } else {
     remEl.textContent = t('dash.overBy') + ' ' + Math.abs(remaining) + ' ' + t('macro.kcal');
-    remEl.className = 'budget-remaining budget-red';
   }
+  remEl.className = 'budget-remaining ' + remBarColor;
 
   const bars = [
     { id: 'cal',    actual: cal,   min: calMin,                    max: calMax,                    rec: settings.cal_rec     || 0, unit: 'kcal' },
