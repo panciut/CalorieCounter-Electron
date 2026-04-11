@@ -32,7 +32,7 @@ export default function MacroBars({ bars, settings }: MacroBarsProps) {
         return (
           <div key={id} className="flex items-center gap-3">
             <span className="text-xs text-text-sec uppercase tracking-wider min-w-[72px] shrink-0">{label}</span>
-            <div className="flex-1 h-1.5 rounded-sm relative" style={{ background: 'rgba(255,240,220,0.08)' }}>
+            <div className="flex-1 h-1.5 rounded-sm relative" style={{ background: 'var(--border)' }}>
               {/* Fill bar */}
               <div
                 className={`h-full rounded-sm transition-[width] duration-400 ${colorCls}`}
@@ -46,7 +46,7 @@ export default function MacroBars({ bars, settings }: MacroBarsProps) {
               {/* Rec tick — white */}
               {recPct !== null && (
                 <div className="absolute top-[-2px] w-0.5 h-2.5 rounded-sm pointer-events-none opacity-50"
-                  style={{ left: `${recPct}%`, background: 'rgba(255,255,255,0.55)' }} />
+                  style={{ left: `${recPct}%`, background: 'var(--text-sec)' }} />
               )}
               {/* Max tick — red */}
               {maxPct !== null && (

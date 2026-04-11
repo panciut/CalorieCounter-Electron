@@ -365,7 +365,7 @@ export default function DashboardPage() {
           <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider">{t('dash.water')}</h3>
           <span className="text-xs text-text-sec tabular-nums">{Math.round(waterTotal)} / {waterGoal} ml</span>
         </div>
-        <div className="w-full h-2 rounded-full mb-3" style={{ background: 'rgba(255,240,220,0.08)' }}>
+        <div className="w-full h-2 rounded-full mb-3" style={{ background: 'var(--border)' }}>
           <div className="h-full rounded-full bg-accent transition-[width] duration-400" style={{ width: `${waterPct}%` }} />
         </div>
         <div className="flex gap-2 flex-wrap">

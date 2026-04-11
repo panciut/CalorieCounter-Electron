@@ -20,6 +20,7 @@
 }
 
 body.light {
+  /* Raw tokens — for inline styles using var(--bg) etc. */
   --bg:         #f5f5f7;
   --nav-bg:     #ffffff;
   --card-bg:    #ffffff;
@@ -33,6 +34,20 @@ body.light {
   --yellow:     #e6a800;
   --red:        #dc3545;
   --shadow:     0 2px 10px rgba(0,0,0,0.08);
+
+  /* Tailwind color tokens — for utility classes like bg-bg, text-text etc. */
+  --color-bg:         #f5f5f7;
+  --color-nav-bg:     #ffffff;
+  --color-card:       #ffffff;
+  --color-card-hover: #f0f0f0;
+  --color-text:       #1d1d1f;
+  --color-text-sec:   #6e6e73;
+  --color-border:     rgba(0,0,0,0.1);
+  --color-accent:     #c45c00;
+  --color-accent2:    #e07020;
+  --color-green:      #28a745;
+  --color-yellow:     #e6a800;
+  --color-red:        #dc3545;
 }
 
 /* ── Tailwind v4 theme tokens ── */

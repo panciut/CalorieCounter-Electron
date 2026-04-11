@@ -70,7 +70,7 @@ export default function MacroChart({ protein, carbs, fat, calories }: MacroChart
             onMouseLeave={() => setActiveIdx(null)}
           >
             {empty
-              ? <Cell fill="rgba(255,240,220,0.06)" />
+              ? <Cell fill="var(--border)" />
               : data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)
             }
           </Pie>

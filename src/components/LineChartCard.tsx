@@ -45,16 +45,16 @@ export default function LineChartCard({
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-        <CartesianGrid vertical={false} stroke="rgba(255,255,255,0.07)" />
+        <CartesianGrid vertical={false} stroke="var(--border)" />
         <XAxis
           dataKey="label"
-          tick={{ fill: '#888', fontSize: 11 }}
+          tick={{ fill: 'var(--text-sec)', fontSize: 11 }}
           axisLine={false}
           tickLine={false}
           interval="preserveStartEnd"
         />
         <YAxis
-          tick={{ fill: '#888', fontSize: 11 }}
+          tick={{ fill: 'var(--text-sec)', fontSize: 11 }}
           axisLine={false}
           tickLine={false}
           tickFormatter={v => `${v}${unit}`}
@@ -69,7 +69,7 @@ export default function LineChartCard({
           dataKey="value"
           stroke={color}
           strokeWidth={2}
-          dot={{ fill: '#e07020', r: 3, strokeWidth: 0 }}
+          dot={{ fill: 'var(--accent2)', r: 3, strokeWidth: 0 }}
           activeDot={{ r: 5 }}
           connectNulls
         />
@@ -77,7 +77,7 @@ export default function LineChartCard({
           <Line
             type="monotone"
             dataKey="trend"
-            stroke="#888"
+            stroke="var(--text-sec)"
             strokeWidth={1.5}
             strokeDasharray="5 4"
             dot={false}
@@ -87,7 +87,7 @@ export default function LineChartCard({
         {goalValue !== undefined && goalValue > 0 && (
           <ReferenceLine
             y={goalValue}
-            stroke="#e07020"
+            stroke="var(--accent2)"
             strokeDasharray="5 4"
             strokeWidth={1.5}
           />
