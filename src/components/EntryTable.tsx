@@ -30,6 +30,21 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
   const groups: Record<Meal, LogEntry[]> = { Breakfast: [], Lunch: [], Dinner: [], Snack: [] };
   for (const e of entries) groups[e.meal as Meal]?.push(e);
 
+  const foodsById = new Map(foods.map(f => [f.id, f]));
+
+  function mealTotals(mealEntries: LogEntry[]) {
+    let cal = 0, protein = 0, carbs = 0, fat = 0, fiber = 0, liquidMl = 0;
+    for (const e of mealEntries) {
+      cal     += e.calories;
+      protein += e.protein;
+      carbs   += e.carbs;
+      fat     += e.fat;
+      fiber   += e.fiber || 0;
+      if (foodsById.get(e.food_id)?.is_liquid) liquidMl += e.grams;
+    }
+    return { cal: Math.round(cal), protein: Math.round(protein * 10) / 10, carbs: Math.round(carbs * 10) / 10, fat: Math.round(fat * 10) / 10, fiber: Math.round(fiber * 10) / 10, liquidMl: Math.round(liquidMl) };
+  }
+
   async function handleDelete(id: number) {
     await api.log.delete(id);
     onRefresh();
@@ -127,6 +142,23 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                 </Fragment>
               ))}
             </tbody>
+            <tfoot>
+              {(() => {
+                const tot = mealTotals(groups[meal]);
+                return (
+                  <tr className="border-t border-border text-xs text-text-sec">
+                    <td className="pt-1.5 pr-2 font-normal italic">Total</td>
+                    <td className="pt-1.5 text-right tabular-nums">{tot.liquidMl > 0 ? `${tot.liquidMl} ml` : ''}</td>
+                    <td className="pt-1.5 text-right tabular-nums font-semibold text-text">{tot.cal}</td>
+                    <td className="pt-1.5 text-right tabular-nums">{tot.protein}g</td>
+                    <td className="pt-1.5 text-right tabular-nums">{tot.carbs}g</td>
+                    <td className="pt-1.5 text-right tabular-nums">{tot.fat}g</td>
+                    <td className="pt-1.5 text-right tabular-nums">{tot.fiber}g</td>
+                    <td />
+                  </tr>
+                );
+              })()}
+            </tfoot>
           </table>
         </div>
       ))}

@@ -8,6 +8,44 @@ import BarcodeScanner from '../components/BarcodeScanner';
 import Modal from '../components/Modal';
 import type { Food, BarcodeResult } from '../types';
 
+// ── FormFields must live OUTSIDE FoodsPage so its identity is stable across
+// re-renders — otherwise every keystroke unmounts/remounts it and kills focus.
+
+interface FormFieldsProps {
+  form: FoodFormState;
+  patch: (p: Partial<FoodFormState>) => void;
+}
+
+function FormFields({ form, patch }: FormFieldsProps) {
+  const { t } = useT();
+  const presetLabels: Record<PresetKey, string> = {
+    balanced: 'foods.balanced', highProtein: 'foods.highProtein',
+    highCarb: 'foods.highCarb', keto: 'foods.keto',
+  };
+  return (
+    <div className="flex flex-col gap-2">
+      <input type="text" value={form.name} onChange={e => patch({ name: e.target.value })} placeholder={t('foods.namePlaceholder')} className={`${INPUT_CLASS} w-full`} />
+      <div className="flex gap-1 flex-wrap">
+        {(Object.keys(PRESETS) as PresetKey[]).map(key => (
+          <button key={key} type="button"
+            onClick={() => { const p = PRESETS[key]; patch({ calories: String(p.calories), protein: String(p.protein), carbs: String(p.carbs), fat: String(p.fat), fiber: String(p.fiber) }); }}
+            className="text-xs px-2 py-1 rounded border border-border text-text-sec hover:border-accent hover:text-accent transition-colors cursor-pointer"
+          >{t(presetLabels[key])}</button>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {([['calories','foods.kcalPlaceholder'],['protein','foods.proteinPlaceholder'],['carbs','foods.carbsPlaceholder'],['fat','foods.fatPlaceholder'],['fiber','foods.fiberPlaceholder'],['piece_grams','foods.piecePlaceholder']] as [string,string][]).map(([field, ph]) => (
+          <input key={field} type="number" step="any" value={(form as Record<string, string>)[field]} onChange={e => patch({ [field]: e.target.value })} placeholder={t(ph)} className={`${INPUT_CLASS} w-full`} />
+        ))}
+      </div>
+      <label className="flex items-center gap-2 text-sm text-text-sec cursor-pointer">
+        <input type="checkbox" checked={form.is_liquid} onChange={e => patch({ is_liquid: e.target.checked })} />
+        {t('foods.liquid')}
+      </label>
+    </div>
+  );
+}
+
 const INPUT_CLASS =
   'bg-bg border border-border rounded-lg px-3 py-2 text-text text-sm outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
 
@@ -100,29 +138,6 @@ export default function FoodsPage() {
     return q ? foods.filter(f=>f.name.toLowerCase().includes(q)) : foods;
   },[foods, searchQuery]);
 
-  function FormFields({ form, patch, presetPatch }: { form: FoodFormState; patch:(p:Partial<FoodFormState>)=>void; presetPatch:(p:Partial<FoodFormState>)=>void }) {
-    const presetLabels: Record<PresetKey,string> = { balanced:'foods.balanced', highProtein:'foods.highProtein', highCarb:'foods.highCarb', keto:'foods.keto' };
-    return (
-      <div className="flex flex-col gap-2">
-        <input type="text" value={form.name} onChange={e=>patch({name:e.target.value})} placeholder={t('foods.namePlaceholder')} className={`${INPUT_CLASS} w-full`} />
-        <div className="flex gap-1 flex-wrap">
-          {(Object.keys(PRESETS) as PresetKey[]).map(key=>(
-            <button key={key} type="button" onClick={()=>applyPreset(key,presetPatch)} className="text-xs px-2 py-1 rounded border border-border text-text-sec hover:border-accent hover:text-accent transition-colors cursor-pointer">{t(presetLabels[key])}</button>
-          ))}
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {[['calories','foods.kcalPlaceholder'],['protein','foods.proteinPlaceholder'],['carbs','foods.carbsPlaceholder'],['fat','foods.fatPlaceholder'],['fiber','foods.fiberPlaceholder'],['piece_grams','foods.piecePlaceholder']].map(([field,ph])=>(
-            <input key={field} type="number" step="any" value={(form as Record<string,string>)[field]} onChange={e=>patch({[field]:e.target.value})} placeholder={t(ph)} className={`${INPUT_CLASS} w-full`} />
-          ))}
-        </div>
-        <label className="flex items-center gap-2 text-sm text-text-sec cursor-pointer">
-          <input type="checkbox" checked={form.is_liquid} onChange={e=>patch({is_liquid:e.target.checked})} />
-          {t('foods.liquid')}
-        </label>
-      </div>
-    );
-  }
-
   return (
     <div className="flex gap-6 p-6 h-full overflow-hidden">
       {/* Left panel */}
@@ -145,7 +160,7 @@ export default function FoodsPage() {
             <span className="text-sm font-semibold text-text">{t('foods.addTitle')}</span>
             <span className="text-xs text-text-sec ml-2">{t('foods.valuesPerLabel')}</span>
           </div>
-          <FormFields form={addForm} patch={patchAdd} presetPatch={patchAdd} />
+          <FormFields form={addForm} patch={patchAdd} />
           <button type="button" onClick={handleAdd} disabled={!addForm.name.trim()||!addForm.calories} className="w-full py-2 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer">{t('common.add')}</button>
         </div>
 
@@ -186,7 +201,7 @@ export default function FoodsPage() {
                         <button type="button" onClick={()=>handleToggleFavorite(food.id)} className="text-base cursor-pointer">{food.favorite===1?'⭐':'☆'}</button>
                       </td>
                       <td colSpan={8} className="px-3 py-2">
-                        <FormFields form={editForm} patch={patchEdit} presetPatch={patchEdit} />
+                        <FormFields form={editForm} patch={patchEdit} />
                       </td>
                       <td className="px-2 py-2 align-top">
                         <div className="flex flex-col gap-1 pt-1">

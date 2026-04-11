@@ -21,6 +21,7 @@ import WeightPage       from './pages/WeightPage';
 import SupplementsPage  from './pages/SupplementsPage';
 import MeasurementsPage from './pages/MeasurementsPage';
 import GoalsPage        from './pages/GoalsPage';
+import DataPage         from './pages/DataPage';
 import SettingsPage     from './pages/SettingsPage';
 
 import Nav from './components/Nav';
@@ -66,6 +67,7 @@ function AppInner() {
         {page === 'supplements'  && <SupplementsPage />}
         {page === 'measurements' && <MeasurementsPage />}
         {page === 'goals'        && <GoalsPage />}
+        {page === 'data'         && <DataPage />}
         {page === 'settings'     && <SettingsPage />}
       </main>
     </div>

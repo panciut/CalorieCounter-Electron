@@ -133,7 +133,8 @@ export const api = {
 
   import: {
     selectFile: (extensions?: string[]) => invoke<string | null>('import:selectFile', { extensions }),
-    foods:      (filePath: string) => invoke<{ imported: number; skipped: number }>('import:foods', { filePath }),
+    foods:          (filePath: string) => invoke<{ imported: number; skipped: number }>('import:foods', { filePath }),
+    foodsFromText:  (text: string) => invoke<{ ok: boolean; imported: number; skipped: number; error?: string }>('import:foodsFromText', { text }),
     fullJson:   (filePath: string) => invoke<{ ok: boolean; stats: Record<string, number> }>('import:fullJson', { filePath }),
     backup:     (filePath: string) => invoke<{ ok: boolean; error?: string }>('import:backup', { filePath }),
   },

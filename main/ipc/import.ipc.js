@@ -56,6 +56,37 @@ function registerImportIpc() {
     return { imported, skipped };
   });
 
+  // ── Import foods from raw JSON text (paste) ───────────────────────────────
+  ipcMain.handle('import:foodsFromText', (_, { text }) => {
+    const db = getDb();
+    let foods = [];
+    try {
+      const parsed = JSON.parse(text);
+      foods = Array.isArray(parsed) ? parsed : (parsed.foods ?? []);
+    } catch (e) {
+      return { ok: false, error: 'Invalid JSON: ' + e.message };
+    }
+
+    let imported = 0, skipped = 0;
+    const insert = db.prepare(
+      `INSERT OR IGNORE INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    db.transaction(() => {
+      for (const f of foods) {
+        if (!f.name || !f.calories) { skipped++; continue; }
+        const r = insert.run(
+          f.name, +f.calories || 0, +f.protein || 0, +f.carbs || 0,
+          +f.fat || 0, +f.fiber || 0,
+          f.piece_grams ? +f.piece_grams : null,
+          +f.is_liquid || 0
+        );
+        r.changes > 0 ? imported++ : skipped++;
+      }
+    })();
+    return { ok: true, imported, skipped };
+  });
+
   // ── Import full JSON export (foods + log + weight + exercises + water) ─────
   ipcMain.handle('import:fullJson', (_, { filePath }) => {
     const db  = getDb();

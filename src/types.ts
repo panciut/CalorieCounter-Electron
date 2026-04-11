@@ -303,6 +303,7 @@ export type PageName =
   | 'supplements'
   | 'measurements'
   | 'goals'
+  | 'data'
   | 'settings';
 
 export interface NavParam {

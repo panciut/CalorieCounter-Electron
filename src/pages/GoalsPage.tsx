@@ -10,6 +10,35 @@ type MacroField = "protein" | "carbs" | "fat" | "fiber";
 
 const MACROS: MacroField[] = ["protein", "carbs", "fat", "fiber"];
 
+// Defined outside GoalsPage so its identity is stable across re-renders.
+function MacroRow({ macro, form, inputCls, setField, t }: {
+  macro: MacroField;
+  form: Partial<Settings>;
+  inputCls: string;
+  setField: (k: keyof Settings, v: number) => void;
+  t: (k: string) => string;
+}) {
+  return (
+    <div className="grid grid-cols-4 gap-2 items-center">
+      <span className="text-sm font-medium text-text capitalize">{t(`settings.${macro}`)}</span>
+      {(["min", "rec", "max"] as const).map((suffix) => {
+        const key = `${macro}_${suffix}` as keyof Settings;
+        const label = suffix === 'min' ? 'Minimum' : suffix === 'max' ? 'Maximum' : 'Recommended';
+        return (
+          <input
+            key={suffix}
+            type="number"
+            className={inputCls}
+            placeholder={label}
+            value={(form[key] as number) ?? ""}
+            onChange={(e) => setField(key, parseFloat(e.target.value))}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
 export default function GoalsPage() {
   const { settings, updateSettings } = useSettings();
   const { t } = useT();
@@ -92,28 +121,6 @@ export default function GoalsPage() {
 
   const inputCls =
     "w-full rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
-
-  function MacroRow({ macro }: { macro: MacroField }) {
-    return (
-      <div className="grid grid-cols-4 gap-2 items-center">
-        <span className="text-sm font-medium text-text capitalize">{t(`settings.${macro}`)}</span>
-        {(["min", "max", "rec"] as const).map((suffix) => {
-          const key = `${macro}_${suffix}` as keyof Settings;
-          const label = suffix === 'min' ? 'Minimum' : suffix === 'max' ? 'Maximum' : 'Recommended';
-          return (
-            <input
-              key={suffix}
-              type="number"
-              className={inputCls}
-              placeholder={label}
-              value={form[key] as number ?? ""}
-              onChange={(e) => setField(key, parseFloat(e.target.value))}
-            />
-          );
-        })}
-      </div>
-    );
-  }
 
   const goalTypeLabels: Record<GoalType, string> = {
     lose: 'Lose weight',
@@ -224,7 +231,7 @@ export default function GoalsPage() {
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label className="text-xs text-text-sec">{t("goals.calcWeight")} (kg)</label>
+            <label className="text-xs text-text-sec">{t("goals.calcWeight")}</label>
             <input
               type="number"
               className={inputCls}
@@ -274,7 +281,7 @@ export default function GoalsPage() {
         <div className="space-y-2">
           <h3 className="text-sm font-semibold text-text">{t("settings.dailyCal")}</h3>
           <div className="grid grid-cols-3 gap-2">
-            {(["cal_min", "cal_max", "cal_rec"] as const).map((key) => {
+            {(["cal_min", "cal_rec", "cal_max"] as const).map((key) => {
               const suffix = key.split("_")[1];
               const label = suffix === 'min' ? 'Minimum' : suffix === 'max' ? 'Maximum' : 'Recommended';
               return (
@@ -290,24 +297,24 @@ export default function GoalsPage() {
             })}
           </div>
           <div className="grid grid-cols-3 gap-2 text-xs text-text-sec px-1">
-            <span>Minimum</span><span>Maximum</span><span>Recommended</span>
+            <span>Minimum</span><span>Recommended</span><span>Maximum</span>
           </div>
         </div>
 
         {/* Macros header */}
         <div className="grid grid-cols-4 gap-2 text-xs text-text-sec px-1">
-          <span></span><span>Minimum</span><span>Maximum</span><span>Recommended</span>
+          <span></span><span>Minimum</span><span>Recommended</span><span>Maximum</span>
         </div>
 
         <div className="space-y-3">
           {MACROS.map((macro) => (
-            <MacroRow key={macro} macro={macro} />
+            <MacroRow key={macro} macro={macro} form={form} inputCls={inputCls} setField={setField} t={t} />
           ))}
         </div>
 
         <div className="grid grid-cols-2 gap-3 pt-2">
           <div className="space-y-1">
-            <label className="text-xs text-text-sec">{t("settings.goalWeight")} (kg)</label>
+            <label className="text-xs text-text-sec">{t("settings.goalWeight")}</label>
             <input
               type="number"
               className={inputCls}
@@ -316,7 +323,7 @@ export default function GoalsPage() {
             />
           </div>
           <div className="space-y-1">
-            <label className="text-xs text-text-sec">{t("settings.waterGoal")} (ml)</label>
+            <label className="text-xs text-text-sec">{t("settings.waterGoal")}</label>
             <input
               type="number"
               className={inputCls}
