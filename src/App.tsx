@@ -1,0 +1,79 @@
+import { useEffect } from 'react';
+import { SettingsProvider, useSettings } from './hooks/useSettings';
+import { NavigationProvider, useNavigate } from './hooks/useNavigate';
+import { ToastProvider, useToast } from './components/Toast';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useUndo } from './hooks/useUndo';
+import { useT } from './i18n/useT';
+
+// Pages
+import DashboardPage    from './pages/DashboardPage';
+import FoodsPage        from './pages/FoodsPage';
+import RecipesPage      from './pages/RecipesPage';
+import HistoryPage      from './pages/HistoryPage';
+import WeekPage         from './pages/WeekPage';
+import DayPage          from './pages/DayPage';
+import WeightPage       from './pages/WeightPage';
+import SupplementsPage  from './pages/SupplementsPage';
+import MeasurementsPage from './pages/MeasurementsPage';
+import GoalsPage        from './pages/GoalsPage';
+import SettingsPage     from './pages/SettingsPage';
+
+import Nav from './components/Nav';
+
+// ── Inner app (has access to contexts) ───────────────────────────────────────
+
+function AppInner() {
+  const { settings } = useSettings();
+  const { page, param, navigate } = useNavigate();
+  const { showToast } = useToast();
+  const { t } = useT();
+
+  useKeyboardShortcuts();
+  useUndo(showToast, t('undo.undone'));
+
+  // Sync theme to body class
+  useEffect(() => {
+    document.body.classList.toggle('light', settings.theme === 'light');
+  }, [settings.theme]);
+
+  // Listen for main process shortcut:quickAdd
+  useEffect(() => {
+    const handler = () => navigate('dashboard');
+    window.electronAPI?.on('shortcut:quickAdd', handler);
+    return () => window.electronAPI?.off('shortcut:quickAdd');
+  }, [navigate]);
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-bg text-text">
+      <Nav activePage={page} />
+      <main className="flex-1 overflow-y-auto">
+        {page === 'dashboard'    && <DashboardPage />}
+        {page === 'foods'        && <FoodsPage />}
+        {page === 'recipes'      && <RecipesPage />}
+        {page === 'history'      && <HistoryPage />}
+        {page === 'week'         && <WeekPage weekStart={param?.weekStart} />}
+        {page === 'day'          && <DayPage date={param?.date} fromWeek={param?.fromWeek} />}
+        {page === 'weight'       && <WeightPage />}
+        {page === 'supplements'  && <SupplementsPage />}
+        {page === 'measurements' && <MeasurementsPage />}
+        {page === 'goals'        && <GoalsPage />}
+        {page === 'settings'     && <SettingsPage />}
+      </main>
+    </div>
+  );
+}
+
+// ── Root ─────────────────────────────────────────────────────────────────────
+
+export default function App() {
+  return (
+    <SettingsProvider>
+      <ToastProvider>
+        <NavigationProvider>
+          <AppInner />
+        </NavigationProvider>
+      </ToastProvider>
+    </SettingsProvider>
+  );
+}

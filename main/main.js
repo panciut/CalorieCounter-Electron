@@ -37,8 +37,13 @@ function createWindow() {
     title: 'CalorieCounter',
   });
 
-  mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
-  // mainWindow.webContents.openDevTools();
+  const isDev = !app.isPackaged;
+  if (isDev) {
+    mainWindow.loadURL('http://localhost:5173');
+    // mainWindow.webContents.openDevTools();
+  } else {
+    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+  }
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.maximize();

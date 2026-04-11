@@ -1,0 +1,62 @@
+import type { Settings } from '../types';
+
+export type BarColorClass = 'bar-green' | 'bar-yellow' | 'bar-orange' | 'bar-red';
+
+export function getBarColor(
+  actual: number,
+  min: number,
+  max: number,
+  settings: Pick<Settings, 'tol_1' | 'tol_2' | 'tol_3'>,
+): BarColorClass {
+  if (actual >= min && actual <= max) return 'bar-green';
+  const t1 = settings.tol_1 || 5;
+  const t2 = settings.tol_2 || 10;
+  const t3 = settings.tol_3 || 20;
+  const dev = actual < min
+    ? (min - actual) / min * 100
+    : (actual - max) / max * 100;
+  if (dev <= t1) return 'bar-green';
+  if (dev <= t2) return 'bar-yellow';
+  if (dev <= t3) return 'bar-orange';
+  return 'bar-red';
+}
+
+export interface MacroRanges {
+  protein_min: number; protein_max: number; protein_rec: number;
+  fat_min: number;     fat_max: number;     fat_rec: number;
+  carbs_min: number;   carbs_max: number;   carbs_rec: number;
+  fiber_min: number;   fiber_max: number;   fiber_rec: number;
+}
+
+export function calcMacroRanges(weightKg: number, calories: number): MacroRanges {
+  const protein_min = Math.round(weightKg * 1.6);
+  const protein_max = Math.round(weightKg * 2.2);
+  const protein_rec = Math.round(weightKg * 1.75);
+
+  const fat_min = Math.round(Math.max(weightKg * 0.6, 45));
+  const fat_max = Math.round(calories * 0.30 / 9);
+  const fat_rec = Math.round(Math.max(weightKg * 0.7, calories * 0.28 / 9));
+
+  const carbs_max = Math.max(0, Math.round((calories - protein_min * 4 - fat_min * 9) / 4));
+  const carbs_min = Math.max(0, Math.round((calories - protein_max * 4 - fat_max * 9) / 4));
+  const carbs_rec = Math.max(0, Math.round((calories - protein_rec * 4 - fat_rec * 9) / 4));
+
+  return {
+    protein_min, protein_max, protein_rec,
+    fat_min, fat_max, fat_rec,
+    carbs_min, carbs_max, carbs_rec,
+    fiber_min: 25, fiber_max: 38, fiber_rec: 30,
+  };
+}
+
+export function linearRegression(xs: number[], ys: number[]): { slope: number; intercept: number } {
+  const n = xs.length;
+  if (n < 2) return { slope: 0, intercept: ys[0] ?? 0 };
+  const sumX  = xs.reduce((a, b) => a + b, 0);
+  const sumY  = ys.reduce((a, b) => a + b, 0);
+  const sumXY = xs.reduce((s, x, i) => s + x * ys[i], 0);
+  const sumX2 = xs.reduce((s, x) => s + x * x, 0);
+  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+  const intercept = (sumY - slope * sumX) / n;
+  return { slope, intercept };
+}

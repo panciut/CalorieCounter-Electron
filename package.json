@@ -4,9 +4,12 @@
   "description": "Calorie & weight tracker",
   "main": "main/main.js",
   "scripts": {
+    "dev": "vite",
+    "dev:electron": "electron .",
     "start": "electron .",
+    "build": "vite build",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
-    "dist": "electron-builder --mac"
+    "dist": "vite build && electron-builder"
   },
   "build": {
     "appId": "com.caloriecounter.app",
@@ -16,10 +19,15 @@
       "category": "public.app-category.healthcare-fitness",
       "icon": "build/icon.icns"
     },
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": "AppImage"
+    },
     "files": [
       "main/**/*",
-      "renderer/**/*",
-      "seed_data.js",
+      "dist/**/*",
       "node_modules/**/*"
     ],
     "extraMetadata": {
@@ -27,13 +35,26 @@
     }
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.2.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/recharts": "^1.8.29",
+    "@vitejs/plugin-react": "^6.0.1",
+    "autoprefixer": "^10.4.27",
     "electron": "^33.0.0",
-    "electron-builder": "^26.8.1"
+    "electron-builder": "^26.8.1",
+    "postcss": "^8.5.9",
+    "tailwindcss": "^4.2.2",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.8"
   },
   "dependencies": {
     "better-sqlite3": "^11.5.0",
     "chart.js": "^4.4.0",
     "fuse.js": "^7.0.0",
-    "html5-qrcode": "^2.3.8"
+    "html5-qrcode": "^2.3.8",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "recharts": "^3.8.1"
   }
 }
