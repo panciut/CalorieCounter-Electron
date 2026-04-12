@@ -46,14 +46,46 @@ function registerLogIpc() {
   });
 
   ipcMain.handle('log:confirmPlanned', (_, { id }) => {
-    getDb().prepare("UPDATE log SET status = 'logged' WHERE id = ?").run(id);
-    return { ok: true };
+    const db = getDb();
+    return db.transaction(() => {
+      const row = db.prepare(`
+        SELECT l.id, l.date, l.grams, f.name AS food_name, f.is_liquid
+        FROM log l JOIN foods f ON l.food_id = f.id
+        WHERE l.id = ? AND l.status = 'planned'
+      `).get(id);
+      if (!row) return { ok: false };
+      db.prepare("UPDATE log SET status = 'logged' WHERE id = ?").run(id);
+      if (row.is_liquid) {
+        // Auto-add water for liquid foods on confirm (grams ≈ ml), mirroring log:add
+        const existing = db.prepare('SELECT id FROM water_log WHERE log_id = ?').get(id);
+        if (!existing) {
+          db.prepare('INSERT INTO water_log (date, ml, source, log_id) VALUES (?, ?, ?, ?)')
+            .run(row.date, row.grams, row.food_name, id);
+        }
+      }
+      return { ok: true };
+    })();
   });
 
   ipcMain.handle('log:confirmAllPlanned', (_, { date }) => {
     const d = date || today();
-    getDb().prepare("UPDATE log SET status = 'logged' WHERE date = ? AND status = 'planned'").run(d);
-    return { ok: true };
+    const db = getDb();
+    return db.transaction(() => {
+      const rows = db.prepare(`
+        SELECT l.id, l.date, l.grams, f.name AS food_name, f.is_liquid
+        FROM log l JOIN foods f ON l.food_id = f.id
+        WHERE l.date = ? AND l.status = 'planned'
+      `).all(d);
+      db.prepare("UPDATE log SET status = 'logged' WHERE date = ? AND status = 'planned'").run(d);
+      const insertWater = db.prepare('INSERT INTO water_log (date, ml, source, log_id) VALUES (?, ?, ?, ?)');
+      const waterExists = db.prepare('SELECT id FROM water_log WHERE log_id = ?');
+      for (const r of rows) {
+        if (r.is_liquid && !waterExists.get(r.id)) {
+          insertWater.run(r.date, r.grams, r.food_name, r.id);
+        }
+      }
+      return { ok: true };
+    })();
   });
 
   ipcMain.handle('log:add', (_, { food_id, grams, meal, date, status }) => {

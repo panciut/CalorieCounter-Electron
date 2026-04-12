@@ -5,6 +5,7 @@ export interface BarDef {
   id: string;
   label: string;
   actual: number;
+  planned?: number;
   min: number;
   max: number;
   rec: number;
@@ -21,23 +22,39 @@ const SCALE = 1.30; // 30% headroom past max for overflow visibility
 export default function MacroBars({ bars, settings }: MacroBarsProps) {
   return (
     <div className="flex flex-col gap-3 flex-1">
-      {bars.map(({ id, label, actual, min, max, rec, unit }) => {
-        const scale     = max * SCALE;
-        const fillPct   = scale ? Math.min(100, actual / scale * 100) : 0;
-        const minPct    = scale && min ? min  / scale * 100 : null;
-        const recPct    = scale && rec ? rec  / scale * 100 : null;
-        const maxPct    = scale        ? 100  / SCALE       : null;
-        const colorCls  = getBarColor(actual, min, max, settings);
+      {bars.map(({ id, label, actual, planned = 0, min, max, rec, unit }) => {
+        const scale       = max * SCALE;
+        const fillPct     = scale ? Math.min(100, actual / scale * 100) : 0;
+        const plannedPct  = scale && planned > 0
+          ? Math.min(100 - fillPct, planned / scale * 100)
+          : 0;
+        const minPct      = scale && min ? min  / scale * 100 : null;
+        const recPct      = scale && rec ? rec  / scale * 100 : null;
+        const maxPct      = scale        ? 100  / SCALE       : null;
+        // Color reflects the combined projection so the user sees whether the plan lands in range
+        const colorCls    = getBarColor(actual + planned, min, max, settings);
 
         return (
           <div key={id} className="flex items-center gap-3">
             <span className="text-xs text-text-sec uppercase tracking-wider min-w-[72px] shrink-0">{label}</span>
             <div className="flex-1 h-1.5 rounded-sm relative" style={{ background: 'var(--border)' }}>
-              {/* Fill bar */}
+              {/* Actual (solid) */}
               <div
-                className={`h-full rounded-sm transition-[width] duration-400 ${colorCls}`}
-                style={{ width: `${fillPct}%`, overflow: 'hidden' }}
+                className={`absolute top-0 left-0 h-full rounded-sm transition-[width] duration-400 ${colorCls}`}
+                style={{ width: `${fillPct}%` }}
               />
+              {/* Planned (translucent overlay, striped) */}
+              {plannedPct > 0 && (
+                <div
+                  className={`absolute top-0 h-full rounded-sm transition-[width,left] duration-400 ${colorCls}`}
+                  style={{
+                    left: `${fillPct}%`,
+                    width: `${plannedPct}%`,
+                    opacity: 0.35,
+                    backgroundImage: 'repeating-linear-gradient(45deg, currentColor 0 3px, transparent 3px 6px)',
+                  }}
+                />
+              )}
               {/* Min tick — green */}
               {minPct !== null && (
                 <div className="absolute top-[-3px] w-0.5 h-3 rounded-sm pointer-events-none opacity-55"
@@ -55,7 +72,7 @@ export default function MacroBars({ bars, settings }: MacroBarsProps) {
               )}
             </div>
             <span className="text-xs text-text-sec tabular-nums min-w-[130px] text-right">
-              {actual}{unit} · {Math.round(min)}–{Math.round(max)}{unit}
+              {actual}{planned > 0 && <span className="text-accent"> +{Math.round(planned)}</span>}{unit} · {Math.round(min)}–{Math.round(max)}{unit}
             </span>
           </div>
         );

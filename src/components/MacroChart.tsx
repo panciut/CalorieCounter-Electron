@@ -6,6 +6,11 @@ interface MacroChartProps {
   carbs: number;
   fat: number;
   calories: number;
+  plannedProtein?: number;
+  plannedCarbs?: number;
+  plannedFat?: number;
+  plannedCalories?: number;
+  plannedLabel?: string;
 }
 
 const COLORS = ['#5e9cf5', '#30d158', '#e07020'];
@@ -36,7 +41,11 @@ function ActiveShape(props: ActiveShapeProps) {
   );
 }
 
-export default function MacroChart({ protein, carbs, fat, calories }: MacroChartProps) {
+export default function MacroChart({
+  protein, carbs, fat, calories,
+  plannedProtein = 0, plannedCarbs = 0, plannedFat = 0, plannedCalories = 0,
+  plannedLabel = 'planned',
+}: MacroChartProps) {
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
 
   const data = [
@@ -45,8 +54,16 @@ export default function MacroChart({ protein, carbs, fat, calories }: MacroChart
     { name: 'Fat',     value: Math.round(fat * 9) },
   ].filter(d => d.value > 0);
 
+  const plannedData = [
+    { name: 'Protein', value: Math.round(plannedProtein * 4) },
+    { name: 'Carbs',   value: Math.round(plannedCarbs * 4) },
+    { name: 'Fat',     value: Math.round(plannedFat * 9) },
+  ].filter(d => d.value > 0);
+
+  const hasPlanned = plannedData.length > 0;
+
   const total = data.reduce((s, d) => s + d.value, 0);
-  const empty = total === 0;
+  const empty = total === 0 && !hasPlanned;
 
   const activeItem = activeIdx !== null ? data[activeIdx] : null;
   const activePct  = activeItem && total > 0 ? Math.round(activeItem.value / total * 100) : null;
@@ -56,24 +73,43 @@ export default function MacroChart({ protein, carbs, fat, calories }: MacroChart
       <ResponsiveContainer width={150} height={150}>
         <PieChart>
           <Pie
-            data={empty ? [{ name: 'empty', value: 1 }] : data}
+            data={total === 0 ? [{ name: 'empty', value: 1 }] : data}
             cx="50%"
             cy="50%"
             innerRadius={45}
-            outerRadius={70}
+            outerRadius={68}
             dataKey="value"
             strokeWidth={0}
-            paddingAngle={empty ? 0 : 2}
+            paddingAngle={total === 0 ? 0 : 2}
             activeIndex={activeIdx ?? undefined}
-            activeShape={!empty ? (props: unknown) => <ActiveShape {...(props as ActiveShapeProps)} /> : undefined}
-            onMouseEnter={(_, index) => !empty && setActiveIdx(index)}
+            activeShape={total > 0 ? (props: unknown) => <ActiveShape {...(props as ActiveShapeProps)} /> : undefined}
+            onMouseEnter={(_, index) => total > 0 && setActiveIdx(index)}
             onMouseLeave={() => setActiveIdx(null)}
           >
-            {empty
+            {total === 0
               ? <Cell fill="var(--border)" />
               : data.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)
             }
           </Pie>
+          {/* Planned outer ring — translucent so it reads as "on top of" actual */}
+          {hasPlanned && (
+            <Pie
+              data={plannedData}
+              cx="50%"
+              cy="50%"
+              innerRadius={71}
+              outerRadius={76}
+              dataKey="value"
+              strokeWidth={0}
+              paddingAngle={2}
+              isAnimationActive={false}
+            >
+              {plannedData.map((d) => {
+                const idx = ['Protein', 'Carbs', 'Fat'].indexOf(d.name);
+                return <Cell key={d.name} fill={COLORS[idx]} fillOpacity={0.4} />;
+              })}
+            </Pie>
+          )}
         </PieChart>
       </ResponsiveContainer>
 
@@ -93,6 +129,9 @@ export default function MacroChart({ protein, carbs, fat, calories }: MacroChart
           <>
             <span className="text-xl font-bold text-text tabular-nums">{Math.round(calories)}</span>
             <span className="text-xs text-text-sec">kcal</span>
+            {plannedCalories > 0 && (
+              <span className="text-[10px] text-accent tabular-nums mt-0.5">+{Math.round(plannedCalories)} {plannedLabel}</span>
+            )}
           </>
         )}
       </div>

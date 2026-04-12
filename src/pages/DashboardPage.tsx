@@ -195,19 +195,26 @@ export default function DashboardPage() {
   const fat    = Math.round(totals.fat * 100) / 100;
   const fiber  = Math.round(totals.fiber * 100) / 100;
 
+  const plCal    = Math.round(planned.cal * 100) / 100;
+  const plPro    = Math.round(planned.protein * 100) / 100;
+  const plCarbs  = Math.round(planned.carbs * 100) / 100;
+  const plFat    = Math.round(planned.fat * 100) / 100;
+  const plFiber  = Math.round(planned.fiber * 100) / 100;
+
   const calRec = settings.cal_rec || Math.round(((settings.cal_min||1800)+(settings.cal_max||2200))/2);
   const netCal = cal - exerciseKcal;
   const remaining = calRec - netCal;
   const remainingAbs = Math.abs(Math.round(remaining));
+  const remainingAfterPlan = Math.round(remaining - plCal);
   const remColor = getBarColor(netCal, settings.cal_min||1800, settings.cal_max||2200, settings);
   const remColorMap: Record<string, string> = { 'bar-green':'text-green','bar-yellow':'text-yellow','bar-orange':'text-orange-400','bar-red':'text-red' };
 
   const bars: BarDef[] = [
-    { id:'cal',     label:t('macro.kcal'),    actual:netCal,   min:settings.cal_min||1800, max:settings.cal_max||2200, rec:settings.cal_rec||0,     unit:'kcal' },
-    { id:'protein', label:t('macro.protein'), actual:pro,   min:settings.protein_min||0, max:settings.protein_max||0, rec:settings.protein_rec||0, unit:'g' },
-    { id:'carbs',   label:t('macro.carbs'),   actual:carbs, min:settings.carbs_min||0, max:settings.carbs_max||0, rec:settings.carbs_rec||0, unit:'g' },
-    { id:'fat',     label:t('macro.fat'),     actual:fat,   min:settings.fat_min||0,   max:settings.fat_max||0,   rec:settings.fat_rec||0,   unit:'g' },
-    { id:'fiber',   label:t('macro.fiber'),   actual:fiber, min:settings.fiber_min||0, max:settings.fiber_max||0, rec:settings.fiber_rec||0, unit:'g' },
+    { id:'cal',     label:t('macro.kcal'),    actual:netCal, planned:plCal,   min:settings.cal_min||1800, max:settings.cal_max||2200, rec:settings.cal_rec||0,     unit:'kcal' },
+    { id:'protein', label:t('macro.protein'), actual:pro,    planned:plPro,   min:settings.protein_min||0, max:settings.protein_max||0, rec:settings.protein_rec||0, unit:'g' },
+    { id:'carbs',   label:t('macro.carbs'),   actual:carbs,  planned:plCarbs, min:settings.carbs_min||0, max:settings.carbs_max||0, rec:settings.carbs_rec||0, unit:'g' },
+    { id:'fat',     label:t('macro.fat'),     actual:fat,    planned:plFat,   min:settings.fat_min||0,   max:settings.fat_max||0,   rec:settings.fat_rec||0,   unit:'g' },
+    { id:'fiber',   label:t('macro.fiber'),   actual:fiber,  planned:plFiber, min:settings.fiber_min||0, max:settings.fiber_max||0, rec:settings.fiber_rec||0, unit:'g' },
   ];
 
   // ── Food search items ───────────────────────────────────────────────────────
@@ -369,7 +376,11 @@ export default function DashboardPage() {
 
       {/* Macros summary card */}
       <div className="bg-card border border-border rounded-xl p-5 flex gap-4 items-start">
-        <MacroChart protein={pro} carbs={carbs} fat={fat} calories={cal} />
+        <MacroChart
+          protein={pro} carbs={carbs} fat={fat} calories={cal}
+          plannedProtein={plPro} plannedCarbs={plCarbs} plannedFat={plFat} plannedCalories={plCal}
+          plannedLabel={t('dash.planned')}
+        />
         <div className="flex-1 flex flex-col gap-3">
           {/* Budget */}
           <div className="flex items-center gap-3 flex-wrap">
@@ -378,6 +389,13 @@ export default function DashboardPage() {
                 ? `${remainingAbs} ${t('macro.kcal')} ${t('dash.remaining')}`
                 : `${t('dash.overBy')} ${remainingAbs} ${t('macro.kcal')}`}
             </div>
+            {plCal > 0 && (
+              <div className="text-xs text-accent tabular-nums">
+                {remainingAfterPlan >= 0
+                  ? `${remainingAfterPlan} ${t('dash.afterPlan')}`
+                  : `${Math.abs(remainingAfterPlan)} ${t('dash.overAfterPlan')}`}
+              </div>
+            )}
             {exerciseKcal > 0 && (
               <div className="flex items-center gap-1.5 text-xs text-text-sec">
                 <span className="tabular-nums">{Math.round(cal)} in</span>

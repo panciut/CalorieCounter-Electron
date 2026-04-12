@@ -4,7 +4,8 @@
   "description": "Calorie & weight tracker",
   "main": "main/main.js",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -k -n vite,electron -c cyan,magenta \"npm run dev:vite\" \"wait-on http://localhost:5173 && npm run dev:electron\"",
+    "dev:vite": "vite",
     "dev:electron": "electron .",
     "start": "electron .",
     "build": "vite build",
@@ -41,12 +42,14 @@
     "@types/recharts": "^1.8.29",
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.4.27",
+    "concurrently": "^9.2.1",
     "electron": "^33.0.0",
     "electron-builder": "^26.8.1",
     "postcss": "^8.5.9",
     "tailwindcss": "^4.2.2",
     "typescript": "^6.0.2",
-    "vite": "^8.0.8"
+    "vite": "^8.0.8",
+    "wait-on": "^9.0.5"
   },
   "dependencies": {
     "better-sqlite3": "^11.5.0",
