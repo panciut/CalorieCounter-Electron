@@ -13,6 +13,7 @@ import EntryTable from '../components/EntryTable';
 import Modal from '../components/Modal';
 import { today, fmtDate } from '../lib/dateUtil';
 import { getBarColor } from '../lib/macroCalc';
+import { buildDayMarkdown, copyToClipboard } from '../lib/exportText';
 import ExerciseSection from '../components/ExerciseSection';
 import type {
   LogEntry, Food, Recipe, RecipeIngredient, Meal,
@@ -317,6 +318,20 @@ export default function DashboardPage() {
 
   // ── Quick-log favorites/frequent ─────────────────────────────────────────────
 
+  async function handleCopyDay() {
+    const md = buildDayMarkdown({
+      date: dateStr,
+      entries,
+      settings,
+      waterMl: waterTotal,
+      waterGoalMl: settings.water_goal,
+      exerciseKcal,
+      note,
+    });
+    const ok = await copyToClipboard(md);
+    showToast(ok ? t('export.copied') : t('export.copyFailed'), ok ? 'success' : 'error');
+  }
+
   async function quickLog(food: Food) {
     await api.log.add({ food_id: food.id, grams: food.piece_grams || 100, meal, date: dateStr });
     load();
@@ -351,6 +366,9 @@ export default function DashboardPage() {
             ].join(' ')}
           >
             {planMode ? '📋 Planning' : '📋 Plan'}
+          </button>
+          <button onClick={handleCopyDay} title={t('export.copyDay')} className="text-sm text-text-sec border border-border rounded-lg px-3 py-1.5 hover:border-accent/50 hover:text-text cursor-pointer transition-colors">
+            📋 {t('export.copyDay')}
           </button>
           <button onClick={()=>setQuickFoodOpen(true)} className="text-sm text-accent border border-accent/40 rounded-lg px-3 py-1.5 hover:bg-accent/10 cursor-pointer transition-colors">
             {t('dash.quickAdd')}

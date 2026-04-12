@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useNavigate } from '../hooks/useNavigate';
+import { useToast } from '../components/Toast';
 import { api } from '../api';
 import BarChartCard from '../components/BarChartCard';
 import { fmtDate, formatShortDate, getMondayOf } from '../lib/dateUtil';
+import { buildHistoryMarkdown, copyToClipboard } from '../lib/exportText';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   LineChart, Line, ReferenceLine,
@@ -29,6 +31,7 @@ export default function HistoryPage() {
   const { t } = useT();
   const { settings } = useSettings();
   const { navigate } = useNavigate();
+  const { showToast } = useToast();
   const [tab, setTab]         = useState<Tab>('weekly');
   const [summaries, setSummaries] = useState<WeeklySummary[]>([]);
 
@@ -47,6 +50,22 @@ export default function HistoryPage() {
       api.analytics.caloriesTrend(aRange).then(setCalData);
     }
   }, [tab, aRange]);
+
+  async function handleCopy() {
+    const [streak, weights] = await Promise.all([
+      api.streaks.get(),
+      api.weight.getAll(),
+    ]);
+    const md = buildHistoryMarkdown({
+      summaries,
+      settings,
+      weightEntries: weights.map(w => ({ date: w.date, weight: w.weight, fat_pct: w.fat_pct })),
+      currentStreak: streak.current,
+      bestStreak: streak.best,
+    });
+    const ok = await copyToClipboard(md);
+    showToast(ok ? t('export.copied') : t('export.copyFailed'), ok ? 'success' : 'error');
+  }
 
   const chartData = summaries.slice(-12).map(s => ({
     label: formatShortDate(getMondayOf(s.week_start)),
@@ -93,6 +112,9 @@ export default function HistoryPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-text">{t('history.title')}</h1>
         <div className="flex gap-2">
+          <button onClick={handleCopy} className="text-sm text-text-sec border border-border rounded-lg px-3 py-1.5 hover:border-accent/50 hover:text-text cursor-pointer transition-colors">
+            📋 {t('export.copyHistory')}
+          </button>
           <button className={tabBtn('weekly')}    onClick={() => setTab('weekly')}>Weekly</button>
           <button className={tabBtn('analytics')} onClick={() => setTab('analytics')}>Analytics</button>
         </div>

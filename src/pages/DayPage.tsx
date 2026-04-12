@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useNavigate } from '../hooks/useNavigate';
+import { useSettings } from '../hooks/useSettings';
+import { useToast } from '../components/Toast';
 import { api } from '../api';
 import EntryTable from '../components/EntryTable';
 import MealPills from '../components/MealPills';
 import FoodSearch from '../components/FoodSearch';
 import type { SearchItem } from '../components/FoodSearch';
 import { fmtDate, today } from '../lib/dateUtil';
+import { buildDayMarkdown, copyToClipboard } from '../lib/exportText';
 import type { LogEntry, Food, Meal } from '../types';
 
 interface DayPageProps { date?: string; fromWeek?: string; }
@@ -14,6 +17,8 @@ interface DayPageProps { date?: string; fromWeek?: string; }
 export default function DayPage({ date: dateProp, fromWeek }: DayPageProps) {
   const { t } = useT();
   const { navigate } = useNavigate();
+  const { settings } = useSettings();
+  const { showToast } = useToast();
 
   const date = dateProp ?? today();
 
@@ -61,13 +66,38 @@ export default function DayPage({ date: dateProp, fromWeek }: DayPageProps) {
 
   const searchItems: SearchItem[] = foods.map(f => ({ ...f, isRecipe: false as const }));
 
+  async function handleCopy() {
+    const [water, noteData, exercises] = await Promise.all([
+      api.water.getDay(date),
+      api.notes.get(date),
+      api.exercises.getDay(date),
+    ]);
+    const exerciseKcal = exercises.reduce((s, e) => s + (e.calories_burned || 0), 0);
+    const md = buildDayMarkdown({
+      date,
+      entries,
+      settings,
+      waterMl: water.total_ml,
+      waterGoalMl: settings.water_goal,
+      exerciseKcal,
+      note: noteData.note,
+    });
+    const ok = await copyToClipboard(md);
+    showToast(ok ? t('export.copied') : t('export.copyFailed'), ok ? 'success' : 'error');
+  }
+
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <button className="text-accent text-sm hover:opacity-80 cursor-pointer" onClick={handleBack}>
         {t('day.back')}
       </button>
 
-      <h1 className="text-2xl font-bold text-text">{fmtDate(date)}</h1>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h1 className="text-2xl font-bold text-text">{fmtDate(date)}</h1>
+        <button onClick={handleCopy} className="text-sm text-text-sec border border-border rounded-lg px-3 py-1.5 hover:border-accent/50 hover:text-text cursor-pointer transition-colors">
+          📋 {t('export.copyDay')}
+        </button>
+      </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[

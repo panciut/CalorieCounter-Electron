@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSettings } from '../hooks/useSettings';
 import { useT } from '../i18n/useT';
+import { useToast } from '../components/Toast';
 import { api } from '../api';
+import { buildPlanMarkdown, copyToClipboard } from '../lib/exportText';
 import FoodSearch from '../components/FoodSearch';
 import type { SearchItem } from '../components/FoodSearch';
 import MealPills from '../components/MealPills';
@@ -22,6 +24,7 @@ function getTomorrow(): string {
 export default function PlanPage() {
   const { settings } = useSettings();
   const { t } = useT();
+  const { showToast } = useToast();
   const [dateStr, setDateStr]         = useState(getTomorrow());
   const [entries, setEntries]         = useState<LogEntry[]>([]);
   const [foods, setFoods]             = useState<Food[]>([]);
@@ -89,6 +92,12 @@ export default function PlanPage() {
     load();
   }
 
+  async function handleCopy() {
+    const md = buildPlanMarkdown(dateStr, entries, settings);
+    const ok = await copyToClipboard(md);
+    showToast(ok ? t('export.copied') : t('export.copyFailed'), ok ? 'success' : 'error');
+  }
+
   // ── Totals ──────────────────────────────────────────────────────────────────
 
   const plannedEntries = entries.filter(e => e.status === 'planned');
@@ -150,6 +159,9 @@ export default function PlanPage() {
           className="text-xs bg-card border border-border rounded-lg px-2 py-1 text-text-sec focus:outline-none focus:border-accent cursor-pointer"
         />
         <span className="text-sm text-text-sec">{fmtDate(dateStr)}</span>
+        <button onClick={handleCopy} className="ml-auto text-sm text-text-sec border border-border rounded-lg px-3 py-1.5 hover:border-accent/50 hover:text-text cursor-pointer transition-colors">
+          📋 {t('export.copyPlan')}
+        </button>
       </div>
 
       {/* Macro summary card — shows projected totals for the day */}

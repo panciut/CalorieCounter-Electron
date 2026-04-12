@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useNavigate } from '../hooks/useNavigate';
+import { useSettings } from '../hooks/useSettings';
+import { useToast } from '../components/Toast';
 import { api } from '../api';
 import BarChartCard from '../components/BarChartCard';
 import { fmtDate, formatShortDate, addDays, today } from '../lib/dateUtil';
+import { buildWeekMarkdown, copyToClipboard } from '../lib/exportText';
 import type { WeekDayDetail } from '../types';
 
 interface WeekPageProps { weekStart?: string; }
@@ -11,6 +14,8 @@ interface WeekPageProps { weekStart?: string; }
 export default function WeekPage({ weekStart }: WeekPageProps) {
   const { t } = useT();
   const { navigate } = useNavigate();
+  const { settings } = useSettings();
+  const { showToast } = useToast();
   const [details, setDetails] = useState<WeekDayDetail[]>([]);
   const todayStr = today();
 
@@ -35,6 +40,12 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
 
   const chartData = rows.map(d => ({ label: formatShortDate(d.date), value: Math.round(d.calories) }));
 
+  async function handleCopy() {
+    const md = buildWeekMarkdown(weekStart!, weekEnd, rows, settings);
+    const ok = await copyToClipboard(md);
+    showToast(ok ? t('export.copied') : t('export.copyFailed'), ok ? 'success' : 'error');
+  }
+
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <button
@@ -44,9 +55,14 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
         {t('week.backToHistory')}
       </button>
 
-      <h1 className="text-2xl font-bold text-text">
-        {fmtDate(weekStart)} – {fmtDate(weekEnd)}
-      </h1>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <h1 className="text-2xl font-bold text-text">
+          {fmtDate(weekStart)} – {fmtDate(weekEnd)}
+        </h1>
+        <button onClick={handleCopy} className="text-sm text-text-sec border border-border rounded-lg px-3 py-1.5 hover:border-accent/50 hover:text-text cursor-pointer transition-colors">
+          📋 {t('export.copyWeek')}
+        </button>
+      </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
