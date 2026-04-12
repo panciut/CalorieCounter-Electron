@@ -210,6 +210,11 @@ export interface WeekDayDetail {
   carbs: number;
   fat: number;
   fiber: number;
+  planned_calories: number;
+  planned_protein: number;
+  planned_carbs: number;
+  planned_fat: number;
+  planned_fiber: number;
 }
 
 export interface PantryItem {

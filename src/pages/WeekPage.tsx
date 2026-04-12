@@ -31,14 +31,35 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
   const days: string[] = [];
   for (let i = 0; i < 7; i++) days.push(addDays(weekStart, i));
 
+  const empty = { calories:0, protein:0, carbs:0, fat:0, fiber:0, planned_calories:0, planned_protein:0, planned_carbs:0, planned_fat:0, planned_fiber:0 };
   const detailMap = new Map(details.map(d => [d.date, d]));
-  const rows = days.map(date => detailMap.get(date) ?? { date, calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
+  const rows = days.map(date => detailMap.get(date) ?? { date, ...empty });
 
-  const loggedRows = rows.filter(d => d.calories > 0);
-  const count = loggedRows.length || 1;
-  const avg = (key: keyof WeekDayDetail) => Math.round(loggedRows.reduce((s, d) => s + (d[key] as number), 0) / count);
+  // For today and future, treat planned as if it counted (logged + planned).
+  // For past days, planned is ignored.
+  const projected = rows.map(d => {
+    const showPlan = d.date >= todayStr;
+    return {
+      ...d,
+      proj_calories: d.calories + (showPlan ? d.planned_calories : 0),
+      proj_protein:  d.protein  + (showPlan ? d.planned_protein  : 0),
+      proj_carbs:    d.carbs    + (showPlan ? d.planned_carbs    : 0),
+      proj_fat:      d.fat      + (showPlan ? d.planned_fat      : 0),
+      proj_fiber:    d.fiber    + (showPlan ? d.planned_fiber    : 0),
+      hasPlanned:    showPlan && d.planned_calories > 0,
+    };
+  });
 
-  const chartData = rows.map(d => ({ label: formatShortDate(d.date), value: Math.round(d.calories) }));
+  const activeRows = projected.filter(d => d.proj_calories > 0);
+  const count = activeRows.length || 1;
+  const avg = (key: 'proj_calories'|'proj_protein'|'proj_carbs'|'proj_fat'|'proj_fiber') =>
+    Math.round(activeRows.reduce((s, d) => s + d[key], 0) / count);
+
+  const chartData = projected.map(d => ({
+    label: formatShortDate(d.date),
+    value: Math.round(d.calories),
+    planned: d.hasPlanned ? Math.round(d.planned_calories) : 0,
+  }));
 
   async function handleCopy() {
     const md = buildWeekMarkdown(weekStart!, weekEnd, rows, settings);
@@ -66,11 +87,11 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {[
-          { label: t('week.avgPerDay'), value: `${avg('calories')} kcal`, accent: true },
-          { label: t('week.avgProtein'), value: `${avg('protein')}g` },
-          { label: t('week.avgCarbs'),   value: `${avg('carbs')}g` },
-          { label: t('week.avgFat'),     value: `${avg('fat')}g` },
-          { label: t('week.avgFiber'),   value: `${avg('fiber')}g` },
+          { label: t('week.avgPerDay'), value: `${avg('proj_calories')} kcal`, accent: true },
+          { label: t('week.avgProtein'), value: `${avg('proj_protein')}g` },
+          { label: t('week.avgCarbs'),   value: `${avg('proj_carbs')}g` },
+          { label: t('week.avgFat'),     value: `${avg('proj_fat')}g` },
+          { label: t('week.avgFiber'),   value: `${avg('proj_fiber')}g` },
         ].map(item => (
           <div key={item.label} className="bg-card rounded-xl p-3 border border-border text-center">
             <p className="text-xs text-text-sec mb-1">{item.label}</p>
@@ -83,7 +104,7 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
         <BarChartCard data={chartData} unit="kcal" />
       </div>
 
-      {loggedRows.length === 0 ? (
+      {activeRows.length === 0 ? (
         <p className="text-text-sec">{t('week.noEntries')}</p>
       ) : (
         <div className="bg-card rounded-xl overflow-hidden border border-border">
@@ -99,8 +120,17 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
               </tr>
             </thead>
             <tbody>
-              {rows.map(d => {
+              {projected.map(d => {
                 const isToday = d.date === todayStr;
+                const fmtCell = (logged: number, planned: number, unit = '') => {
+                  if (!logged && !planned) return '—';
+                  return (
+                    <>
+                      <span>{Math.round(logged)}{unit}</span>
+                      {planned > 0 && <span className="text-accent"> +{Math.round(planned)}{unit}</span>}
+                    </>
+                  );
+                };
                 return (
                   <tr
                     key={d.date}
@@ -113,11 +143,11 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
                         <span className="ml-2 text-xs bg-accent text-white rounded-full px-2 py-0.5">{t('week.today')}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right text-text tabular-nums">{d.calories ? Math.round(d.calories) : '—'}</td>
-                    <td className="px-4 py-3 text-right text-text-sec tabular-nums">{d.protein ? `${Math.round(d.protein)}g` : '—'}</td>
-                    <td className="px-4 py-3 text-right text-text-sec tabular-nums">{d.carbs ? `${Math.round(d.carbs)}g` : '—'}</td>
-                    <td className="px-4 py-3 text-right text-text-sec tabular-nums">{d.fat ? `${Math.round(d.fat)}g` : '—'}</td>
-                    <td className="px-4 py-3 text-right text-text-sec tabular-nums">{d.fiber ? `${Math.round(d.fiber)}g` : '—'}</td>
+                    <td className="px-4 py-3 text-right text-text tabular-nums">{fmtCell(d.calories, d.hasPlanned ? d.planned_calories : 0)}</td>
+                    <td className="px-4 py-3 text-right text-text-sec tabular-nums">{fmtCell(d.protein, d.hasPlanned ? d.planned_protein : 0, 'g')}</td>
+                    <td className="px-4 py-3 text-right text-text-sec tabular-nums">{fmtCell(d.carbs,   d.hasPlanned ? d.planned_carbs   : 0, 'g')}</td>
+                    <td className="px-4 py-3 text-right text-text-sec tabular-nums">{fmtCell(d.fat,     d.hasPlanned ? d.planned_fat     : 0, 'g')}</td>
+                    <td className="px-4 py-3 text-right text-text-sec tabular-nums">{fmtCell(d.fiber,   d.hasPlanned ? d.planned_fiber   : 0, 'g')}</td>
                   </tr>
                 );
               })}

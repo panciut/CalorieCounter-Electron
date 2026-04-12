@@ -2,17 +2,15 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSettings } from '../hooks/useSettings';
 import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
+import { useNavigate } from '../hooks/useNavigate';
 import { api } from '../api';
 import FoodSearch from '../components/FoodSearch';
 import type { SearchItem } from '../components/FoodSearch';
 import MealPills from '../components/MealPills';
-import MacroChart from '../components/MacroChart';
-import MacroBars from '../components/MacroBars';
-import type { BarDef } from '../components/MacroBars';
+import DayMacrosCard from '../components/DayMacrosCard';
 import EntryTable from '../components/EntryTable';
 import Modal from '../components/Modal';
-import { today, fmtDate } from '../lib/dateUtil';
-import { getBarColor } from '../lib/macroCalc';
+import { today, fmtDateWithWeekday, addDays } from '../lib/dateUtil';
 import { buildDayMarkdown, copyToClipboard } from '../lib/exportText';
 import ExerciseSection from '../components/ExerciseSection';
 import type {
@@ -113,13 +111,24 @@ interface RecipeEditState {
 
 // ── DashboardPage ─────────────────────────────────────────────────────────────
 
-export default function DashboardPage() {
+interface DashboardPageProps {
+  initialDate?: string;
+  fromWeek?: string;
+}
+
+export default function DashboardPage({ initialDate, fromWeek }: DashboardPageProps = {}) {
   const { settings } = useSettings();
   const { t } = useT();
   const { showToast } = useToast();
+  const { navigate } = useNavigate();
 
-  const [dateStr, setDateStr]       = useState(today());
-  const [planMode, setPlanMode]     = useState(false);
+  const [dateStr, setDateStr]       = useState(initialDate || today());
+  const [planMode, setPlanMode]     = useState((initialDate || today()) > today());
+
+  // Auto-default to plan mode when navigating to a future day
+  useEffect(() => {
+    setPlanMode(dateStr > today());
+  }, [dateStr]);
 
   const [entries, setEntries]       = useState<LogEntry[]>([]);
   const [foods, setFoods]           = useState<Food[]>([]);
@@ -138,6 +147,7 @@ export default function DashboardPage() {
   // Form state
   const [selectedFood, setSelectedFood]     = useState<Food|null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<RecipeEditState|null>(null);
+  const [searchKey, setSearchKey]           = useState(0);
   const [amount, setAmount]                 = useState('');
   const [usePieces, setUsePieces]           = useState(false);
   const [meal, setMeal]                     = useState<Meal>('Snack');
@@ -179,44 +189,8 @@ export default function DashboardPage() {
 
   // ── Totals ──────────────────────────────────────────────────────────────────
 
-  const loggedEntries  = entries.filter(e => e.status === 'logged');
   const plannedEntries = entries.filter(e => e.status === 'planned');
-
-  const sumEntries = (es: LogEntry[]) => es.reduce(
-    (acc, e) => ({ cal: acc.cal + e.calories, protein: acc.protein + e.protein, carbs: acc.carbs + e.carbs, fat: acc.fat + e.fat, fiber: acc.fiber + (e.fiber||0) }),
-    { cal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }
-  );
-
-  const totals  = sumEntries(loggedEntries);
-  const planned = sumEntries(plannedEntries);
-
-  const cal    = Math.round(totals.cal * 100) / 100;
-  const pro    = Math.round(totals.protein * 100) / 100;
-  const carbs  = Math.round(totals.carbs * 100) / 100;
-  const fat    = Math.round(totals.fat * 100) / 100;
-  const fiber  = Math.round(totals.fiber * 100) / 100;
-
-  const plCal    = Math.round(planned.cal * 100) / 100;
-  const plPro    = Math.round(planned.protein * 100) / 100;
-  const plCarbs  = Math.round(planned.carbs * 100) / 100;
-  const plFat    = Math.round(planned.fat * 100) / 100;
-  const plFiber  = Math.round(planned.fiber * 100) / 100;
-
-  const calRec = settings.cal_rec || Math.round(((settings.cal_min||1800)+(settings.cal_max||2200))/2);
-  const netCal = cal - exerciseKcal;
-  const remaining = calRec - netCal;
-  const remainingAbs = Math.abs(Math.round(remaining));
-  const remainingAfterPlan = Math.round(remaining - plCal);
-  const remColor = getBarColor(netCal, settings.cal_min||1800, settings.cal_max||2200, settings);
-  const remColorMap: Record<string, string> = { 'bar-green':'text-green','bar-yellow':'text-yellow','bar-orange':'text-orange-400','bar-red':'text-red' };
-
-  const bars: BarDef[] = [
-    { id:'cal',     label:t('macro.kcal'),    actual:netCal, planned:plCal,   min:settings.cal_min||1800, max:settings.cal_max||2200, rec:settings.cal_rec||0,     unit:'kcal' },
-    { id:'protein', label:t('macro.protein'), actual:pro,    planned:plPro,   min:settings.protein_min||0, max:settings.protein_max||0, rec:settings.protein_rec||0, unit:'g' },
-    { id:'carbs',   label:t('macro.carbs'),   actual:carbs,  planned:plCarbs, min:settings.carbs_min||0, max:settings.carbs_max||0, rec:settings.carbs_rec||0, unit:'g' },
-    { id:'fat',     label:t('macro.fat'),     actual:fat,    planned:plFat,   min:settings.fat_min||0,   max:settings.fat_max||0,   rec:settings.fat_rec||0,   unit:'g' },
-    { id:'fiber',   label:t('macro.fiber'),   actual:fiber,  planned:plFiber, min:settings.fiber_min||0, max:settings.fiber_max||0, rec:settings.fiber_rec||0, unit:'g' },
-  ];
+  const plannedKcalSum = Math.round(plannedEntries.reduce((s, e) => s + e.calories, 0));
 
   // ── Food search items ───────────────────────────────────────────────────────
 
@@ -254,7 +228,7 @@ export default function DashboardPage() {
   async function handleLogFood() {
     if (!selectedFood || !effectiveGrams) return;
     await api.log.add({ food_id: selectedFood.id, grams: effectiveGrams, meal, date: dateStr, status: logStatus });
-    setSelectedFood(null); setAmount(''); load();
+    setSelectedFood(null); setAmount(''); setSearchKey(k => k + 1); load();
   }
 
   async function handleLogRecipe() {
@@ -264,7 +238,7 @@ export default function DashboardPage() {
         await api.log.add({ food_id: ing.food_id, grams: ing.editGrams, meal, date: dateStr, status: logStatus });
       }
     }
-    setSelectedRecipe(null); load();
+    setSelectedRecipe(null); setSearchKey(k => k + 1); load();
   }
 
   async function handleConfirmPlanned(id: number) {
@@ -274,6 +248,11 @@ export default function DashboardPage() {
 
   async function handleConfirmAll() {
     await api.log.confirmAllPlanned(dateStr);
+    load();
+  }
+
+  async function handleSwapLunchDinner() {
+    await api.log.swapLunchDinner(dateStr);
     load();
   }
 
@@ -333,7 +312,7 @@ export default function DashboardPage() {
   }
 
   async function quickLog(food: Food) {
-    await api.log.add({ food_id: food.id, grams: food.piece_grams || 100, meal, date: dateStr });
+    await api.log.add({ food_id: food.id, grams: food.piece_grams || 100, meal, date: dateStr, status: logStatus });
     load();
   }
 
@@ -342,17 +321,40 @@ export default function DashboardPage() {
   const inputCls = "bg-card border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 
   return (
-    <div className="p-6 max-w-4xl mx-auto flex flex-col gap-6">
+    <div className="p-6 max-w-6xl mx-auto flex flex-col gap-6">
       {/* Header */}
+      {fromWeek && (
+        <button className="text-accent text-sm hover:opacity-80 cursor-pointer self-start" onClick={() => navigate('week', { weekStart: fromWeek })}>
+          {t('day.back')}
+        </button>
+      )}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-bold text-text">{fmtDate(dateStr)}</h1>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setDateStr(addDays(dateStr, -1))}
+            className="text-text-sec hover:text-accent border border-border hover:border-accent/50 rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer transition-colors"
+            title="Previous day"
+          >‹</button>
+          <h1 className="text-xl font-bold text-text">{fmtDateWithWeekday(dateStr)}</h1>
+          <button
+            onClick={() => setDateStr(addDays(dateStr, 1))}
+            className="text-text-sec hover:text-accent border border-border hover:border-accent/50 rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer transition-colors"
+            title="Next day"
+          >›</button>
           <input
             type="date"
             value={dateStr}
             onChange={e => setDateStr(e.target.value)}
-            className="text-xs bg-card border border-border rounded-lg px-2 py-1 text-text-sec focus:outline-none focus:border-accent cursor-pointer"
+            className="text-xs bg-card border border-border rounded-lg px-2 py-1 text-text-sec focus:outline-none focus:border-accent cursor-pointer ml-1"
           />
+          {dateStr !== today() && (
+            <button
+              onClick={() => setDateStr(today())}
+              className="text-xs text-accent border border-accent/40 rounded-lg px-2 py-1 hover:bg-accent/10 cursor-pointer transition-colors ml-1"
+            >
+              {t('week.today')}
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {/* Plan mode toggle */}
@@ -381,7 +383,7 @@ export default function DashboardPage() {
         <div className="flex items-center justify-between gap-3 bg-accent/8 border border-accent/25 rounded-xl px-4 py-2.5">
           <div className="text-sm text-text">
             <span className="font-medium text-accent">{plannedEntries.length}</span> planned {plannedEntries.length === 1 ? 'entry' : 'entries'} ·{' '}
-            <span className="text-text-sec">{Math.round(planned.cal)} kcal planned</span>
+            <span className="text-text-sec">{plannedKcalSum} kcal planned</span>
           </div>
           <button
             onClick={handleConfirmAll}
@@ -393,41 +395,7 @@ export default function DashboardPage() {
       )}
 
       {/* Macros summary card */}
-      <div className="bg-card border border-border rounded-xl p-5 flex gap-4 items-start">
-        <MacroChart
-          protein={pro} carbs={carbs} fat={fat} calories={cal}
-          plannedProtein={plPro} plannedCarbs={plCarbs} plannedFat={plFat} plannedCalories={plCal}
-          plannedLabel={t('dash.planned')}
-        />
-        <div className="flex-1 flex flex-col gap-3">
-          {/* Budget */}
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className={`text-sm font-semibold ${remColorMap[remColor]||'text-text'}`}>
-              {remaining >= 0
-                ? `${remainingAbs} ${t('macro.kcal')} ${t('dash.remaining')}`
-                : `${t('dash.overBy')} ${remainingAbs} ${t('macro.kcal')}`}
-            </div>
-            {plCal > 0 && (
-              <div className="text-xs text-accent tabular-nums">
-                {remainingAfterPlan >= 0
-                  ? `${remainingAfterPlan} ${t('dash.afterPlan')}`
-                  : `${Math.abs(remainingAfterPlan)} ${t('dash.overAfterPlan')}`}
-              </div>
-            )}
-            {exerciseKcal > 0 && (
-              <div className="flex items-center gap-1.5 text-xs text-text-sec">
-                <span className="tabular-nums">{Math.round(cal)} in</span>
-                <span>−</span>
-                <span className="text-green tabular-nums">{Math.round(exerciseKcal)} burned</span>
-                <span>=</span>
-                <span className="font-medium text-text tabular-nums">{Math.round(netCal)} net</span>
-              </div>
-            )}
-          </div>
-          {/* Macro bars */}
-          <MacroBars bars={bars} settings={settings} />
-        </div>
-      </div>
+      <DayMacrosCard entries={entries} />
 
       {/* Streak + supplements */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -533,8 +501,19 @@ export default function DashboardPage() {
 
       {/* Log food section */}
       <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-3">
-        <h3 className="text-sm font-semibold text-text">{t('dash.logFood')}</h3>
-        <FoodSearch items={searchItems} onSelect={handleSelect} onClear={handleClear} placeholder={t('dash.searchPlaceholder')} />
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-text">{t('dash.logFood')}</h3>
+          {plannedEntries.some(e => e.meal === 'Lunch' || e.meal === 'Dinner') && (
+            <button
+              onClick={handleSwapLunchDinner}
+              title={t('dash.swapLunchDinner')}
+              className="text-xs text-text-sec border border-border rounded-lg px-2 py-1 hover:border-accent/50 hover:text-text cursor-pointer transition-colors"
+            >
+              🔄 {t('dash.swapLunchDinner')}
+            </button>
+          )}
+        </div>
+        <FoodSearch key={searchKey} items={searchItems} onSelect={handleSelect} onClear={handleClear} placeholder={t('dash.searchPlaceholder')} />
 
         {/* Food log form */}
         {selectedFood && (

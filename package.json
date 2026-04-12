@@ -4,7 +4,7 @@
   "description": "Calorie & weight tracker",
   "main": "main/main.js",
   "scripts": {
-    "dev": "concurrently -k -n vite,electron -c cyan,magenta \"npm run dev:vite\" \"wait-on http://localhost:5173 && npm run dev:electron\"",
+    "dev": "concurrently -k -n vite,electron -c cyan,magenta \"npm run dev:vite\" \"wait-on http://localhost:5199 && npm run dev:electron\"",
     "dev:vite": "vite",
     "dev:electron": "electron .",
     "start": "electron .",
@@ -18,7 +18,15 @@
     "mac": {
       "target": "dmg",
       "category": "public.app-category.healthcare-fitness",
-      "icon": "build/icon.icns"
+      "icon": "build/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "NSCameraUsageDescription": "CalorieCounter uses the camera to scan food barcodes.",
+        "NSMicrophoneUsageDescription": "CalorieCounter does not record audio; this is required by the camera API."
+      }
     },
     "win": {
       "target": "nsis"

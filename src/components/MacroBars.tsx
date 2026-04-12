@@ -36,7 +36,7 @@ export default function MacroBars({ bars, settings }: MacroBarsProps) {
 
         return (
           <div key={id} className="flex items-center gap-3">
-            <span className="text-xs text-text-sec uppercase tracking-wider min-w-[72px] shrink-0">{label}</span>
+            <span className="text-xs text-text-sec uppercase tracking-wider w-[72px] shrink-0">{label}</span>
             <div className="flex-1 h-1.5 rounded-sm relative" style={{ background: 'var(--border)' }}>
               {/* Actual (solid) */}
               <div
@@ -71,8 +71,13 @@ export default function MacroBars({ bars, settings }: MacroBarsProps) {
                   style={{ left: `${maxPct}%`, background: 'var(--red)' }} />
               )}
             </div>
-            <span className="text-xs text-text-sec tabular-nums min-w-[130px] text-right">
-              {actual}{planned > 0 && <span className="text-accent"> +{Math.round(planned)}</span>}{unit} · {Math.round(min)}–{Math.round(max)}{unit}
+            <span className="text-xs text-text-sec tabular-nums w-[280px] shrink-0 text-left whitespace-nowrap">
+              <span className="text-text">{actual}</span>
+              {planned > 0 && <span className="text-accent">+{Math.round(planned)}</span>}
+              {planned > 0 && <span className="text-text"> = {Math.round(actual + planned)}</span>}
+              {unit}
+              {rec > 0 && <span className="text-text-sec/70"> · {Math.round(rec)}{unit}</span>}
+              <span className="text-text-sec/70"> · {Math.round(min)}–{Math.round(max)}{unit}</span>
             </span>
           </div>
         );

@@ -15,8 +15,11 @@ interface EntryTableProps {
 interface EditState {
   id: number;
   food_id: number;
-  grams: number;
+  origGrams: number;
+  gramsStr: string;
+  piecesStr: string;
   meal: Meal;
+  mode: 'pieces' | 'grams';
 }
 
 export default function EntryTable({ entries, foods, onRefresh, onConfirm }: EntryTableProps) {
@@ -52,9 +55,28 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
 
   async function handleSave() {
     if (!editing) return;
-    await api.log.update({ id: editing.id, food_id: editing.food_id, grams: editing.grams, meal: editing.meal });
+    const parsed = parseFloat(editing.gramsStr);
+    const grams = !editing.gramsStr.trim() || isNaN(parsed) || parsed <= 0
+      ? editing.origGrams
+      : parsed;
+    await api.log.update({ id: editing.id, food_id: editing.food_id, grams, meal: editing.meal });
     setEditing(null);
     onRefresh();
+  }
+
+  function startEdit(e: LogEntry) {
+    const food = foodsById.get(e.food_id);
+    const pieceG = food?.piece_grams || 0;
+    const hasPieces = pieceG > 0;
+    setEditing({
+      id: e.id,
+      food_id: e.food_id,
+      origGrams: e.grams,
+      gramsStr: String(Math.round(e.grams * 10) / 10),
+      piecesStr: hasPieces ? String(Math.round((e.grams / pieceG) * 100) / 100) : '',
+      meal: e.meal as Meal,
+      mode: hasPieces ? 'pieces' : 'grams',
+    });
   }
 
   return (
@@ -101,44 +123,126 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                         <button onClick={() => onConfirm(e.id)}
                           className="text-accent hover:opacity-75 px-1 cursor-pointer transition-colors text-xs" title="Confirm">✓</button>
                       )}
-                      <button onClick={() => setEditing({ id: e.id, food_id: e.food_id, grams: e.grams, meal: e.meal as Meal })}
+                      <button onClick={() => startEdit(e)}
                         className="text-text-sec hover:text-text px-1 cursor-pointer transition-colors">✎</button>
                       <button onClick={() => handleDelete(e.id)}
                         className="text-text-sec hover:text-red px-1 cursor-pointer transition-colors">✕</button>
                     </td>
                   </tr>
-                  {editing?.id === e.id && (
-                    <tr className="bg-card-hover/50">
-                      <td colSpan={8} className="py-2 px-2">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <select
-                            value={editing.food_id}
-                            onChange={ev => setEditing({ ...editing, food_id: +ev.target.value })}
-                            className="bg-card border border-border rounded px-2 py-1 text-sm text-text outline-none focus:border-accent"
-                          >
-                            {foods.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                          </select>
-                          <input type="number" value={editing.grams} min="0.1" step="0.1"
-                            onChange={ev => setEditing({ ...editing, grams: +ev.target.value })}
-                            className="w-20 bg-card border border-border rounded px-2 py-1 text-sm text-text outline-none focus:border-accent" />
-                          <select value={editing.meal}
-                            onChange={ev => setEditing({ ...editing, meal: ev.target.value as Meal })}
-                            className="bg-card border border-border rounded px-2 py-1 text-sm text-text outline-none focus:border-accent">
-                            {(['Breakfast','Lunch','Dinner','Snack'] as Meal[]).map(m =>
-                              <option key={m} value={m}>{tMeal(m)}</option>)}
-                          </select>
-                          <button onClick={handleSave}
-                            className="bg-accent text-white rounded px-3 py-1 text-sm cursor-pointer hover:brightness-110">
-                            {t('common.save')}
-                          </button>
-                          <button onClick={() => setEditing(null)}
-                            className="border border-border text-text-sec rounded px-3 py-1 text-sm cursor-pointer hover:text-text">
-                            {t('common.cancel')}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
+                  {editing?.id === e.id && (() => {
+                    const editFood = foodsById.get(editing.food_id);
+                    const pieceG   = editFood?.piece_grams || 0;
+                    const hasPieces = pieceG > 0;
+                    const inputCls = "w-24 bg-card border border-border rounded px-2 py-1 text-sm text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
+                    return (
+                      <tr className="bg-card-hover/50">
+                        <td colSpan={8} className="py-2 px-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <select
+                              value={editing.food_id}
+                              onChange={ev => {
+                                const newId = +ev.target.value;
+                                const f = foodsById.get(newId);
+                                const pg = f?.piece_grams || 0;
+                                const grams = parseFloat(editing.gramsStr) || editing.origGrams;
+                                setEditing({
+                                  ...editing,
+                                  food_id: newId,
+                                  mode: pg > 0 ? 'pieces' : 'grams',
+                                  piecesStr: pg > 0 ? String(Math.round((grams / pg) * 100) / 100) : '',
+                                });
+                              }}
+                              className="bg-card border border-border rounded px-2 py-1 text-sm text-text outline-none focus:border-accent"
+                            >
+                              {foods.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+                            </select>
+
+                            {hasPieces && editing.mode === 'pieces' ? (
+                              <>
+                                <input
+                                  type="number"
+                                  value={editing.piecesStr}
+                                  step="1"
+                                  onChange={ev => {
+                                    const v = ev.target.value;
+                                    const n = parseFloat(v);
+                                    setEditing({
+                                      ...editing,
+                                      piecesStr: v,
+                                      gramsStr: !v.trim() || isNaN(n) ? '' : String(Math.round(n * pieceG * 10) / 10),
+                                    });
+                                  }}
+                                  className={inputCls}
+                                />
+                                <span className="text-xs text-text-sec">pcs</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditing({ ...editing, mode: 'grams' })}
+                                  className="text-xs text-text-sec border border-border rounded px-2 py-1 hover:border-accent/50 hover:text-text cursor-pointer"
+                                  title="Edit total weight"
+                                >
+                                  ⚖ {editing.gramsStr || '—'}g
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <input
+                                  type="number"
+                                  value={editing.gramsStr}
+                                  step="0.1"
+                                  onChange={ev => {
+                                    const v = ev.target.value;
+                                    const n = parseFloat(v);
+                                    setEditing({
+                                      ...editing,
+                                      gramsStr: v,
+                                      piecesStr: hasPieces && !isNaN(n) ? String(Math.max(1, Math.round(n / pieceG))) : editing.piecesStr,
+                                    });
+                                  }}
+                                  className={inputCls}
+                                />
+                                <span className="text-xs text-text-sec">g</span>
+                                {hasPieces && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const n = parseFloat(editing.gramsStr);
+                                      const pcs = !isNaN(n) ? Math.max(1, Math.round(n / pieceG)) : 1;
+                                      setEditing({
+                                        ...editing,
+                                        mode: 'pieces',
+                                        piecesStr: String(pcs),
+                                        gramsStr: String(Math.round(pcs * pieceG * 10) / 10),
+                                      });
+                                    }}
+                                    className="text-xs text-text-sec border border-border rounded px-2 py-1 hover:border-accent/50 hover:text-text cursor-pointer"
+                                    title="Switch to pieces"
+                                  >
+                                    ⇆ pcs
+                                  </button>
+                                )}
+                              </>
+                            )}
+
+                            <select value={editing.meal}
+                              onChange={ev => setEditing({ ...editing, meal: ev.target.value as Meal })}
+                              className="bg-card border border-border rounded px-2 py-1 text-sm text-text outline-none focus:border-accent">
+                              {(['Breakfast','Lunch','Dinner','Snack'] as Meal[]).map(m =>
+                                <option key={m} value={m}>{tMeal(m)}</option>)}
+                            </select>
+                            <button onClick={handleSave}
+                              className="bg-accent text-white rounded px-3 py-1 text-sm cursor-pointer hover:brightness-110">
+                              {t('common.save')}
+                            </button>
+                            <button onClick={() => setEditing(null)}
+                              className="border border-border text-text-sec rounded px-3 py-1 text-sm cursor-pointer hover:text-text">
+                              {t('common.cancel')}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })()}
                 </Fragment>
               ))}
             </tbody>

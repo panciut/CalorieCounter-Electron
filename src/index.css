@@ -115,3 +115,6 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 .bar-yellow { background: var(--yellow); }
 .bar-orange { background: #ff8c00; }
 .bar-red    { background: var(--red); }
+
+/* ── Barcode scanner: mirror preview only (raw frame stays normal for decoding) ── */
+#barcode-reader video { transform: scaleX(-1); }

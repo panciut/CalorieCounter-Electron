@@ -1,5 +1,12 @@
+function toLocalISO(d: Date): string {
+  const yy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
+
 export function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return toLocalISO(new Date());
 }
 
 function ordinal(n: number): string {
@@ -17,6 +24,17 @@ export function fmtDate(iso: string): string {
   if (!iso) return '';
   const [year, month, day] = iso.split('-').map(Number);
   return `${ordinal(day)} of ${MONTH_NAMES[month - 1]} ${year}`;
+}
+
+const WEEKDAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+export function fmtDateWithWeekday(iso: string): string {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  const dd = String(d).padStart(2, '0');
+  const mm = String(m).padStart(2, '0');
+  return `${WEEKDAY_NAMES[date.getDay()]} ${dd}/${mm}/${y}`;
 }
 
 export function getMondayOf(iso: string): string {
@@ -45,7 +63,7 @@ export function getThisMonday(): string {
 export function addDays(iso: string, n: number): string {
   const [y, m, d] = iso.split('-').map(Number);
   const date = new Date(y, m - 1, d + n);
-  return date.toISOString().slice(0, 10);
+  return toLocalISO(date);
 }
 
 export function formatShortDate(iso: string): string {

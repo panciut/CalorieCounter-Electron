@@ -130,6 +130,15 @@ function registerLogIpc() {
     return { ok: true };
   });
 
+  ipcMain.handle('log:swapLunchDinner', (_, { date }) => {
+    getDb().prepare(`
+      UPDATE log
+      SET meal = CASE meal WHEN 'Lunch' THEN 'Dinner' ELSE 'Lunch' END
+      WHERE date = ? AND status = 'planned' AND meal IN ('Lunch','Dinner')
+    `).run(date);
+    return { ok: true };
+  });
+
   ipcMain.handle('log:delete', (_, { id }) => {
     const db = getDb();
     const row = db.prepare('SELECT date, food_id, grams, meal FROM log WHERE id = ?').get(id);
@@ -171,15 +180,20 @@ function registerLogIpc() {
     getDb().prepare(`
       SELECT
         l.date,
-        ROUND(SUM(f.calories * l.grams / 100), 2) AS calories,
-        ROUND(SUM(f.protein  * l.grams / 100), 2) AS protein,
-        ROUND(SUM(f.carbs    * l.grams / 100), 2) AS carbs,
-        ROUND(SUM(f.fat      * l.grams / 100), 2) AS fat,
-        ROUND(SUM(f.fiber    * l.grams / 100), 2) AS fiber
+        ROUND(SUM(CASE WHEN l.status='logged'  THEN f.calories * l.grams / 100 ELSE 0 END), 2) AS calories,
+        ROUND(SUM(CASE WHEN l.status='logged'  THEN f.protein  * l.grams / 100 ELSE 0 END), 2) AS protein,
+        ROUND(SUM(CASE WHEN l.status='logged'  THEN f.carbs    * l.grams / 100 ELSE 0 END), 2) AS carbs,
+        ROUND(SUM(CASE WHEN l.status='logged'  THEN f.fat      * l.grams / 100 ELSE 0 END), 2) AS fat,
+        ROUND(SUM(CASE WHEN l.status='logged'  THEN f.fiber    * l.grams / 100 ELSE 0 END), 2) AS fiber,
+        ROUND(SUM(CASE WHEN l.status='planned' THEN f.calories * l.grams / 100 ELSE 0 END), 2) AS planned_calories,
+        ROUND(SUM(CASE WHEN l.status='planned' THEN f.protein  * l.grams / 100 ELSE 0 END), 2) AS planned_protein,
+        ROUND(SUM(CASE WHEN l.status='planned' THEN f.carbs    * l.grams / 100 ELSE 0 END), 2) AS planned_carbs,
+        ROUND(SUM(CASE WHEN l.status='planned' THEN f.fat      * l.grams / 100 ELSE 0 END), 2) AS planned_fat,
+        ROUND(SUM(CASE WHEN l.status='planned' THEN f.fiber    * l.grams / 100 ELSE 0 END), 2) AS planned_fiber
       FROM log l
       JOIN foods f ON l.food_id = f.id
       WHERE l.date BETWEEN ? AND date(?, '+6 days')
-        AND l.status = 'logged'
+        AND l.status IN ('logged','planned')
       GROUP BY l.date
       ORDER BY l.date ASC
     `).all(weekStart, weekStart)

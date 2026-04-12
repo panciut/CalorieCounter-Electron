@@ -49,6 +49,7 @@ export const api = {
     getPlanned:         (date: string) => invoke<LogEntry[]>('log:getPlanned', { date }),
     confirmPlanned:     (id: number) => invoke<{ ok: boolean }>('log:confirmPlanned', { id }),
     confirmAllPlanned:  (date: string) => invoke<{ ok: boolean }>('log:confirmAllPlanned', { date }),
+    swapLunchDinner:    (date: string) => invoke<{ ok: boolean }>('log:swapLunchDinner', { date }),
     getWeeklySummaries: () => invoke<WeeklySummary[]>('log:getWeeklySummaries'),
     getWeekDetail:      (weekStart: string) => invoke<WeekDayDetail[]>('log:getWeekDetail', { weekStart }),
   },

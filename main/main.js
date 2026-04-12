@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, globalShortcut } = require('electron');
+const { app, BrowserWindow, ipcMain, globalShortcut, session, systemPreferences } = require('electron');
 const path = require('path');
 const { initDb } = require('./db');
 const { seedDev } = require('./seed_dev');
@@ -44,7 +44,7 @@ function createWindow() {
 
   const isDev = !app.isPackaged;
   if (isDev) {
-    mainWindow.loadURL('http://localhost:5173');
+    mainWindow.loadURL('http://localhost:5199');
     // mainWindow.webContents.openDevTools();
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
@@ -61,9 +61,24 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   initDb();
   seedDev();
+
+  // Grant camera (and mic) for barcode scanner. Electron denies media by default.
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
+    if (permission === 'media' || permission === 'mediaKeySystem') return callback(true);
+    callback(false);
+  });
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => {
+    if (permission === 'media') return true;
+    return false;
+  });
+
+  // macOS: ensure TCC camera access for the running process.
+  if (process.platform === 'darwin') {
+    try { await systemPreferences.askForMediaAccess('camera'); } catch {}
+  }
 
   registerFoodsIpc();
   registerLogIpc();
@@ -99,7 +114,7 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
+  app.quit();
 });
 
 app.on('activate', () => {

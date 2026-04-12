@@ -1,9 +1,38 @@
-import { useEffect, useRef, useState } from 'react';
+import { Component, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 interface BarcodeScannerProps {
   onResult: (barcode: string) => void;
   onError?: (err: string) => void;
+}
+
+class ScannerErrorBoundary extends Component<{ children: ReactNode }, { msg: string | null }> {
+  state = { msg: null as string | null };
+  static getDerivedStateFromError(err: unknown) {
+    return { msg: err instanceof Error ? `${err.name}: ${err.message}` : String(err) };
+  }
+  componentDidCatch(err: unknown) {
+    console.error('[BarcodeScanner crash]', err);
+  }
+  render() {
+    if (this.state.msg) {
+      return (
+        <div className="p-4 border border-red/40 bg-red/10 rounded-md text-sm text-red whitespace-pre-wrap">
+          Scanner crashed: {this.state.msg}
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function safeStop(scanner: Html5Qrcode) {
+  try {
+    const p = scanner.stop();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
+  } catch {
+    // scanner wasn't running
+  }
 }
 
 function classifyCamera(label: string): 'iphone' | 'mac' {
@@ -12,7 +41,15 @@ function classifyCamera(label: string): 'iphone' | 'mac' {
   return 'mac';
 }
 
-export default function BarcodeScanner({ onResult, onError }: BarcodeScannerProps) {
+export default function BarcodeScanner(props: BarcodeScannerProps) {
+  return (
+    <ScannerErrorBoundary>
+      <BarcodeScannerInner {...props} />
+    </ScannerErrorBoundary>
+  );
+}
+
+function BarcodeScannerInner({ onResult, onError }: BarcodeScannerProps) {
   const containerRef  = useRef<HTMLDivElement>(null);
   const scannerRef    = useRef<Html5Qrcode | null>(null);
   const scannedRef    = useRef(false);
@@ -40,6 +77,9 @@ export default function BarcodeScanner({ onResult, onError }: BarcodeScannerProp
   useEffect(() => {
     if (!selectedCamera || !containerRef.current) return;
 
+    let cancelled = false;
+    let started = false;
+
     const scanner = new Html5Qrcode('barcode-reader', {
       formatsToSupport: [
         Html5QrcodeSupportedFormats.EAN_13,
@@ -61,19 +101,30 @@ export default function BarcodeScanner({ onResult, onError }: BarcodeScannerProp
         (decodedText) => {
           if (scannedRef.current) return;
           scannedRef.current = true;
-          scanner.stop().catch(() => {});
+          safeStop(scanner);
           setScanning(false);
           onResult(decodedText);
         },
         () => {}
       )
-      .then(() => setScanning(true))
+      .then(() => {
+        started = true;
+        if (cancelled) {
+          safeStop(scanner);
+          return;
+        }
+        setScanning(true);
+      })
       .catch(err => {
+        if (cancelled) return;
         setError(typeof err === 'string' ? err : 'Failed to start camera');
         onError?.(String(err));
       });
 
-    return () => { scanner.stop().catch(() => {}); };
+    return () => {
+      cancelled = true;
+      if (started) safeStop(scanner);
+    };
   }, [selectedCamera]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const macCameras     = cameras.filter(c => classifyCamera(c.label) === 'mac');
