@@ -59,6 +59,10 @@ const DEFAULT_ORDER: NavItem[] = [
 ];
 
 const STORAGE_KEY = 'nav_order';
+const HIDDEN_KEY = 'nav_hidden';
+
+// Pages that must always remain visible (cannot be hidden)
+const UNHIDEABLE: Set<PageName> = new Set(['dashboard', 'settings']);
 
 function loadOrder(): NavItem[] {
   try {
@@ -79,6 +83,19 @@ function saveOrder(items: NavItem[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(items.map(i => i.page)));
 }
 
+function loadHidden(): Set<PageName> {
+  try {
+    const saved = localStorage.getItem(HIDDEN_KEY);
+    if (!saved) return new Set();
+    const pages: PageName[] = JSON.parse(saved);
+    return new Set(pages.filter(p => !UNHIDEABLE.has(p)));
+  } catch { return new Set(); }
+}
+
+function saveHidden(hidden: Set<PageName>) {
+  localStorage.setItem(HIDDEN_KEY, JSON.stringify([...hidden]));
+}
+
 // ── DragHandle icon ───────────────────────────────────────────────────────────
 
 function DragHandle() {
@@ -87,6 +104,28 @@ function DragHandle() {
       <circle cx="9" cy="6"  r="1.5" /><circle cx="15" cy="6"  r="1.5" />
       <circle cx="9" cy="12" r="1.5" /><circle cx="15" cy="12" r="1.5" />
       <circle cx="9" cy="18" r="1.5" /><circle cx="15" cy="18" r="1.5" />
+    </svg>
+  );
+}
+
+function EyeIcon({ hidden }: { hidden: boolean }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+      className="shrink-0">
+      {hidden ? (
+        <>
+          <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-10-8-10-8a18.45 18.45 0 015.06-5.94" />
+          <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 10 8 10 8a18.5 18.5 0 01-2.16 3.19" />
+          <path d="M9.88 9.88a3 3 0 004.24 4.24" />
+          <line x1="2" y1="2" x2="22" y2="22" />
+        </>
+      ) : (
+        <>
+          <path d="M2 12s3-8 10-8 10 8 10 8-3 8-10 8-10-8-10-8z" />
+          <circle cx="12" cy="12" r="3" />
+        </>
+      )}
     </svg>
   );
 }
@@ -100,6 +139,7 @@ export default function Nav({ activePage }: NavProps) {
   const { t } = useT();
 
   const [items, setItems]       = useState<NavItem[]>(loadOrder);
+  const [hidden, setHidden]     = useState<Set<PageName>>(loadHidden);
   const [editing, setEditing]   = useState(false);
   const dragIndex               = useRef<number | null>(null);
   const dragOverIndex           = useRef<number | null>(null);
@@ -110,6 +150,23 @@ export default function Nav({ activePage }: NavProps) {
     if (!mounted.current) { mounted.current = true; return; }
     saveOrder(items);
   }, [items]);
+
+  const hiddenMounted = useRef(false);
+  useEffect(() => {
+    if (!hiddenMounted.current) { hiddenMounted.current = true; return; }
+    saveHidden(hidden);
+  }, [hidden]);
+
+  function toggleHidden(page: PageName) {
+    if (UNHIDEABLE.has(page)) return;
+    setHidden(prev => {
+      const next = new Set(prev);
+      if (next.has(page)) next.delete(page); else next.add(page);
+      return next;
+    });
+  }
+
+  const visibleItems = editing ? items : items.filter(i => !hidden.has(i.page));
 
   function handleDragStart(i: number) { dragIndex.current = i; }
 
@@ -139,7 +196,7 @@ export default function Nav({ activePage }: NavProps) {
         <span className="text-accent font-bold text-lg tracking-tight select-none">CC</span>
         <button
           onClick={() => setEditing(v => !v)}
-          title={editing ? 'Done' : 'Reorder pages'}
+          title={editing ? t('nav.done') : t('nav.reorderHide')}
           className={[
             'text-xs px-2 py-1 rounded border cursor-pointer transition-colors',
             editing
@@ -147,26 +204,43 @@ export default function Nav({ activePage }: NavProps) {
               : 'border-border text-text-sec hover:border-accent/50 hover:text-text',
           ].join(' ')}
         >
-          {editing ? 'Done' : 'Edit'}
+          {editing ? t('nav.done') : t('nav.edit')}
         </button>
       </div>
 
       {/* Nav items */}
       <div className="flex flex-col gap-0.5">
-        {items.map(({ page, labelKey }, i) => (
+        {visibleItems.map(({ page, labelKey }, i) => (
           editing ? (
-            // ── Edit mode: draggable row ──────────────────────────────────
+            // ── Edit mode: draggable row with hide toggle ─────────────────
             <div
               key={page}
               draggable
               onDragStart={() => handleDragStart(i)}
               onDragOver={e => handleDragOver(e, i)}
               onDrop={handleDrop}
-              className="flex items-center gap-2 px-3 py-2 cursor-grab active:cursor-grabbing select-none text-text-sec hover:bg-card-hover transition-colors"
+              className={[
+                'flex items-center gap-2 px-3 py-2 cursor-grab active:cursor-grabbing select-none transition-colors',
+                hidden.has(page)
+                  ? 'text-text-sec/40 hover:bg-card-hover'
+                  : 'text-text-sec hover:bg-card-hover',
+              ].join(' ')}
             >
               <DragHandle />
               <Icon d={ICONS[page] ?? ICONS.settings} size={15} />
-              <span className="text-sm truncate">{t(labelKey)}</span>
+              <span className="text-sm truncate flex-1">{t(labelKey)}</span>
+              {!UNHIDEABLE.has(page) && (
+                <button
+                  type="button"
+                  onClick={e => { e.stopPropagation(); toggleHidden(page); }}
+                  onMouseDown={e => e.stopPropagation()}
+                  draggable={false}
+                  title={hidden.has(page) ? t('nav.showPage') : t('nav.hidePage')}
+                  className="p-1 rounded hover:bg-card cursor-pointer text-text-sec hover:text-text transition-colors"
+                >
+                  <EyeIcon hidden={hidden.has(page)} />
+                </button>
+              )}
             </div>
           ) : (
             // ── Normal mode: nav button ───────────────────────────────────

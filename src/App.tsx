@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { SettingsProvider, useSettings } from './hooks/useSettings';
 import { NavigationProvider, useNavigate } from './hooks/useNavigate';
 import { ToastProvider, useToast } from './components/Toast';
-import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useUndo } from './hooks/useUndo';
 import { useT } from './i18n/useT';
 
@@ -34,7 +33,6 @@ function AppInner() {
   const { showToast } = useToast();
   const { t } = useT();
 
-  useKeyboardShortcuts();
   useUndo(showToast, t('undo.undone'));
 
   // Sync theme to body class
