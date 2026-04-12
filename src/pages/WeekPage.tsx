@@ -17,12 +17,25 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
   const { settings } = useSettings();
   const { showToast } = useToast();
   const [details, setDetails] = useState<WeekDayDetail[]>([]);
+  const [overrides, setOverrides] = useState<Record<string, 'included' | 'excluded'>>(() => {
+    try { return JSON.parse(localStorage.getItem('week.dayOverrides') || '{}'); }
+    catch { return {}; }
+  });
   const todayStr = today();
 
   useEffect(() => {
     if (!weekStart) return;
     api.log.getWeekDetail(weekStart).then(setDetails);
   }, [weekStart]);
+
+  function toggleDay(date: string, currentlyIncluded: boolean) {
+    setOverrides(prev => {
+      const next = { ...prev };
+      next[date] = currentlyIncluded ? 'excluded' : 'included';
+      localStorage.setItem('week.dayOverrides', JSON.stringify(next));
+      return next;
+    });
+  }
 
   if (!weekStart) return null;
 
@@ -39,21 +52,33 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
   // For past days, planned is ignored.
   const projected = rows.map(d => {
     const showPlan = d.date >= todayStr;
+    const proj_calories = d.calories + (showPlan ? d.planned_calories : 0);
+    const isEmpty = proj_calories <= 0;
+    const override = overrides[d.date];
+    const included = override ? override === 'included' : !isEmpty;
     return {
       ...d,
-      proj_calories: d.calories + (showPlan ? d.planned_calories : 0),
+      proj_calories,
       proj_protein:  d.protein  + (showPlan ? d.planned_protein  : 0),
       proj_carbs:    d.carbs    + (showPlan ? d.planned_carbs    : 0),
       proj_fat:      d.fat      + (showPlan ? d.planned_fat      : 0),
       proj_fiber:    d.fiber    + (showPlan ? d.planned_fiber    : 0),
       hasPlanned:    showPlan && d.planned_calories > 0,
+      isEmpty,
+      included,
     };
   });
 
-  const activeRows = projected.filter(d => d.proj_calories > 0);
-  const count = activeRows.length || 1;
+  const includedRows = projected.filter(d => d.included);
+  const count = includedRows.length || 1;
   const avg = (key: 'proj_calories'|'proj_protein'|'proj_carbs'|'proj_fat'|'proj_fiber') =>
-    Math.round(activeRows.reduce((s, d) => s + d[key], 0) / count);
+    Math.round(includedRows.reduce((s, d) => s + d[key], 0) / count);
+
+  const totalKcal = Math.round(includedRows.reduce((s, d) => s + d.proj_calories, 0));
+  const recWeek = (settings.cal_rec || 0) * includedRows.length;
+  const maxWeek = (settings.cal_max || 0) * includedRows.length;
+  const bankRec = recWeek - totalKcal;
+  const bankMax = maxWeek - totalKcal;
 
   const chartData = projected.map(d => ({
     label: formatShortDate(d.date),
@@ -100,17 +125,45 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
         ))}
       </div>
 
+      {(recWeek > 0 || maxWeek > 0) && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="bg-card rounded-xl p-3 border border-border text-center">
+            <p className="text-xs text-text-sec mb-1">{t('week.totalKcal')}</p>
+            <p className="font-semibold text-sm text-text">{totalKcal} kcal</p>
+          </div>
+          {recWeek > 0 && (
+            <div className="bg-card rounded-xl p-3 border border-border text-center">
+              <p className="text-xs text-text-sec mb-1">{t('week.bankRec')}</p>
+              <p className={`font-semibold text-sm ${bankRec >= 0 ? 'text-accent' : 'text-red'}`}>
+                {bankRec >= 0 ? `${bankRec} kcal` : `${Math.abs(bankRec)} kcal ${t('week.over')}`}
+                <span className="text-text-sec font-normal"> / {recWeek}</span>
+              </p>
+            </div>
+          )}
+          {maxWeek > 0 && (
+            <div className="bg-card rounded-xl p-3 border border-border text-center">
+              <p className="text-xs text-text-sec mb-1">{t('week.bankMax')}</p>
+              <p className={`font-semibold text-sm ${bankMax >= 0 ? 'text-accent' : 'text-red'}`}>
+                {bankMax >= 0 ? `${bankMax} kcal` : `${Math.abs(bankMax)} kcal ${t('week.over')}`}
+                <span className="text-text-sec font-normal"> / {maxWeek}</span>
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="bg-card border border-border rounded-xl p-4">
         <BarChartCard data={chartData} unit="kcal" />
       </div>
 
-      {activeRows.length === 0 ? (
+      {projected.every(d => d.proj_calories === 0) ? (
         <p className="text-text-sec">{t('week.noEntries')}</p>
       ) : (
         <div className="bg-card rounded-xl overflow-hidden border border-border">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-text-sec text-xs uppercase tracking-wider">
+                <th className="px-3 py-3 w-8" />
                 <th className="text-left px-4 py-3">{t('week.date')}</th>
                 <th className="text-right px-4 py-3">kcal</th>
                 <th className="text-right px-4 py-3">protein</th>
@@ -131,12 +184,22 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
                     </>
                   );
                 };
+                const dim = !d.included ? 'opacity-40' : '';
                 return (
                   <tr
                     key={d.date}
-                    className={`border-t border-border/50 cursor-pointer transition-colors ${isToday ? 'bg-accent/8' : 'hover:bg-bg'}`}
+                    className={`border-t border-border/50 cursor-pointer transition-colors ${isToday ? 'bg-accent/8' : 'hover:bg-bg'} ${dim}`}
                     onClick={() => navigate('day', { date: d.date, fromWeek: weekStart })}
                   >
+                    <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={d.included}
+                        onChange={() => toggleDay(d.date, d.included)}
+                        title={t('week.includeInAvg')}
+                        className="cursor-pointer accent-accent"
+                      />
+                    </td>
                     <td className="px-4 py-3 text-text">
                       <span>{fmtDate(d.date)}</span>
                       {isToday && (
