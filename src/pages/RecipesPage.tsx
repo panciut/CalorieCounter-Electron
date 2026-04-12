@@ -5,6 +5,8 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import { today } from '../lib/dateUtil';
 import type { Recipe, RecipeIngredient, ActualRecipe, ActualRecipeIngredient, Food, Meal, PantryIngredientCheck } from '../types';
 
+type PantryCheckResult = { can_make: boolean; missing: PantryIngredientCheck[] };
+
 const MEALS: Meal[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
 function n(v: unknown) { return Math.round(Number(v) || 0); }
@@ -28,6 +30,8 @@ function BundlesTab() {
   const [logScale, setLogScale]         = useState('1');
   const [canMakeFilter, setCanMakeFilter] = useState(false);
   const [canMakeMap, setCanMakeMap]       = useState<Map<number, { can_make: boolean; missing_count: number }>>(new Map());
+  const [logPantryCheck, setLogPantryCheck] = useState<PantryCheckResult | null>(null);
+  const [deductOnLog, setDeductOnLog]     = useState(false);
 
   const loadBundles = useCallback(async () => {
     const [b, m] = await Promise.all([
@@ -61,11 +65,36 @@ function BundlesTab() {
     loadBundles();
   }
 
+  async function openLogTarget(b: Recipe) {
+    setLogTarget(b);
+    setLogScale('1');
+    setDeductOnLog(false);
+    const check = await api.pantry.canMake(b.id, 'bundle');
+    setLogPantryCheck({ can_make: check.can_make, missing: check.missing });
+  }
+
+  function closeLogTarget() {
+    setLogTarget(null);
+    setLogPantryCheck(null);
+    setDeductOnLog(false);
+  }
+
   async function doLog() {
     if (!logTarget) return;
-    await api.recipes.log({ recipe_id: logTarget.id, date: logDate, meal: logMeal, scale: parseFloat(logScale) || 1 });
-    showToast('Logged');
-    setLogTarget(null);
+    const scale = parseFloat(logScale) || 1;
+    await api.recipes.log({ recipe_id: logTarget.id, date: logDate, meal: logMeal, scale });
+    if (deductOnLog) {
+      try {
+        await api.pantry.deductRecipe(logTarget.id, scale, 'bundle');
+        showToast('Logged & pantry updated');
+      } catch {
+        showToast('Logged (pantry update failed)');
+      }
+    } else {
+      showToast('Logged');
+    }
+    closeLogTarget();
+    loadBundles();
   }
 
   async function doDelete() {
@@ -148,7 +177,7 @@ function BundlesTab() {
                 </div>
                 <div className="flex gap-1.5 shrink-0">
                   <button
-                    onClick={e => { e.stopPropagation(); setLogTarget(b); }}
+                    onClick={e => { e.stopPropagation(); openLogTarget(b); }}
                     className="px-2.5 py-1 rounded-lg bg-accent/10 text-accent text-xs font-medium hover:bg-accent/20 transition-colors cursor-pointer"
                   >Log</button>
                   <button
@@ -219,9 +248,30 @@ function BundlesTab() {
                 <label className="text-xs text-text-sec">Date</label>
                 <input type="date" className={inputCls} value={logDate} onChange={e => setLogDate(e.target.value)} />
               </div>
+              {logPantryCheck && (
+                <button
+                  onClick={() => setDeductOnLog(v => !v)}
+                  className={[
+                    'w-full flex items-center gap-2 text-xs px-3 py-2 rounded-lg border transition-colors cursor-pointer',
+                    deductOnLog
+                      ? 'border-accent bg-accent/10 text-accent'
+                      : 'border-border text-text-sec hover:border-accent/50',
+                  ].join(' ')}
+                >
+                  <span className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 ${deductOnLog ? 'border-accent bg-accent' : 'border-border'}`}>
+                    {deductOnLog && <span className="text-white text-xs leading-none">✓</span>}
+                  </span>
+                  <span className="text-left">
+                    Use from pantry
+                    {!logPantryCheck.can_make && logPantryCheck.missing.length > 0 && (
+                      <span className="ml-1 text-yellow"> (missing {logPantryCheck.missing.map(m => m.food_name).join(', ')})</span>
+                    )}
+                  </span>
+                </button>
+              )}
             </div>
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setLogTarget(null)} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
+              <button onClick={closeLogTarget} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
               <button onClick={doLog} className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer">Log</button>
             </div>
           </div>
@@ -396,7 +446,7 @@ function RecipesTab() {
   const [logDate, setLogDate]           = useState(today());
   const [canMakeFilter, setCanMakeFilter] = useState(false);
   const [canMakeMap, setCanMakeMap]       = useState<Map<number, { can_make: boolean; missing_count: number }>>(new Map());
-  const [logPantryCheck, setLogPantryCheck] = useState<{ can_make: boolean; missing: PantryIngredientCheck[] } | null>(null);
+  const [logPantryCheck, setLogPantryCheck] = useState<PantryCheckResult | null>(null);
   const [deductOnLog, setDeductOnLog]     = useState(false);
 
   const loadRecipes = useCallback(async () => {
