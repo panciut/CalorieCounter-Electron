@@ -4,7 +4,7 @@ import { useNavigate } from '../hooks/useNavigate';
 import { useToast } from '../components/Toast';
 import { api } from '../api';
 import BarChartCard from '../components/BarChartCard';
-import { fmtDate, formatShortDate, getMondayOf } from '../lib/dateUtil';
+import { formatShortDate, formatDMY, getMondayOf } from '../lib/dateUtil';
 import { buildHistoryMarkdown, copyToClipboard } from '../lib/exportText';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -152,7 +152,7 @@ export default function HistoryPage() {
                       className="border-t border-border/50 hover:bg-bg cursor-pointer transition-colors"
                       onClick={() => navigate('week', { weekStart: getMondayOf(s.week_start) })}
                     >
-                      <td className="px-4 py-3 text-text">{fmtDate(getMondayOf(s.week_start))}</td>
+                      <td className="px-4 py-3 text-text">{formatDMY(getMondayOf(s.week_start))}</td>
                       <td className="px-4 py-3 text-right text-text-sec">{s.days_logged}</td>
                       <td className="px-4 py-3 text-right text-text tabular-nums">{Math.round(s.avg_calories)}</td>
                       <td className="px-4 py-3 text-right text-text-sec tabular-nums">{Math.round(s.avg_protein)}g</td>

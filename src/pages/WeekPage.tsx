@@ -5,7 +5,7 @@ import { useSettings } from '../hooks/useSettings';
 import { useToast } from '../components/Toast';
 import { api } from '../api';
 import BarChartCard from '../components/BarChartCard';
-import { fmtDate, formatShortDate, addDays, today } from '../lib/dateUtil';
+import { fmtDate, formatShortDate, formatDMY, addDays, today } from '../lib/dateUtil';
 import { buildWeekMarkdown, copyToClipboard } from '../lib/exportText';
 import type { WeekDayDetail } from '../types';
 
@@ -102,9 +102,21 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
       </button>
 
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <h1 className="text-2xl font-bold text-text">
-          {fmtDate(weekStart)} – {fmtDate(weekEnd)}
-        </h1>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate('week', { weekStart: addDays(weekStart, -7) })}
+            className="text-text-sec hover:text-accent border border-border hover:border-accent/50 rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer transition-colors"
+            title="Previous week"
+          >‹</button>
+          <h1 className="text-2xl font-bold text-text">
+            {formatDMY(weekStart)} – {formatDMY(weekEnd)}
+          </h1>
+          <button
+            onClick={() => navigate('week', { weekStart: addDays(weekStart, 7) })}
+            className="text-text-sec hover:text-accent border border-border hover:border-accent/50 rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer transition-colors"
+            title="Next week"
+          >›</button>
+        </div>
         <button onClick={handleCopy} className="text-sm text-text-sec border border-border rounded-lg px-3 py-1.5 hover:border-accent/50 hover:text-text cursor-pointer transition-colors">
           📋 {t('export.copyWeek')}
         </button>
