@@ -92,13 +92,15 @@ export default function HistoryPage() {
   const yMax   = Math.round(Math.max(calMax || calRec, maxBar) * 1.3);
   const yDomain: [number, number] = [0, yMax];
 
-  // Summary stats for the weekly tab
-  const includedForStats = rangedSummaries.filter(s => s.avg_calories > 0);
+  // Summary stats for the weekly tab — exclude the current (incomplete) week
+  const todayStr = today();
+  const completeWeeks = rangedSummaries.filter(s => addDays(s.week_start, 6) < todayStr);
+  const includedForStats = completeWeeks.filter(s => s.avg_calories > 0);
   const statsAvgKcal = includedForStats.length
     ? Math.round(includedForStats.reduce((s, w) => s + w.avg_calories, 0) / includedForStats.length)
     : 0;
-  const totalDays = rangedSummaries.reduce((s, w) => s + w.days_logged, 0);
-  const netRows = rangedSummaries
+  const totalDays = completeWeeks.reduce((s, w) => s + w.days_logged, 0);
+  const netRows = completeWeeks
     .map(s => energyByWeek.get(getMondayOf(s.week_start)))
     .filter(Boolean) as { avgNet: number; days: number }[];
   const statsAvgNet = netRows.length

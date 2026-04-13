@@ -94,25 +94,19 @@ export function buildDayMarkdown(input: DayExportInput): string {
   }
   lines.push('');
 
-  if (logged.length > 0) {
-    lines.push('## Meals');
-    const byMeal = groupByMeal(logged);
-    for (const m of MEAL_ORDER) {
-      const es = byMeal[m];
-      if (!es.length) continue;
-      const mt = sumEntries(es);
-      lines.push(`### ${m} — ${r(mt.cal)} kcal`);
-      for (const e of es) lines.push(entryLine(e));
-    }
-    lines.push('');
+  lines.push('## Meals');
+  const byMealLogged  = groupByMeal(logged);
+  const byMealPlanned = groupByMeal(planned);
+  for (const m of MEAL_ORDER) {
+    const loggedEs  = byMealLogged[m];
+    const plannedEs = byMealPlanned[m];
+    const mealCal   = loggedEs.length ? r(sumEntries(loggedEs).cal) : 0;
+    lines.push(`### ${m}${mealCal ? ` — ${mealCal} kcal` : ''}`);
+    for (const e of loggedEs)  lines.push(entryLine(e));
+    for (const e of plannedEs) lines.push(entryLine(e) + ' *(plan)*');
+    if (!loggedEs.length && !plannedEs.length) lines.push('  *(empty)*');
   }
-
-  if (planned.length > 0) {
-    const pt = sumEntries(planned);
-    lines.push(`## Planned (not yet logged) — ${r(pt.cal)} kcal`);
-    for (const e of planned) lines.push(entryLine(e));
-    lines.push('');
-  }
+  lines.push('');
 
   if (note && note.trim()) {
     lines.push('## Notes');

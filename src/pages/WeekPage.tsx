@@ -60,7 +60,7 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
     const proj_calories = d.calories + (showPlan ? d.planned_calories : 0);
     const isEmpty = proj_calories <= 0;
     const override = overrides[d.date];
-    const included = override ? override === 'included' : !isEmpty;
+    const included = override ? override === 'included' : !isEmpty && d.date !== todayStr;
     return {
       ...d,
       proj_calories,
@@ -223,7 +223,11 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
       )}
 
       <div className="bg-card border border-border rounded-xl p-4">
-        <BarChartCard data={chartData} unit="kcal" />
+        <BarChartCard
+          data={chartData}
+          unit="kcal"
+          onBarClick={i => navigate('day', { date: days[i], fromWeek: weekStart })}
+        />
       </div>
 
       {projected.every(d => d.proj_calories === 0) ? (

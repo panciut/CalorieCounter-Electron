@@ -32,6 +32,7 @@ export default function BarChartCard({
   const hasPlanned = chartData.some(d => d.planned > 0);
 
   return (
+    <div className="select-none" onMouseDown={e => e.preventDefault()}>
     <ResponsiveContainer width="100%" height={height}>
       <BarChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
         <defs>
@@ -56,12 +57,12 @@ export default function BarChartCard({
         />
         <Tooltip
           contentStyle={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)' }}
-          cursor={{ fill: 'var(--border)' }}
+          cursor={false}
           formatter={(v: number, name: string) => [`${v}${unit}`, name === 'planned' ? 'planned' : 'logged']}
         />
-        <Bar dataKey="value" stackId="a" fill={color} radius={hasPlanned ? [0, 0, 0, 0] : [3, 3, 0, 0]} maxBarSize={48} onClick={onBarClick ? (_, index) => onBarClick(index) : undefined} style={onBarClick ? { cursor: 'pointer' } : undefined} />
+        <Bar dataKey="value" stackId="a" fill={color} radius={hasPlanned ? [0, 0, 0, 0] : [3, 3, 0, 0]} maxBarSize={48} activeBar={{ fill: color, fillOpacity: 0.65 }} onClick={onBarClick ? (_, index) => onBarClick(index) : undefined} style={onBarClick ? { cursor: 'pointer' } : undefined} />
         {hasPlanned && (
-          <Bar dataKey="planned" stackId="a" fill="url(#planned-stripes)" stroke={color} strokeWidth={1} strokeOpacity={0.6} radius={[3, 3, 0, 0]} maxBarSize={48} />
+          <Bar dataKey="planned" stackId="a" fill="url(#planned-stripes)" stroke={color} strokeWidth={1} strokeOpacity={0.6} radius={[3, 3, 0, 0]} maxBarSize={48} activeBar={{ fill: 'url(#planned-stripes)', stroke: color, strokeWidth: 2, fillOpacity: 0.85 }} onClick={onBarClick ? (_, index) => onBarClick(index) : undefined} style={onBarClick ? { cursor: 'pointer' } : undefined} />
         )}
         {goalValue !== undefined && goalValue > 0 && (
           <ReferenceLine
@@ -73,5 +74,6 @@ export default function BarChartCard({
         )}
       </BarChart>
     </ResponsiveContainer>
+    </div>
   );
 }

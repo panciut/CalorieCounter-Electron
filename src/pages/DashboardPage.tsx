@@ -349,7 +349,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   }
 
   async function quickLog(food: Food) {
-    await api.log.add({ food_id: food.id, grams: food.piece_grams || 100, meal, date: dateStr, status: logStatus });
+    await api.log.add({ food_id: food.id, grams: food.piece_grams || 100, meal: 'Snack', date: dateStr, status: logStatus });
     load();
   }
 
@@ -557,8 +557,11 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
           <div className="h-full rounded-full bg-accent transition-[width] duration-400" style={{ width: `${waterPct}%` }} />
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button onClick={()=>addWater(200)} className="text-xs px-3 py-1.5 rounded-lg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors">+200ml</button>
-          <button onClick={()=>addWater(500)} className="text-xs px-3 py-1.5 rounded-lg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors">+500ml</button>
+          <button onClick={()=>addWater(100)}  className="text-xs px-3 py-1.5 rounded-lg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors">+100ml</button>
+          <button onClick={()=>addWater(200)}  className="text-xs px-3 py-1.5 rounded-lg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors">+200ml</button>
+          <button onClick={()=>addWater(250)}  className="text-xs px-3 py-1.5 rounded-lg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors">+250ml</button>
+          <button onClick={()=>addWater(500)}  className="text-xs px-3 py-1.5 rounded-lg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors">+500ml</button>
+          <button onClick={()=>addWater(1000)} className="text-xs px-3 py-1.5 rounded-lg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors">+1000ml</button>
           <button onClick={()=>setWaterCustomOpen(true)} className="text-xs px-3 py-1.5 rounded-lg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors">{t('dash.custom')}</button>
           {waterEntries.length > 0 && (
             <button onClick={()=>setWaterExpanded(e=>!e)} className="text-xs px-3 py-1.5 rounded-lg border border-border text-text-sec cursor-pointer ml-auto">
@@ -624,6 +627,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                 <span><span className="text-text font-medium">{selectedFood.calories}</span> kcal</span>
                 <span><span className="text-text font-medium">{selectedFood.fat}</span>g {t('macro.fat')}</span>
                 <span><span className="text-text font-medium">{selectedFood.carbs}</span>g {t('macro.carbs')}</span>
+                {selectedFood.fiber > 0 && <span><span className="text-text font-medium">{selectedFood.fiber}</span>g {t('macro.fiber')}</span>}
                 <span><span className="text-text font-medium">{selectedFood.protein}</span>g {t('macro.protein')}</span>
               </div>
               {effectiveGrams > 0 && (() => {
@@ -676,15 +680,40 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
         )}
 
         {/* Recipe editor */}
-        {selectedRecipe && (
+        {selectedRecipe && (() => {
+          const recipeTotals = selectedRecipe.ingredients.reduce((acc, ing) => {
+            const r = ing.editGrams / ing.grams;
+            return {
+              cal:     acc.cal     + ing.calories * r,
+              protein: acc.protein + ing.protein  * r,
+              carbs:   acc.carbs   + ing.carbs    * r,
+              fat:     acc.fat     + ing.fat      * r,
+              fiber:   acc.fiber   + (ing.fiber || 0) * r,
+            };
+          }, { cal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
+          const rt = { cal: Math.round(recipeTotals.cal), protein: Math.round(recipeTotals.protein*10)/10, carbs: Math.round(recipeTotals.carbs*10)/10, fat: Math.round(recipeTotals.fat*10)/10, fiber: Math.round(recipeTotals.fiber*10)/10 };
+
+          return (
           <div className="flex flex-col gap-3">
-            <h4 className="text-sm font-semibold text-text">{selectedRecipe.name}</h4>
+            <div>
+              <h4 className="text-sm font-semibold text-text">{selectedRecipe.name}</h4>
+              <p className="text-xs text-text-sec tabular-nums mt-0.5">
+                {rt.cal} kcal · F {rt.fat}g · C {rt.carbs}g{rt.fiber > 0 ? ` · Fi ${rt.fiber}g` : ''} · P {rt.protein}g
+              </p>
+            </div>
             <div className="flex flex-col gap-2 max-h-56 overflow-y-auto">
               {selectedRecipe.ingredients.map((ing, i) => {
                 const ratio = ing.editGrams / ing.grams;
+                const ingCal = Math.round(ing.calories * ratio);
+                const ingP   = Math.round(ing.protein  * ratio * 10) / 10;
+                const ingC   = Math.round(ing.carbs    * ratio * 10) / 10;
+                const ingF   = Math.round(ing.fat      * ratio * 10) / 10;
                 return (
                   <div key={ing.id} className="flex items-center gap-2 bg-bg rounded-lg px-3 py-2">
-                    <span className="flex-1 text-sm text-text truncate">{ing.name}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-text truncate">{ing.name}</div>
+                      <div className="text-[11px] text-text-sec tabular-nums">{ingCal} kcal · F {ingF} · C {ingC} · P {ingP}</div>
+                    </div>
                     <input
                       type="text" inputMode="decimal"
                       value={ing.editGrams}
@@ -697,7 +726,6 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                       className={`w-20 ${inputCls}`}
                     />
                     <span className="text-xs text-text-sec">g</span>
-                    <span className="text-xs text-text-sec tabular-nums">{Math.round(ing.calories*ratio)} kcal</span>
                   </div>
                 );
               })}
@@ -720,7 +748,8 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
               <button onClick={handleClear} className="border border-border text-text-sec px-4 py-2 rounded-lg text-sm cursor-pointer hover:text-text">{t('common.cancel')}</button>
             </div>
           </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* Entries table */}

@@ -95,7 +95,7 @@ export default function MacroChart({
     : 0;
 
   return (
-    <div ref={containerRef} className="relative shrink-0" style={{ width: 150, height: 150 }}>
+    <div ref={containerRef} className="relative shrink-0 select-none" style={{ width: 150, height: 150 }} onMouseDown={e => e.preventDefault()}>
       <ResponsiveContainer width={150} height={150}>
         <PieChart>
           <Pie
