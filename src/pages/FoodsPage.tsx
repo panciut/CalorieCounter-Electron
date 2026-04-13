@@ -318,7 +318,7 @@ export default function FoodsPage() {
                       <td className="px-2 py-2.5 text-center">{food.is_liquid===1?'💧':''}</td>
                       <td className="px-2 py-2.5">
                         <div className="flex gap-1 justify-end">
-                          <button type="button" onClick={()=>startEdit(food)} className="text-text-sec hover:text-text px-1 cursor-pointer">✎</button>
+                          <button type="button" onClick={()=>startEdit(food)} className="text-text-sec hover:text-text px-1 cursor-pointer"><span style={{ display: 'inline-block', transform: 'scaleX(-1) rotate(15deg)' }}>✎</span></button>
                           <button type="button" onClick={()=>handleDelete(food.id)} className="text-text-sec hover:text-red px-1 cursor-pointer transition-colors">✕</button>
                         </div>
                       </td>

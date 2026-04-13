@@ -150,7 +150,7 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                           className="text-accent hover:opacity-75 px-1 cursor-pointer transition-colors text-xs" title="Confirm">✓</button>
                       )}
                       <button onClick={() => startEdit(e)}
-                        className="text-text-sec hover:text-text px-1 cursor-pointer transition-colors">✎</button>
+                        className="text-text-sec hover:text-text px-1 cursor-pointer transition-colors"><span style={{ display: 'inline-block', transform: 'scaleX(-1) rotate(15deg)' }}>✎</span></button>
                       <button onClick={() => handleDelete(e.id)}
                         className="text-text-sec hover:text-red px-1 cursor-pointer transition-colors">✕</button>
                     </td>

@@ -203,7 +203,7 @@ export default function Nav({ activePage }: NavProps) {
               : 'border-border text-text-sec hover:border-accent/50 hover:text-text',
           ].join(' ')}
         >
-          {editing ? t('nav.done') : '✎'}
+          {editing ? t('nav.done') : <span style={{ display: 'inline-block', transform: 'scaleX(-1) rotate(15deg)' }}>✎</span>}
         </button>
       </div>
 

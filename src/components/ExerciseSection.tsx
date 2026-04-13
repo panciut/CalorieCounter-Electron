@@ -109,7 +109,7 @@ export default function ExerciseSection({ date, weightKg, onCaloriesChange }: Pr
               {ex.sets && ex.sets.length > 0 && (
                 <span className="text-xs text-text-sec">{ex.sets.length} sets</span>
               )}
-              <button onClick={() => startEdit(ex)} className="text-text-sec hover:text-text px-1 cursor-pointer text-xs">✎</button>
+              <button onClick={() => startEdit(ex)} className="text-text-sec hover:text-text px-1 cursor-pointer text-xs"><span style={{ display: 'inline-block', transform: 'scaleX(-1) rotate(15deg)' }}>✎</span></button>
               <button onClick={() => setDeleteTarget(ex)} className="text-text-sec hover:text-red px-1 cursor-pointer text-xs">✕</button>
             </div>
           ))}
