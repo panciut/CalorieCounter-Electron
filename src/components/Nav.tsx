@@ -42,17 +42,17 @@ interface NavItem { page: PageName; labelKey: string; }
 
 const DEFAULT_ORDER: NavItem[] = [
   { page: 'dashboard',    labelKey: 'nav.today' },
-  { page: 'exercise',     labelKey: 'nav.exercise' },
-  { page: 'net',          labelKey: 'nav.net' },
-  { page: 'week',         labelKey: 'nav.week' },
   { page: 'foods',        labelKey: 'nav.foods' },
   { page: 'pantry',       labelKey: 'nav.pantry' },
   { page: 'recipes',      labelKey: 'nav.recipes' },
+  { page: 'week',         labelKey: 'nav.week' },
   { page: 'history',      labelKey: 'nav.history' },
+  { page: 'supplements',  labelKey: 'nav.supplements' },
+  { page: 'net',          labelKey: 'nav.net' },
+  { page: 'exercise',     labelKey: 'nav.exercise' },
+  { page: 'measurements', labelKey: 'nav.measurements' },
   { page: 'weight',       labelKey: 'nav.body' },
   { page: 'goals',        labelKey: 'nav.goals' },
-  { page: 'supplements',  labelKey: 'nav.supplements' },
-  { page: 'measurements', labelKey: 'nav.measurements' },
   { page: 'data',         labelKey: 'nav.data' },
   { page: 'settings',     labelKey: 'nav.settings' },
 ];
