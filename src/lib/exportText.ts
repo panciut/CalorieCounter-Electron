@@ -50,12 +50,15 @@ export interface DayExportInput {
   settings: Settings;
   waterMl?: number;
   waterGoalMl?: number;
-  exerciseKcal?: number;
+  restingKcal?: number;
+  activeKcal?: number;
+  extraKcal?: number;
   note?: string;
 }
 
 export function buildDayMarkdown(input: DayExportInput): string {
-  const { date, entries, settings, waterMl, waterGoalMl, exerciseKcal, note } = input;
+  const { date, entries, settings, waterMl, waterGoalMl, restingKcal, activeKcal, extraKcal, note } = input;
+  const exerciseKcal = (restingKcal ?? 0) + (activeKcal ?? 0) + (extraKcal ?? 0);
   const logged = entries.filter(e => e.status === 'logged');
   const planned = entries.filter(e => e.status === 'planned');
   const t = sumEntries(logged);
@@ -78,8 +81,12 @@ export function buildDayMarkdown(input: DayExportInput): string {
   lines.push(macroLine('Carbs', t.carbs, settings.carbs_rec));
   lines.push(macroLine('Fat', t.fat, settings.fat_rec));
   lines.push(macroLine('Fiber', t.fiber, settings.fiber_rec));
-  if (exerciseKcal && exerciseKcal > 0) {
-    lines.push(`- Exercise burned: ${r(exerciseKcal)} kcal`);
+  if (exerciseKcal > 0) {
+    const parts: string[] = [];
+    if (restingKcal) parts.push(`resting ${r(restingKcal)}`);
+    if (activeKcal)  parts.push(`active ${r(activeKcal)}`);
+    if (extraKcal)   parts.push(`extra ${r(extraKcal)}`);
+    lines.push(`- Energy out: ${r(exerciseKcal)} kcal${parts.length ? ` (${parts.join(' + ')})` : ''}`);
     lines.push(`- Net calories: ${r(t.cal - exerciseKcal)} kcal`);
   }
   if (waterMl != null) {

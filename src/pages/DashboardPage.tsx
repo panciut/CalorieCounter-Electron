@@ -339,7 +339,9 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       settings,
       waterMl: waterTotal,
       waterGoalMl: settings.water_goal,
-      exerciseKcal: energyOut,
+      restingKcal: energyResting || undefined,
+      activeKcal:  energyActive  || undefined,
+      extraKcal:   energyExtra   || undefined,
       note,
     });
     const ok = await copyToClipboard(md);
