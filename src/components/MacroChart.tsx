@@ -13,7 +13,7 @@ interface MacroChartProps {
   plannedLabel?: string;
 }
 
-const COLORS = ['#5e9cf5', '#30d158', '#e07020'];
+const COLORS = ['#f0921e', '#c45c00', '#a84a10'];
 const LABELS = ['Protein', 'Carbs', 'Fat'];
 
 interface ActiveShapeProps {
