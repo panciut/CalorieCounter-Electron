@@ -11,9 +11,9 @@
   --border:     rgba(255,240,220,0.08);
   --accent:     #c45c00;
   --accent2:    #e07020;
-  --green:      #30d158;
-  --yellow:     #ffd60a;
-  --red:        #ff453a;
+  --green:      #e8941a;
+  --yellow:     #d46c14;
+  --red:        #b83a10;
   --shadow:     0 2px 12px rgba(0,0,0,0.65);
   --radius:     12px;
   --ease:       cubic-bezier(0.16, 1, 0.3, 1);
@@ -30,9 +30,9 @@ body.light {
   --border:     rgba(0,0,0,0.1);
   --accent:     #c45c00;
   --accent2:    #e07020;
-  --green:      #28a745;
-  --yellow:     #e6a800;
-  --red:        #dc3545;
+  --green:      #c07010;
+  --yellow:     #a85210;
+  --red:        #8c300c;
   --shadow:     0 2px 10px rgba(0,0,0,0.08);
 
   /* Tailwind color tokens — for utility classes like bg-bg, text-text etc. */
@@ -45,9 +45,9 @@ body.light {
   --color-border:     rgba(0,0,0,0.1);
   --color-accent:     #c45c00;
   --color-accent2:    #e07020;
-  --color-green:      #28a745;
-  --color-yellow:     #e6a800;
-  --color-red:        #dc3545;
+  --color-green:      #c07010;
+  --color-yellow:     #a85210;
+  --color-red:        #8c300c;
 }
 
 /* ── Tailwind v4 theme tokens ── */
@@ -63,7 +63,7 @@ body.light {
   --color-accent2:    var(--accent2);
   --color-green:      var(--green);
   --color-yellow:     var(--yellow);
-  --color-orange:     #ff8c00;
+  --color-orange:     #c05818;
   --color-red:        var(--red);
 
   --border-radius-DEFAULT: 12px;
@@ -113,7 +113,7 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 /* ── Bar color utilities ── */
 .bar-green  { background: var(--green); }
 .bar-yellow { background: var(--yellow); }
-.bar-orange { background: #ff8c00; }
+.bar-orange { background: #c05818; }
 .bar-red    { background: var(--red); }
 
 /* ── Barcode scanner: mirror preview only (raw frame stays normal for decoding) ── */
