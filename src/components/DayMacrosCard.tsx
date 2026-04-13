@@ -53,10 +53,10 @@ export default function DayMacrosCard({ entries }: DayMacrosCardProps) {
 
   const bars: BarDef[] = [
     { id:'cal',     label:t('macro.kcal'),    actual:cal,   planned:plCal,   min:settings.cal_min||1800,    max:settings.cal_max||2200,    rec:settings.cal_rec||0,     unit:'kcal' },
-    { id:'protein', label:t('macro.protein'), actual:pro,   planned:plPro,   min:settings.protein_min||0,   max:settings.protein_max||0,   rec:settings.protein_rec||0, unit:'g' },
-    { id:'carbs',   label:t('macro.carbs'),   actual:carbs, planned:plCarbs, min:settings.carbs_min||0,     max:settings.carbs_max||0,     rec:settings.carbs_rec||0,   unit:'g' },
     { id:'fat',     label:t('macro.fat'),     actual:fat,   planned:plFat,   min:settings.fat_min||0,       max:settings.fat_max||0,       rec:settings.fat_rec||0,     unit:'g' },
+    { id:'carbs',   label:t('macro.carbs'),   actual:carbs, planned:plCarbs, min:settings.carbs_min||0,     max:settings.carbs_max||0,     rec:settings.carbs_rec||0,   unit:'g' },
     { id:'fiber',   label:t('macro.fiber'),   actual:fiber, planned:plFiber, min:settings.fiber_min||0,     max:settings.fiber_max||0,     rec:settings.fiber_rec||0,   unit:'g' },
+    { id:'protein', label:t('macro.protein'), actual:pro,   planned:plPro,   min:settings.protein_min||0,   max:settings.protein_max||0,   rec:settings.protein_rec||0, unit:'g' },
   ];
 
   const loggedRound  = Math.round(cal);

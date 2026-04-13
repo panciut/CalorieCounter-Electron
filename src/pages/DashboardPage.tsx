@@ -620,9 +620,9 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                 <span className="text-text font-medium">{selectedFood.name}</span>
                 <span>{t('common.per100g')}:</span>
                 <span><span className="text-text font-medium">{selectedFood.calories}</span> kcal</span>
-                <span><span className="text-text font-medium">{selectedFood.protein}</span>g {t('macro.protein')}</span>
-                <span><span className="text-text font-medium">{selectedFood.carbs}</span>g {t('macro.carbs')}</span>
                 <span><span className="text-text font-medium">{selectedFood.fat}</span>g {t('macro.fat')}</span>
+                <span><span className="text-text font-medium">{selectedFood.carbs}</span>g {t('macro.carbs')}</span>
+                <span><span className="text-text font-medium">{selectedFood.protein}</span>g {t('macro.protein')}</span>
               </div>
               {effectiveGrams > 0 && (() => {
                 const r = effectiveGrams / 100;
@@ -630,10 +630,10 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                   <div className="flex flex-wrap gap-3 text-text-sec border-t border-border pt-1.5">
                     <span className="text-text font-medium">{Math.round(effectiveGrams * 10) / 10}g =</span>
                     <span><span className="text-text font-semibold">{Math.round(selectedFood.calories * r)}</span> kcal</span>
-                    <span><span className="text-text font-semibold">{Math.round(selectedFood.protein * r * 10) / 10}</span>g {t('macro.protein')}</span>
-                    <span><span className="text-text font-semibold">{Math.round(selectedFood.carbs * r * 10) / 10}</span>g {t('macro.carbs')}</span>
                     <span><span className="text-text font-semibold">{Math.round(selectedFood.fat * r * 10) / 10}</span>g {t('macro.fat')}</span>
+                    <span><span className="text-text font-semibold">{Math.round(selectedFood.carbs * r * 10) / 10}</span>g {t('macro.carbs')}</span>
                     {selectedFood.fiber > 0 && <span><span className="text-text font-semibold">{Math.round(selectedFood.fiber * r * 10) / 10}</span>g {t('macro.fiber')}</span>}
+                    <span><span className="text-text font-semibold">{Math.round(selectedFood.protein * r * 10) / 10}</span>g {t('macro.protein')}</span>
                   </div>
                 );
               })()}

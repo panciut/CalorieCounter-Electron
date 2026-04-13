@@ -2,52 +2,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
 import { api } from '../api';
-import FoodSearch from '../components/FoodSearch';
-import type { SearchItem } from '../components/FoodSearch';
 import BarcodeScanner from '../components/BarcodeScanner';
 import Modal from '../components/Modal';
 import type { Food, BarcodeResult } from '../types';
 
-// ── FormFields must live OUTSIDE FoodsPage so its identity is stable across
-// re-renders — otherwise every keystroke unmounts/remounts it and kills focus.
-
-interface FormFieldsProps {
-  form: FoodFormState;
-  patch: (p: Partial<FoodFormState>) => void;
-}
-
-function FormFields({ form, patch }: FormFieldsProps) {
-  const { t } = useT();
-  const presetLabels: Record<PresetKey, string> = {
-    balanced: 'foods.balanced', highProtein: 'foods.highProtein',
-    highCarb: 'foods.highCarb', keto: 'foods.keto',
-  };
-  return (
-    <div className="flex flex-col gap-2">
-      <input type="text" value={form.name} onChange={e => patch({ name: e.target.value })} placeholder={t('foods.namePlaceholder')} className={`${INPUT_CLASS} w-full`} />
-      <div className="flex gap-1 flex-wrap">
-        {(Object.keys(PRESETS) as PresetKey[]).map(key => (
-          <button key={key} type="button"
-            onClick={() => { const p = PRESETS[key]; patch({ calories: String(p.calories), protein: String(p.protein), carbs: String(p.carbs), fat: String(p.fat), fiber: String(p.fiber) }); }}
-            className="text-xs px-2 py-1 rounded border border-border text-text-sec hover:border-accent hover:text-accent transition-colors cursor-pointer"
-          >{t(presetLabels[key])}</button>
-        ))}
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        {([['calories','foods.kcalPlaceholder'],['protein','foods.proteinPlaceholder'],['carbs','foods.carbsPlaceholder'],['fat','foods.fatPlaceholder'],['fiber','foods.fiberPlaceholder'],['piece_grams','foods.piecePlaceholder']] as [string,string][]).map(([field, ph]) => (
-          <input key={field} type="text" inputMode="decimal" step="any" value={(form as Record<string, string>)[field]} onChange={e => patch({ [field]: e.target.value })} placeholder={t(ph)} className={`${INPUT_CLASS} w-full`} />
-        ))}
-      </div>
-      <label className="flex items-center gap-2 text-sm text-text-sec cursor-pointer">
-        <input type="checkbox" checked={form.is_liquid} onChange={e => patch({ is_liquid: e.target.checked })} />
-        {t('foods.liquid')}
-      </label>
-    </div>
-  );
-}
-
 const INPUT_CLASS =
-  'bg-bg border border-border rounded-lg px-3 py-2 text-text text-sm outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none';
+  'bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-full';
 
 const PRESETS = {
   balanced:    { calories: 180, protein: 15, carbs: 20, fat: 5,  fiber: 2 },
@@ -67,6 +27,42 @@ const foodToForm = (f: Food): FoodFormState => ({ name:f.name, calories:String(f
 const barcodeToForm = (r: BarcodeResult): FoodFormState => ({ name:r.name, calories:String(r.calories), protein:String(r.protein), carbs:String(r.carbs), fat:String(r.fat), fiber:String(r.fiber), piece_grams:'', is_liquid:r.is_liquid===1 });
 const formToData = (f: FoodFormState): Omit<Food,'id'> => ({ name:f.name.trim(), calories:parseFloat(f.calories)||0, protein:parseFloat(f.protein)||0, carbs:parseFloat(f.carbs)||0, fat:parseFloat(f.fat)||0, fiber:parseFloat(f.fiber)||0, piece_grams:f.piece_grams!==''?parseFloat(f.piece_grams):null, is_liquid:f.is_liquid?1:0 });
 
+// ── FormFields for table edit row (multi-line) ────────────────────────────────
+
+interface FormFieldsProps { form: FoodFormState; patch: (p: Partial<FoodFormState>) => void; }
+
+function FormFields({ form, patch }: FormFieldsProps) {
+  const { t } = useT();
+  const FIELD_CLS = 'bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-full';
+  const macros: { key: keyof FoodFormState; label: string }[] = [
+    { key: 'calories', label: 'kcal' },
+    { key: 'fat',      label: t('th.fat') },
+    { key: 'carbs',    label: t('th.carbs') },
+    { key: 'fiber',    label: t('th.fiber') },
+    { key: 'protein',  label: t('th.protein') },
+    { key: 'piece_grams', label: t('foods.piecePlaceholder') },
+  ];
+  return (
+    <div className="flex flex-col gap-2">
+      <input type="text" value={form.name} onChange={e => patch({ name: e.target.value })} placeholder={t('foods.namePlaceholder')} className={FIELD_CLS} />
+      <div className="grid grid-cols-6 gap-2">
+        {macros.map(({ key, label }) => (
+          <div key={key} className="flex flex-col gap-0.5">
+            <label className="text-xs text-text-sec">{label}</label>
+            <input type="text" inputMode="decimal" value={(form as Record<string,string>)[key]} onChange={e => patch({ [key]: e.target.value })} placeholder="0" className={FIELD_CLS} />
+          </div>
+        ))}
+      </div>
+      <label className="flex items-center gap-2 text-sm text-text-sec cursor-pointer">
+        <input type="checkbox" checked={form.is_liquid} onChange={e => patch({ is_liquid: e.target.checked })} />
+        {t('foods.liquid')}
+      </label>
+    </div>
+  );
+}
+
+// ── FoodsPage ─────────────────────────────────────────────────────────────────
+
 export default function FoodsPage() {
   const { t } = useT();
   const { showToast } = useToast();
@@ -79,6 +75,7 @@ export default function FoodsPage() {
   const [barcodeInput, setBarcodeInput] = useState('');
   const [barcodeStatus, setBarcodeStatus] = useState<'found'|'notFound'|null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [formOpen, setFormOpen] = useState(true);
 
   useEffect(() => { loadFoods(); }, []);
 
@@ -86,9 +83,6 @@ export default function FoodsPage() {
 
   function patchAdd(p: Partial<FoodFormState>) { setAddForm(f=>({...f,...p})); }
   function patchEdit(p: Partial<FoodFormState>) { setEditForm(f=>({...f,...p})); }
-  function applyPreset(key: PresetKey, patch: (p: Partial<FoodFormState>)=>void) {
-    const p = PRESETS[key]; patch({ calories:String(p.calories), protein:String(p.protein), carbs:String(p.carbs), fat:String(p.fat), fiber:String(p.fiber) });
-  }
 
   async function handleAdd() {
     if (!addForm.name.trim() || !addForm.calories) return;
@@ -132,46 +126,128 @@ export default function FoodsPage() {
     } catch { showToast(t('import.error')); }
   }
 
-  const searchItems = useMemo<SearchItem[]>(()=>foods.map(f=>({...f,isRecipe:false as const})),[foods]);
   const filteredFoods = useMemo(()=>{
     const q = searchQuery.toLowerCase();
     return q ? foods.filter(f=>f.name.toLowerCase().includes(q)) : foods;
   },[foods, searchQuery]);
 
+  const presetLabels: Record<PresetKey, string> = {
+    balanced: 'foods.balanced', highProtein: 'foods.highProtein',
+    highCarb: 'foods.highCarb', keto: 'foods.keto',
+  };
+
+  // Macro fields for the single-line add form
+  const macroFields: { key: keyof FoodFormState; label: string }[] = [
+    { key: 'calories',    label: 'kcal'         },
+    { key: 'fat',         label: t('th.fat')    },
+    { key: 'carbs',       label: t('th.carbs')  },
+    { key: 'fiber',       label: t('th.fiber')  },
+    { key: 'protein',     label: t('th.protein')},
+    { key: 'piece_grams', label: 'g/piece'      },
+  ];
+
   return (
-    <div className="flex gap-6 p-6 h-full overflow-hidden">
-      {/* Left panel */}
-      <div className="w-72 shrink-0 flex flex-col gap-4 overflow-y-auto">
-        {/* Barcode */}
-        <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-2">
-          <h3 className="text-sm font-semibold text-text">{t('barcode.addByBarcode')}</h3>
-          <div className="flex gap-2">
-            <input type="text" value={barcodeInput} onChange={e=>{setBarcodeInput(e.target.value);setBarcodeStatus(null);}} onKeyDown={e=>e.key==='Enter'&&handleBarcodeLookup()} placeholder={t('barcode.placeholder')} className={`${INPUT_CLASS} flex-1 min-w-0`} />
-            <button type="button" onClick={handleBarcodeLookup} className="px-3 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 transition-opacity cursor-pointer shrink-0">{t('barcode.lookup')}</button>
-            <button type="button" onClick={()=>setScannerOpen(true)} className="px-2 py-2 rounded-lg border border-border text-text-sec hover:border-accent cursor-pointer shrink-0">📷</button>
-          </div>
-          {barcodeStatus==='found' && <p className="text-xs text-accent">{t('barcode.found')}</p>}
-          {barcodeStatus==='notFound' && <p className="text-xs text-red">{t('barcode.notFound')}</p>}
-        </div>
+    <div className="p-6 flex flex-col gap-4 h-full overflow-hidden">
 
-        {/* Add form */}
-        <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-3">
-          <div>
-            <span className="text-sm font-semibold text-text">{t('foods.addTitle')}</span>
-            <span className="text-xs text-text-sec ml-2">{t('foods.valuesPerLabel')}</span>
-          </div>
-          <FormFields form={addForm} patch={patchAdd} />
-          <button type="button" onClick={handleAdd} disabled={!addForm.name.trim()||!addForm.calories} className="w-full py-2 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer">{t('common.add')}</button>
-        </div>
+      {/* ── Collapsible add form ──────────────────────────────────────────── */}
+      <div className="bg-card border border-border rounded-xl shrink-0">
+        {/* Header — always visible */}
+        <button
+          type="button"
+          onClick={() => setFormOpen(v => !v)}
+          className="w-full flex items-center gap-2 px-4 py-3 text-left cursor-pointer hover:bg-card-hover rounded-xl transition-colors"
+        >
+          <span className="text-xs text-text-sec select-none">{formOpen ? '▴' : '▾'}</span>
+          <span className="text-sm font-semibold text-text">{t('foods.addTitle')}</span>
+          <span className="text-xs text-text-sec ml-1">{t('foods.valuesPerLabel')}</span>
+        </button>
 
-        <button type="button" onClick={handleImport} className="w-full py-2 rounded-lg border border-border text-text-sec text-sm hover:border-accent hover:text-accent transition-colors cursor-pointer">{t('import.foods')}</button>
+        {formOpen && (
+          <div className="px-4 pb-4 flex flex-col gap-3 border-t border-border pt-3">
+            {/* Barcode row */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-text-sec shrink-0">{t('barcode.addByBarcode')}:</span>
+              <input
+                type="text"
+                value={barcodeInput}
+                onChange={e=>{setBarcodeInput(e.target.value);setBarcodeStatus(null);}}
+                onKeyDown={e=>e.key==='Enter'&&handleBarcodeLookup()}
+                placeholder={t('barcode.placeholder')}
+                className="bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-40"
+              />
+              <button type="button" onClick={handleBarcodeLookup} className="px-3 py-1.5 rounded-lg bg-accent text-white text-xs font-medium hover:opacity-90 cursor-pointer shrink-0">{t('barcode.lookup')}</button>
+              <button type="button" onClick={()=>setScannerOpen(true)} className="px-2 py-1.5 rounded-lg border border-border text-text-sec hover:border-accent cursor-pointer shrink-0 text-sm">📷</button>
+              {barcodeStatus==='found' && <span className="text-xs text-accent">{t('barcode.found')}</span>}
+              {barcodeStatus==='notFound' && <span className="text-xs text-red">{t('barcode.notFound')}</span>}
+              {/* Presets */}
+              <div className="ml-auto flex gap-1 flex-wrap justify-end">
+                {(Object.keys(PRESETS) as PresetKey[]).map(key => (
+                  <button key={key} type="button"
+                    onClick={() => { const p = PRESETS[key]; patchAdd({ calories: String(p.calories), protein: String(p.protein), carbs: String(p.carbs), fat: String(p.fat), fiber: String(p.fiber) }); }}
+                    className="text-xs px-2 py-1 rounded border border-border text-text-sec hover:border-accent hover:text-accent transition-colors cursor-pointer"
+                  >{t(presetLabels[key])}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* Name row */}
+            <div className="flex flex-col gap-0.5">
+              <label className="text-xs text-text-sec">{t('common.name')}</label>
+              <input
+                type="text"
+                value={addForm.name}
+                onChange={e => patchAdd({ name: e.target.value })}
+                onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                placeholder={t('foods.namePlaceholder')}
+                className={INPUT_CLASS}
+              />
+            </div>
+
+            {/* Macros + actions row */}
+            <div className="flex items-end gap-2">
+              {/* Macro fields */}
+              {macroFields.map(({ key, label }) => (
+                <div key={key} className="flex flex-col gap-0.5 flex-1 min-w-0">
+                  <label className="text-xs text-text-sec truncate">{label}</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={(addForm as Record<string,string>)[key]}
+                    onChange={e => patchAdd({ [key]: e.target.value })}
+                    onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                    placeholder="0"
+                    className={INPUT_CLASS}
+                  />
+                </div>
+              ))}
+
+              {/* Liquid checkbox */}
+              <div className="flex flex-col gap-0.5 items-center shrink-0 pb-1.5">
+                <label className="text-xs text-text-sec">💧</label>
+                <input type="checkbox" checked={addForm.is_liquid} onChange={e => patchAdd({ is_liquid: e.target.checked })} className="cursor-pointer accent-accent w-4 h-4" />
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-1 shrink-0 pb-0.5 ml-auto">
+                <button type="button" onClick={handleAdd} disabled={!addForm.name.trim()||!addForm.calories} className="px-4 py-1.5 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer">{t('common.add')}</button>
+                <button type="button" onClick={handleImport} className="px-3 py-1.5 rounded-lg border border-border text-text-sec text-sm hover:border-accent hover:text-accent transition-colors cursor-pointer">{t('import.foods')}</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Right panel */}
-      <div className="flex-1 flex flex-col gap-4 min-w-0 overflow-hidden">
-        <div className="flex items-center gap-3">
-          <h2 className="text-lg font-bold text-text shrink-0">{t('foods.title')}</h2>
-          <input type="text" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder={t('foods.searchPlaceholder')} className={`${INPUT_CLASS} flex-1`} />
+      {/* ── Database ──────────────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-3 flex-1 min-h-0">
+        <div className="flex items-center gap-3 shrink-0">
+          <h2 className="text-sm font-semibold text-text-sec uppercase tracking-wider shrink-0">{t('foods.title')}</h2>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e=>setSearchQuery(e.target.value)}
+            placeholder={t('foods.searchPlaceholder')}
+            className="bg-bg border border-border rounded-lg px-3 py-2 text-text text-sm outline-none focus:border-accent flex-1"
+          />
         </div>
 
         {filteredFoods.length === 0 ? (
@@ -184,10 +260,10 @@ export default function FoodsPage() {
                   <th className="px-2 py-3 w-8"></th>
                   <th className="px-3 py-3 text-left">{t('th.food')}</th>
                   <th className="px-3 py-3 text-right">{t('th.kcal')}</th>
-                  <th className="px-3 py-3 text-right">{t('th.protein')}</th>
-                  <th className="px-3 py-3 text-right">{t('th.carbs')}</th>
                   <th className="px-3 py-3 text-right">{t('th.fat')}</th>
+                  <th className="px-3 py-3 text-right">{t('th.carbs')}</th>
                   <th className="px-3 py-3 text-right">{t('th.fiber')}</th>
+                  <th className="px-3 py-3 text-right">{t('th.protein')}</th>
                   <th className="px-3 py-3 text-right">{t('th.piece')}</th>
                   <th className="px-2 py-3 text-center">{t('th.liquid')}</th>
                   <th className="px-2 py-3 w-20"></th>
@@ -217,10 +293,10 @@ export default function FoodsPage() {
                       </td>
                       <td className="px-3 py-2.5 text-text font-medium">{food.name}</td>
                       <td className="px-3 py-2.5 text-right text-text tabular-nums">{food.calories}</td>
-                      <td className="px-3 py-2.5 text-right text-text-sec tabular-nums">{food.protein}</td>
-                      <td className="px-3 py-2.5 text-right text-text-sec tabular-nums">{food.carbs}</td>
                       <td className="px-3 py-2.5 text-right text-text-sec tabular-nums">{food.fat}</td>
+                      <td className="px-3 py-2.5 text-right text-text-sec tabular-nums">{food.carbs}</td>
                       <td className="px-3 py-2.5 text-right text-text-sec tabular-nums">{food.fiber}</td>
+                      <td className="px-3 py-2.5 text-right text-text-sec tabular-nums">{food.protein}</td>
                       <td className="px-3 py-2.5 text-right text-text-sec tabular-nums">{food.piece_grams!=null?`${food.piece_grams}g`:'—'}</td>
                       <td className="px-2 py-2.5 text-center">{food.is_liquid===1?'💧':''}</td>
                       <td className="px-2 py-2.5">

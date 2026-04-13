@@ -203,10 +203,10 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
                 <th className="text-left px-4 py-3">{t('week.date')}</th>
                 <th className="text-right px-4 py-3">kcal</th>
                 <th className="text-right px-4 py-3">net</th>
-                <th className="text-right px-4 py-3">protein</th>
-                <th className="text-right px-4 py-3">carbs</th>
                 <th className="text-right px-4 py-3">fat</th>
+                <th className="text-right px-4 py-3">carbs</th>
                 <th className="text-right px-4 py-3">fiber</th>
+                <th className="text-right px-4 py-3">protein</th>
               </tr>
             </thead>
             <tbody>
@@ -264,10 +264,10 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
                         );
                       })()}
                     </td>
-                    <td className="px-4 py-3 text-right text-text-sec tabular-nums">{fmtCell(d.protein, d.hasPlanned ? d.planned_protein : 0, 'g')}</td>
-                    <td className="px-4 py-3 text-right text-text-sec tabular-nums">{fmtCell(d.carbs,   d.hasPlanned ? d.planned_carbs   : 0, 'g')}</td>
                     <td className="px-4 py-3 text-right text-text-sec tabular-nums">{fmtCell(d.fat,     d.hasPlanned ? d.planned_fat     : 0, 'g')}</td>
+                    <td className="px-4 py-3 text-right text-text-sec tabular-nums">{fmtCell(d.carbs,   d.hasPlanned ? d.planned_carbs   : 0, 'g')}</td>
                     <td className="px-4 py-3 text-right text-text-sec tabular-nums">{fmtCell(d.fiber,   d.hasPlanned ? d.planned_fiber   : 0, 'g')}</td>
+                    <td className="px-4 py-3 text-right text-text-sec tabular-nums">{fmtCell(d.protein, d.hasPlanned ? d.planned_protein : 0, 'g')}</td>
                   </tr>
                 );
               })}

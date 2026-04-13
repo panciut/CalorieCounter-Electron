@@ -189,9 +189,9 @@ function BundlesTab() {
               </div>
               <div className="flex gap-3 text-xs text-text-sec flex-wrap items-center">
                 <span>{n((b as unknown as Record<string,unknown>).total_calories ?? b.calories)} kcal</span>
-                <span>P {n((b as unknown as Record<string,unknown>).total_protein ?? b.protein)}g</span>
-                <span>C {n((b as unknown as Record<string,unknown>).total_carbs ?? b.carbs)}g</span>
                 <span>F {n((b as unknown as Record<string,unknown>).total_fat ?? b.fat)}g</span>
+                <span>C {n((b as unknown as Record<string,unknown>).total_carbs ?? b.carbs)}g</span>
+                <span>P {n((b as unknown as Record<string,unknown>).total_protein ?? b.protein)}g</span>
                 <span>{b.ingredient_count} items</span>
                 {cm && !cm.can_make && (
                   <button
@@ -398,10 +398,10 @@ function BundleCreateModal({ foods, onClose, onCreate, initial }: {
 
         <div className="flex flex-wrap gap-4 text-xs text-text-sec bg-bg rounded-lg px-4 py-3 tabular-nums">
           <span><span className="text-text font-semibold text-sm">{Math.round(totals.cal)}</span> kcal</span>
-          <span>P <span className="text-text font-medium">{Math.round(totals.protein * 10) / 10}</span>g</span>
-          <span>C <span className="text-text font-medium">{Math.round(totals.carbs * 10) / 10}</span>g</span>
           <span>F <span className="text-text font-medium">{Math.round(totals.fat * 10) / 10}</span>g</span>
+          <span>C <span className="text-text font-medium">{Math.round(totals.carbs * 10) / 10}</span>g</span>
           <span>Fiber <span className="text-text font-medium">{Math.round(totals.fiber * 10) / 10}</span>g</span>
+          <span>P <span className="text-text font-medium">{Math.round(totals.protein * 10) / 10}</span>g</span>
           <span className="ml-auto">{ingredients.length} {ingredients.length === 1 ? 'ingredient' : 'ingredients'}</span>
         </div>
 
@@ -635,9 +635,9 @@ function RecipesTab() {
               </div>
               <div className="flex gap-3 text-xs text-text-sec flex-wrap items-center">
                 <span>{n(r.total_calories)} kcal</span>
-                <span>P {n(r.total_protein)}g</span>
-                <span>C {n(r.total_carbs)}g</span>
                 <span>F {n(r.total_fat)}g</span>
+                <span>C {n(r.total_carbs)}g</span>
+                <span>P {n(r.total_protein)}g</span>
                 {r.yield_g > 0 && <span>Yield {r.yield_g}g</span>}
                 {cm && !cm.can_make && (
                   <button
@@ -688,9 +688,9 @@ function RecipesTab() {
               {logPreview && (
                 <div className="flex gap-3 text-xs rounded-lg bg-bg border border-border px-3 py-2">
                   <span className="text-text font-medium">{logPreview.cal} kcal</span>
-                  <span className="text-text-sec">P {logPreview.protein}g</span>
-                  <span className="text-text-sec">C {logPreview.carbs}g</span>
                   <span className="text-text-sec">F {logPreview.fat}g</span>
+                  <span className="text-text-sec">C {logPreview.carbs}g</span>
+                  <span className="text-text-sec">P {logPreview.protein}g</span>
                 </div>
               )}
               <div className="space-y-1">

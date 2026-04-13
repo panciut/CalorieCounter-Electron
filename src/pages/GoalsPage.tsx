@@ -8,7 +8,7 @@ import type { Settings, GoalType, TDEEResult, GoalSuggestion } from "../types";
 
 type MacroField = "protein" | "carbs" | "fat" | "fiber";
 
-const MACROS: MacroField[] = ["protein", "carbs", "fat", "fiber"];
+const MACROS: MacroField[] = ["fat", "carbs", "fiber", "protein"];
 
 // Defined outside GoalsPage so its identity is stable across re-renders.
 function MacroRow({ macro, form, inputCls, setField, t }: {

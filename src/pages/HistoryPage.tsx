@@ -139,10 +139,10 @@ export default function HistoryPage() {
                     <th className="text-left px-4 py-3">{t('history.weekOf')}</th>
                     <th className="text-right px-4 py-3">{t('history.daysLogged')}</th>
                     <th className="text-right px-4 py-3">{t('history.avgKcal')}</th>
-                    <th className="text-right px-4 py-3">{t('history.avgProtein')}</th>
-                    <th className="text-right px-4 py-3">{t('history.avgCarbs')}</th>
                     <th className="text-right px-4 py-3">{t('history.avgFat')}</th>
+                    <th className="text-right px-4 py-3">{t('history.avgCarbs')}</th>
                     <th className="text-right px-4 py-3">{t('history.avgFiber')}</th>
+                    <th className="text-right px-4 py-3">{t('history.avgProtein')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -155,10 +155,10 @@ export default function HistoryPage() {
                       <td className="px-4 py-3 text-text">{formatDMY(getMondayOf(s.week_start))}</td>
                       <td className="px-4 py-3 text-right text-text-sec">{s.days_logged}</td>
                       <td className="px-4 py-3 text-right text-text tabular-nums">{Math.round(s.avg_calories)}</td>
-                      <td className="px-4 py-3 text-right text-text-sec tabular-nums">{Math.round(s.avg_protein)}g</td>
-                      <td className="px-4 py-3 text-right text-text-sec tabular-nums">{Math.round(s.avg_carbs)}g</td>
                       <td className="px-4 py-3 text-right text-text-sec tabular-nums">{Math.round(s.avg_fat)}g</td>
+                      <td className="px-4 py-3 text-right text-text-sec tabular-nums">{Math.round(s.avg_carbs)}g</td>
                       <td className="px-4 py-3 text-right text-text-sec tabular-nums">{Math.round(s.avg_fiber)}g</td>
+                      <td className="px-4 py-3 text-right text-text-sec tabular-nums">{Math.round(s.avg_protein)}g</td>
                     </tr>
                   ))}
                 </tbody>

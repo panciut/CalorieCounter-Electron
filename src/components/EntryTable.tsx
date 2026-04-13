@@ -118,10 +118,10 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                 <th className="pb-1 font-medium">{t('th.food')}</th>
                 <th className="pb-1 font-medium w-12 text-right">{t('th.g')}</th>
                 <th className="pb-1 font-medium w-14 text-right">{t('th.kcal')}</th>
-                <th className="pb-1 font-medium w-14 text-right">{t('th.protein')}</th>
-                <th className="pb-1 font-medium w-14 text-right">{t('th.carbs')}</th>
                 <th className="pb-1 font-medium w-14 text-right">{t('th.fat')}</th>
+                <th className="pb-1 font-medium w-14 text-right">{t('th.carbs')}</th>
                 <th className="pb-1 font-medium w-14 text-right">{t('th.fiber')}</th>
+                <th className="pb-1 font-medium w-14 text-right">{t('th.protein')}</th>
                 <th className="w-16" />
               </tr>
             </thead>
@@ -140,10 +140,10 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                     </td>
                     <td className="py-1.5 text-right tabular-nums">{Math.round(e.grams * 10) / 10}</td>
                     <td className="py-1.5 text-right tabular-nums">{e.calories}</td>
-                    <td className="py-1.5 text-right tabular-nums text-text-sec">{e.protein}g</td>
-                    <td className="py-1.5 text-right tabular-nums text-text-sec">{e.carbs}g</td>
                     <td className="py-1.5 text-right tabular-nums text-text-sec">{e.fat}g</td>
+                    <td className="py-1.5 text-right tabular-nums text-text-sec">{e.carbs}g</td>
                     <td className="py-1.5 text-right tabular-nums text-text-sec">{e.fiber || 0}g</td>
+                    <td className="py-1.5 text-right tabular-nums text-text-sec">{e.protein}g</td>
                     <td className="py-1.5 text-right">
                       {e.status === 'planned' && onConfirm && (
                         <button onClick={() => onConfirm(e.id)}
@@ -280,10 +280,10 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                     <td className="pt-1.5 pr-2 font-normal italic">Total</td>
                     <td className="pt-1.5 text-right tabular-nums">{tot.liquidMl > 0 ? `${tot.liquidMl} ml` : ''}</td>
                     <td className="pt-1.5 text-right tabular-nums font-semibold text-text">{tot.cal}</td>
-                    <td className="pt-1.5 text-right tabular-nums">{tot.protein}g</td>
-                    <td className="pt-1.5 text-right tabular-nums">{tot.carbs}g</td>
                     <td className="pt-1.5 text-right tabular-nums">{tot.fat}g</td>
+                    <td className="pt-1.5 text-right tabular-nums">{tot.carbs}g</td>
                     <td className="pt-1.5 text-right tabular-nums">{tot.fiber}g</td>
+                    <td className="pt-1.5 text-right tabular-nums">{tot.protein}g</td>
                     <td className="pt-1.5 text-right">
                       <button
                         onClick={() => openSaveMeal(meal, groups[meal])}
