@@ -295,7 +295,6 @@ export interface BarcodeResult {
 
 export type PageName =
   | 'dashboard'
-  | 'plan'
   | 'exercise'
   | 'net'
   | 'foods'

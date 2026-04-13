@@ -42,7 +42,6 @@ interface NavItem { page: PageName; labelKey: string; }
 
 const DEFAULT_ORDER: NavItem[] = [
   { page: 'dashboard',    labelKey: 'nav.today' },
-  { page: 'plan',         labelKey: 'nav.plan' },
   { page: 'exercise',     labelKey: 'nav.exercise' },
   { page: 'net',          labelKey: 'nav.net' },
   { page: 'week',         labelKey: 'nav.week' },

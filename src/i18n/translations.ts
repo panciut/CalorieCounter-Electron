@@ -5,7 +5,6 @@ type TranslationMap = Record<string, string>;
 export const translations: Record<'en' | 'it', TranslationMap> = {
   en: {
     'nav.today':        'Today',
-    'nav.plan':         'Plan',
     'nav.exercise':     'Exercise',
     'nav.net':          'Net Calories',
     'nav.week':         'This Week',
@@ -227,7 +226,6 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'export.success': 'Data exported successfully',
     'export.copyDay':     'Copy day',
     'export.copyWeek':    'Copy week',
-    'export.copyPlan':    'Copy plan',
     'export.copyHistory': 'Copy overview',
     'export.copied':     'Copied to clipboard',
     'export.copyFailed': 'Copy failed',
@@ -245,7 +243,6 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
 
   it: {
     'nav.today':        'Oggi',
-    'nav.plan':         'Pianifica',
     'nav.exercise':     'Allenamento',
     'nav.net':          'Nette',
     'nav.week':         'Questa Settimana',
@@ -467,7 +464,6 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'export.success': 'Dati esportati con successo',
     'export.copyDay':     'Copia giornata',
     'export.copyWeek':    'Copia settimana',
-    'export.copyPlan':    'Copia piano',
     'export.copyHistory': 'Copia panoramica',
     'export.copied':     'Copiato negli appunti',
     'export.copyFailed': 'Copia fallita',
