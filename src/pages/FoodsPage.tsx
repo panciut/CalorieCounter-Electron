@@ -9,11 +9,13 @@ import type { Food, BarcodeResult } from '../types';
 const INPUT_CLASS =
   'bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-full';
 
+// Calorie share per macro (must sum to 1.0); fiber added as g/100kcal
 const PRESETS = {
-  balanced:    { calories: 180, protein: 15, carbs: 20, fat: 5,  fiber: 2 },
-  highProtein: { calories: 150, protein: 25, carbs: 5,  fat: 3,  fiber: 0 },
-  highCarb:    { calories: 340, protein: 8,  carbs: 70, fat: 2,  fiber: 3 },
-  keto:        { calories: 450, protein: 20, carbs: 3,  fat: 40, fiber: 2 },
+  balanced:    { proteinPct: 0.25, carbsPct: 0.50, fatPct: 0.25, fiberPer100: 2.5 },
+  highProtein: { proteinPct: 0.40, carbsPct: 0.20, fatPct: 0.40, fiberPer100: 1.0 },
+  highCarb:    { proteinPct: 0.10, carbsPct: 0.80, fatPct: 0.10, fiberPer100: 3.0 },
+  highFat:     { proteinPct: 0.20, carbsPct: 0.05, fatPct: 0.75, fiberPer100: 1.0 },
+  vegetable:   { proteinPct: 0.15, carbsPct: 0.65, fatPct: 0.20, fiberPer100: 6.0 },
 } as const;
 type PresetKey = keyof typeof PRESETS;
 
@@ -132,9 +134,24 @@ export default function FoodsPage() {
   },[foods, searchQuery]);
 
   const presetLabels: Record<PresetKey, string> = {
-    balanced: 'foods.balanced', highProtein: 'foods.highProtein',
-    highCarb: 'foods.highCarb', keto: 'foods.keto',
+    balanced:    'foods.balanced',
+    highProtein: 'foods.highProtein',
+    highCarb:    'foods.highCarb',
+    highFat:     'foods.highFat',
+    vegetable:   'foods.vegetable',
   };
+
+  function applyPreset(key: PresetKey) {
+    const kcal = parseFloat(addForm.calories);
+    if (!kcal) { showToast(t('foods.presetNeedsKcal'), 'error'); return; }
+    const p = PRESETS[key];
+    patchAdd({
+      fat:    String(Math.round(kcal * p.fatPct     / 9 * 10) / 10),
+      carbs:  String(Math.round(kcal * p.carbsPct   / 4 * 10) / 10),
+      fiber:  String(Math.round(kcal * p.fiberPer100 / 100 * 10) / 10),
+      protein:String(Math.round(kcal * p.proteinPct / 4 * 10) / 10),
+    });
+  }
 
   // Macro fields for the single-line add form
   const macroFields: { key: keyof FoodFormState; label: string }[] = [
@@ -183,7 +200,7 @@ export default function FoodsPage() {
               <div className="ml-auto flex gap-1 flex-wrap justify-end">
                 {(Object.keys(PRESETS) as PresetKey[]).map(key => (
                   <button key={key} type="button"
-                    onClick={() => { const p = PRESETS[key]; patchAdd({ calories: String(p.calories), protein: String(p.protein), carbs: String(p.carbs), fat: String(p.fat), fiber: String(p.fiber) }); }}
+                    onClick={() => applyPreset(key)}
                     className="text-xs px-2 py-1 rounded border border-border text-text-sec hover:border-accent hover:text-accent transition-colors cursor-pointer"
                   >{t(presetLabels[key])}</button>
                 ))}
@@ -229,8 +246,8 @@ export default function FoodsPage() {
 
               {/* Actions */}
               <div className="flex gap-1 shrink-0 pb-0.5 ml-auto">
-                <button type="button" onClick={handleAdd} disabled={!addForm.name.trim()||!addForm.calories} className="px-4 py-1.5 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer">{t('common.add')}</button>
                 <button type="button" onClick={handleImport} className="px-3 py-1.5 rounded-lg border border-border text-text-sec text-sm hover:border-accent hover:text-accent transition-colors cursor-pointer">{t('import.foods')}</button>
+                <button type="button" onClick={handleAdd} disabled={!addForm.name.trim()||!addForm.calories} className="px-4 py-1.5 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer">{t('common.add')}</button>
               </div>
             </div>
           </div>
