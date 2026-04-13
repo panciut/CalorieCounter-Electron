@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { evalExpr, resolveExpr } from '../lib/evalExpr';
 import { useSettings } from '../hooks/useSettings';
 import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
@@ -245,7 +246,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   function handleClear() { setSelectedFood(null); setSelectedRecipe(null); setAmount(''); setSearchKey(k => k + 1); }
 
   const effectiveGrams = selectedFood
-    ? (usePieces && selectedFood.piece_grams ? Math.round(parseFloat(amount||'0') * selectedFood.piece_grams * 100)/100 : parseFloat(amount||'0'))
+    ? (usePieces && selectedFood.piece_grams ? Math.round((evalExpr(amount) ?? 0) * selectedFood.piece_grams * 100)/100 : (evalExpr(amount) ?? 0))
     : 0;
 
   const logStatus = planMode ? 'planned' : 'logged';
@@ -649,6 +650,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                 type="text" inputMode="decimal"
                 value={amount}
                 onChange={e=>setAmount(e.target.value)}
+                onBlur={() => setAmount(v => resolveExpr(v))}
                 placeholder={usePieces ? `${t('common.pieces')} (${selectedFood.piece_grams}g)` : t('common.grams')}
                 className={`w-32 ${inputCls}`}
               />

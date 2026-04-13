@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { evalExpr, resolveExpr } from '../lib/evalExpr';
 import { api } from '../api';
 import { useToast } from '../components/Toast';
 import FoodSearch from '../components/FoodSearch';
@@ -40,6 +41,7 @@ export default function PantryPage() {
   const [editUsePieces, setEditUsePieces] = useState(false);
   const [pantryOpen, setPantryOpen]   = useState(true);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const qtyRef = useRef<HTMLInputElement>(null);
 
   // Shopping state
   const [shopping, setShopping]       = useState<ShoppingItem[]>([]);
@@ -62,7 +64,7 @@ export default function PantryPage() {
   const foodSearchItems: SearchItem[] = foods.map(f => ({ ...f, isRecipe: false as const, _freq: 0 }));
 
   const addGrams = selFood
-    ? (usePieces && selFood.piece_grams ? parseFloat(qty || '0') * selFood.piece_grams : parseFloat(qty || '0'))
+    ? (usePieces && selFood.piece_grams ? (evalExpr(qty) ?? 0) * selFood.piece_grams : (evalExpr(qty) ?? 0))
     : 0;
 
   function handleSelect(item: SearchItem) {
@@ -70,6 +72,7 @@ export default function PantryPage() {
     setSelFood(food);
     setUsePieces(!!(food.piece_grams));
     setQty('');
+    setTimeout(() => qtyRef.current?.focus(), 0);
   }
 
   async function handleAddPantry() {
@@ -113,9 +116,8 @@ export default function PantryPage() {
   }
 
   async function handleSaveEdit(item: PantryItem) {
-    const grams = editUsePieces && item.piece_grams
-      ? parseFloat(editQty) * item.piece_grams
-      : parseFloat(editQty);
+    const val = evalExpr(editQty) ?? 0;
+    const grams = editUsePieces && item.piece_grams ? val * item.piece_grams : val;
     await api.pantry.set({ food_id: item.food_id, quantity_g: grams || 0 });
     setEditingId(null);
     loadPantry();
@@ -123,7 +125,7 @@ export default function PantryPage() {
 
   async function handleAddShopping() {
     if (!shopFood) return;
-    await api.shopping.add({ food_id: shopFood.id, quantity_g: shopQty ? parseFloat(shopQty) : 0 });
+    await api.shopping.add({ food_id: shopFood.id, quantity_g: shopQty ? (evalExpr(shopQty) ?? 0) : 0 });
     setShopFood(null); setShopQty('');
     loadShopping();
   }
@@ -219,16 +221,17 @@ export default function PantryPage() {
                         </div>
                       )}
                       <input
+                        ref={qtyRef}
                         type="text" inputMode="decimal"
                         value={qty}
                         onChange={e => setQty(e.target.value)}
+                        onBlur={() => setQty(v => resolveExpr(v))}
                         placeholder={usePieces ? 'pieces' : 'grams'}
                         className={`w-28 ${inputCls}`}
-                        autoFocus
-                        onKeyDown={e => e.key === 'Enter' && handleAddPantry()}
+                        onKeyDown={e => { if (e.key === 'Enter') { setQty(resolveExpr(qty)); handleAddPantry(); } }}
                       />
-                      {usePieces && selFood.piece_grams && qty && (
-                        <span className="text-xs text-text-sec">= {Math.round(parseFloat(qty) * selFood.piece_grams)}g</span>
+                      {usePieces && selFood.piece_grams && qty && (evalExpr(qty) ?? 0) > 0 && (
+                        <span className="text-xs text-text-sec">= {Math.round((evalExpr(qty) ?? 0) * selFood.piece_grams)}g</span>
                       )}
                       <button
                         onClick={handleAddPantry}
@@ -292,9 +295,10 @@ export default function PantryPage() {
                                   type="text" inputMode="decimal"
                                   value={editQty}
                                   onChange={e => setEditQty(e.target.value)}
+                                  onBlur={() => setEditQty(v => resolveExpr(v))}
                                   autoFocus
                                   onKeyDown={e => {
-                                    if (e.key === 'Enter')  handleSaveEdit(item);
+                                    if (e.key === 'Enter')  { setEditQty(resolveExpr(editQty)); handleSaveEdit(item); }
                                     if (e.key === 'Escape') setEditingId(null);
                                   }}
                                   className="w-20 bg-bg border border-border rounded-lg px-2 py-1 text-sm text-text text-right focus:outline-none focus:border-accent"
@@ -365,10 +369,11 @@ export default function PantryPage() {
                       type="text" inputMode="decimal"
                       value={shopQty}
                       onChange={e => setShopQty(e.target.value)}
+                      onBlur={() => setShopQty(v => resolveExpr(v))}
                       placeholder="Amount (g, optional)"
                       className={`w-40 ${inputCls}`}
                       autoFocus
-                      onKeyDown={e => e.key === 'Enter' && handleAddShopping()}
+                      onKeyDown={e => { if (e.key === 'Enter') { setShopQty(resolveExpr(shopQty)); handleAddShopping(); } }}
                     />
                     <button onClick={handleAddShopping} className="px-4 py-2 bg-accent text-white text-sm rounded-lg cursor-pointer hover:opacity-90 font-medium">Add</button>
                     <button onClick={() => setShopFood(null)} className="text-sm text-text-sec cursor-pointer hover:text-text">Cancel</button>
