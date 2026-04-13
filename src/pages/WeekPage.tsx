@@ -6,7 +6,7 @@ import { useToast } from '../components/Toast';
 import { api } from '../api';
 import BarChartCard from '../components/BarChartCard';
 import { fmtDate, formatShortDate, formatDMY, addDays, today } from '../lib/dateUtil';
-import { buildWeekMarkdown, copyToClipboard } from '../lib/exportText';
+import { buildWeekMarkdown, buildDayMarkdown, copyToClipboard } from '../lib/exportText';
 import type { WeekDayDetail, DailyEnergy } from '../types';
 
 interface WeekPageProps { weekStart?: string; }
@@ -108,6 +108,35 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
     showToast(ok ? t('export.copied') : t('export.copyFailed'), ok ? 'success' : 'error');
   }
 
+  async function handleCopyDetailed() {
+    const dayData = await Promise.all(
+      days.map(date => Promise.all([
+        api.log.getDay(date),
+        api.water.getDay(date),
+        api.notes.get(date),
+      ]).then(([entries, water, noteObj]) => ({ date, entries, water, noteObj })))
+    );
+
+    const parts = dayData.map(({ date, entries, water, noteObj }) => {
+      const e = energyMap.get(date);
+      return buildDayMarkdown({
+        date,
+        entries,
+        settings,
+        waterMl: water.total_ml || undefined,
+        waterGoalMl: settings.water_goal,
+        restingKcal: e?.resting_kcal || undefined,
+        activeKcal:  e?.active_kcal  || undefined,
+        extraKcal:   e?.extra_kcal   || undefined,
+        note: noteObj.note || undefined,
+      });
+    });
+
+    const md = parts.join('\n---\n\n');
+    const ok = await copyToClipboard(md);
+    showToast(ok ? t('export.copied') : t('export.copyFailed'), ok ? 'success' : 'error');
+  }
+
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <button
@@ -133,9 +162,14 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
             title="Next week"
           >›</button>
         </div>
-        <button onClick={handleCopy} className="text-sm text-text-sec border border-border rounded-lg px-3 py-1.5 hover:border-accent/50 hover:text-text cursor-pointer transition-colors">
-          📋 {t('export.copyWeek')}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={handleCopy} className="text-sm text-text-sec border border-border rounded-lg px-3 py-1.5 hover:border-accent/50 hover:text-text cursor-pointer transition-colors">
+            📋 {t('export.copyWeek')}
+          </button>
+          <button onClick={handleCopyDetailed} className="text-sm text-text-sec border border-border rounded-lg px-3 py-1.5 hover:border-accent/50 hover:text-text cursor-pointer transition-colors">
+            📋 {t('export.copyWeekDetailed')}
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
