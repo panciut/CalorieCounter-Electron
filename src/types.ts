@@ -241,10 +241,20 @@ export interface ShoppingItem {
   checked: number; // 0 or 1
 }
 
+export interface DailyEnergy {
+  date: string;
+  resting_kcal: number;
+  active_kcal: number;
+  extra_kcal: number;
+}
+
 export interface CalorieTrendPoint {
   date: string;
   calories_in: number;
   calories_out: number;
+  resting_kcal: number;
+  active_kcal: number;
+  extra_kcal: number;
   net: number;
 }
 

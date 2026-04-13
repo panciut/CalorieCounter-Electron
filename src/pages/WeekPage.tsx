@@ -7,7 +7,7 @@ import { api } from '../api';
 import BarChartCard from '../components/BarChartCard';
 import { fmtDate, formatShortDate, formatDMY, addDays, today } from '../lib/dateUtil';
 import { buildWeekMarkdown, copyToClipboard } from '../lib/exportText';
-import type { WeekDayDetail } from '../types';
+import type { WeekDayDetail, DailyEnergy } from '../types';
 
 interface WeekPageProps { weekStart?: string; }
 
@@ -17,6 +17,7 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
   const { settings } = useSettings();
   const { showToast } = useToast();
   const [details, setDetails] = useState<WeekDayDetail[]>([]);
+  const [energyMap, setEnergyMap] = useState<Map<string, DailyEnergy>>(new Map());
   const [overrides, setOverrides] = useState<Record<string, 'included' | 'excluded'>>(() => {
     try { return JSON.parse(localStorage.getItem('week.dayOverrides') || '{}'); }
     catch { return {}; }
@@ -26,6 +27,10 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
   useEffect(() => {
     if (!weekStart) return;
     api.log.getWeekDetail(weekStart).then(setDetails);
+    const end = addDays(weekStart, 6);
+    api.dailyEnergy.getRange(weekStart, end).then(rows => {
+      setEnergyMap(new Map(rows.map(r => [r.date, r])));
+    });
   }, [weekStart]);
 
   function toggleDay(date: string, currentlyIncluded: boolean) {
@@ -75,6 +80,17 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
     Math.round(includedRows.reduce((s, d) => s + d[key], 0) / count);
 
   const totalKcal = Math.round(includedRows.reduce((s, d) => s + d.proj_calories, 0));
+
+  // Net: food calories minus Apple Watch energy — only past days up to today
+  const daysWithEnergy = includedRows.filter(d => d.date <= todayStr && energyMap.has(d.date));
+  const totalEnergyOut = daysWithEnergy.reduce((s, d) => {
+    const e = energyMap.get(d.date)!;
+    return s + e.resting_kcal + e.active_kcal + e.extra_kcal;
+  }, 0);
+  const totalFoodOnEnergyDays = daysWithEnergy.reduce((s, d) => s + d.proj_calories, 0);
+  const totalNet = Math.round(totalFoodOnEnergyDays - totalEnergyOut);
+  const avgNet   = daysWithEnergy.length > 0 ? Math.round(totalNet / daysWithEnergy.length) : null;
+
   const recWeek = (settings.cal_rec || 0) * includedRows.length;
   const maxWeek = (settings.cal_max || 0) * includedRows.length;
   const bankRec = recWeek - totalKcal;
@@ -135,6 +151,15 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
             <p className={`font-semibold text-sm ${item.accent ? 'text-accent' : 'text-text'}`}>{item.value}</p>
           </div>
         ))}
+        {avgNet !== null && (
+          <div className="bg-card rounded-xl p-3 border border-border text-center sm:col-span-5">
+            <p className="text-xs text-text-sec mb-1">Avg net / day</p>
+            <p className={`font-semibold text-sm ${avgNet <= 0 ? 'text-green' : 'text-accent'}`}>
+              {avgNet > 0 ? '+' : ''}{avgNet} kcal
+              <span className="text-text-sec font-normal text-xs ml-1">({daysWithEnergy.length}d with energy data)</span>
+            </p>
+          </div>
+        )}
       </div>
 
       {(recWeek > 0 || maxWeek > 0) && (
@@ -178,6 +203,7 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
                 <th className="px-3 py-3 w-8" />
                 <th className="text-left px-4 py-3">{t('week.date')}</th>
                 <th className="text-right px-4 py-3">kcal</th>
+                <th className="text-right px-4 py-3">net</th>
                 <th className="text-right px-4 py-3">protein</th>
                 <th className="text-right px-4 py-3">carbs</th>
                 <th className="text-right px-4 py-3">fat</th>
@@ -219,6 +245,26 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right text-text tabular-nums">{fmtCell(d.calories, d.hasPlanned ? d.planned_calories : 0)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">
+                      {(() => {
+                        const e = energyMap.get(d.date);
+                        if (!e || (e.resting_kcal === 0 && e.active_kcal === 0 && e.extra_kcal === 0)) return <span className="text-text-sec">—</span>;
+                        const net = Math.round(d.proj_calories - e.resting_kcal - e.active_kcal - e.extra_kcal);
+                        const outBreakdown = [
+                          e.resting_kcal > 0 ? String(e.resting_kcal) : null,
+                          e.active_kcal  > 0 ? String(e.active_kcal)  : null,
+                          e.extra_kcal   > 0 ? String(e.extra_kcal)   : null,
+                        ].filter(Boolean).join(' + ');
+                        return (
+                          <span
+                            className={net <= 0 ? 'text-green' : 'text-accent'}
+                            title={`out: ${outBreakdown}`}
+                          >
+                            {net > 0 ? '+' : ''}{net}
+                          </span>
+                        );
+                      })()}
+                    </td>
                     <td className="px-4 py-3 text-right text-text-sec tabular-nums">{fmtCell(d.protein, d.hasPlanned ? d.planned_protein : 0, 'g')}</td>
                     <td className="px-4 py-3 text-right text-text-sec tabular-nums">{fmtCell(d.carbs,   d.hasPlanned ? d.planned_carbs   : 0, 'g')}</td>
                     <td className="px-4 py-3 text-right text-text-sec tabular-nums">{fmtCell(d.fat,     d.hasPlanned ? d.planned_fat     : 0, 'g')}</td>

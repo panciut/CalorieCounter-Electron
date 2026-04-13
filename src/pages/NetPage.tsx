@@ -37,9 +37,12 @@ export default function NetPage() {
     const p = dataMap.get(date);
     return {
       date,
-      label: formatShortDate(date),
+      label:        formatShortDate(date),
       calories_in:  p ? Math.round(p.calories_in)  : 0,
       calories_out: p ? Math.round(p.calories_out) : 0,
+      resting_kcal: p ? Math.round(p.resting_kcal) : 0,
+      active_kcal:  p ? Math.round(p.active_kcal)  : 0,
+      extra_kcal:   p ? Math.round(p.extra_kcal)   : 0,
       net:          p ? Math.round(p.net)           : 0,
     };
   });
@@ -83,7 +86,7 @@ export default function NetPage() {
           <div className="text-lg font-bold text-accent tabular-nums">{avgIn} kcal</div>
         </div>
         <div className="bg-card border border-border rounded-xl p-4">
-          <div className="text-xs text-text-sec mb-1">Avg exercise out</div>
+          <div className="text-xs text-text-sec mb-1">Avg energy out (Apple Watch)</div>
           <div className="text-lg font-bold text-green tabular-nums">{avgOut > 0 ? `−${avgOut}` : '—'} kcal</div>
         </div>
         <div className="bg-card border border-border rounded-xl p-4">
@@ -120,7 +123,7 @@ export default function NetPage() {
               <ReferenceLine y={calRec} stroke="var(--text-sec)" strokeDasharray="5 4" strokeWidth={1} />
             )}
             <Line type="monotone" dataKey="calories_in"  name="Food in"      stroke="var(--accent)" strokeWidth={2} dot={false} connectNulls />
-            <Line type="monotone" dataKey="calories_out" name="Exercise out"  stroke="var(--green)"  strokeWidth={2} dot={false} connectNulls />
+            <Line type="monotone" dataKey="calories_out" name="Energy out (AW)"  stroke="var(--green)"  strokeWidth={2} dot={false} connectNulls />
             <Line type="monotone" dataKey="net"          name="Net"           stroke="var(--text)"   strokeWidth={2} dot={false} connectNulls />
           </LineChart>
         </ResponsiveContainer>
@@ -133,7 +136,7 @@ export default function NetPage() {
             <tr className="border-b border-border text-text-sec text-xs uppercase tracking-wider">
               <th className="text-left px-4 py-3">Date</th>
               <th className="text-right px-4 py-3">Food in</th>
-              <th className="text-right px-4 py-3">Exercise out</th>
+              <th className="text-right px-4 py-3">Energy out (AW)</th>
               <th className="text-right px-4 py-3">Net</th>
             </tr>
           </thead>
@@ -145,7 +148,13 @@ export default function NetPage() {
                   {d.calories_in > 0 ? d.calories_in : <span className="text-text-sec">—</span>}
                 </td>
                 <td className="px-4 py-2.5 text-right tabular-nums text-green">
-                  {d.calories_out > 0 ? `−${d.calories_out}` : <span className="text-text-sec">—</span>}
+                  {d.calories_out > 0
+                    ? `−${[
+                        d.resting_kcal > 0 ? String(d.resting_kcal) : null,
+                        d.active_kcal  > 0 ? String(d.active_kcal)  : null,
+                        d.extra_kcal   > 0 ? String(d.extra_kcal)   : null,
+                      ].filter(Boolean).join(' + ')}`
+                    : <span className="text-text-sec">—</span>}
                 </td>
                 <td className={`px-4 py-2.5 text-right tabular-nums font-medium ${
                   d.calories_in > 0 ? (d.net <= calRec ? 'text-green' : 'text-red') : 'text-text-sec'

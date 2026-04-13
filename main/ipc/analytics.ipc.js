@@ -11,26 +11,32 @@ function registerAnalyticsIpc() {
       GROUP BY l.date
     `).all(days - 1);
 
-    const exOut = db.prepare(`
-      SELECT date, SUM(calories_burned) as calories_out
-      FROM exercises
+    const energyOut = db.prepare(`
+      SELECT date, resting_kcal, active_kcal, extra_kcal,
+             (resting_kcal + active_kcal + extra_kcal) as calories_out
+      FROM daily_energy
       WHERE date >= date('now', '-' || ? || ' days')
-      GROUP BY date
     `).all(days - 1);
 
     // Merge by date
     const map = {};
-    for (const row of foodIn) map[row.date] = { date: row.date, calories_in: row.calories_in, calories_out: 0 };
-    for (const row of exOut) {
-      if (!map[row.date]) map[row.date] = { date: row.date, calories_in: 0, calories_out: 0 };
+    for (const row of foodIn) map[row.date] = { date: row.date, calories_in: row.calories_in, calories_out: 0, resting_kcal: 0, active_kcal: 0, extra_kcal: 0 };
+    for (const row of energyOut) {
+      if (!map[row.date]) map[row.date] = { date: row.date, calories_in: 0, calories_out: 0, resting_kcal: 0, active_kcal: 0, extra_kcal: 0 };
       map[row.date].calories_out = row.calories_out;
+      map[row.date].resting_kcal = row.resting_kcal;
+      map[row.date].active_kcal  = row.active_kcal;
+      map[row.date].extra_kcal   = row.extra_kcal;
     }
 
     return Object.values(map).map(r => ({
-      date: r.date,
-      calories_in: Math.round(r.calories_in),
+      date:         r.date,
+      calories_in:  Math.round(r.calories_in),
       calories_out: Math.round(r.calories_out),
-      net: Math.round(r.calories_in - r.calories_out),
+      resting_kcal: Math.round(r.resting_kcal),
+      active_kcal:  Math.round(r.active_kcal),
+      extra_kcal:   Math.round(r.extra_kcal),
+      net:          Math.round(r.calories_in - r.calories_out),
     })).sort((a, b) => a.date.localeCompare(b.date));
   });
 

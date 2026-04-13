@@ -14,7 +14,6 @@ export default function ExercisePage() {
   const [dateStr, setDateStr]           = useState(today());
   const [weightKg, setWeightKg]         = useState(0);
   const [recentExercises, setRecentExercises] = useState<Exercise[]>([]);
-  const [sectionKcal, setSectionKcal]   = useState(0);
 
   useEffect(() => {
     api.weight.getAll().then((entries: WeightEntry[]) => {
@@ -38,24 +37,21 @@ export default function ExercisePage() {
   // Stats (all 30 days)
   const totalWorkouts = recentExercises.length;
   const totalMin      = Math.round(recentExercises.reduce((s, e) => s + e.duration_min, 0));
-  const totalBurned   = Math.round(recentExercises.reduce((s, e) => s + e.calories_burned, 0));
 
   return (
     <div className="p-6 max-w-3xl mx-auto flex flex-col gap-6">
       <h1 className="text-xl font-bold text-text">Exercise</h1>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        {[
-          { label: 'Workouts (30d)', value: String(totalWorkouts) },
-          { label: 'Total time (30d)', value: `${Math.floor(totalMin / 60)}h ${totalMin % 60}m` },
-          { label: 'Calories burned (30d)', value: `${totalBurned} kcal` },
-        ].map(stat => (
-          <div key={stat.label} className="bg-card border border-border rounded-xl p-4">
-            <div className="text-xs text-text-sec mb-1">{stat.label}</div>
-            <div className="text-lg font-bold text-text tabular-nums">{stat.value}</div>
-          </div>
-        ))}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-card border border-border rounded-xl p-4">
+          <div className="text-xs text-text-sec mb-1">Workouts (30d)</div>
+          <div className="text-lg font-bold text-text tabular-nums">{totalWorkouts}</div>
+        </div>
+        <div className="bg-card border border-border rounded-xl p-4">
+          <div className="text-xs text-text-sec mb-1">Total time (30d)</div>
+          <div className="text-lg font-bold text-text tabular-nums">{Math.floor(totalMin / 60)}h {totalMin % 60}m</div>
+        </div>
       </div>
 
       {/* Date selector */}
@@ -74,7 +70,7 @@ export default function ExercisePage() {
       <ExerciseSection
         date={dateStr}
         weightKg={weightKg}
-        onCaloriesChange={kcal => { setSectionKcal(kcal); loadHistory(); }}
+        onCaloriesChange={() => loadHistory()}
       />
 
       {/* History */}
@@ -83,21 +79,16 @@ export default function ExercisePage() {
           <h2 className="text-xs font-semibold text-text-sec uppercase tracking-wider">History (30 days)</h2>
           {sortedDates.map(date => {
             const exes = byDate[date];
-            const dayTotal = Math.round(exes.reduce((s, e) => s + e.calories_burned, 0));
             return (
               <div key={date} className="bg-card border border-border rounded-xl p-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-semibold text-text-sec">{fmtDate(date)}</span>
-                  {dayTotal > 0 && <span className="text-xs text-green tabular-nums">{dayTotal} kcal burned</span>}
                 </div>
                 <div className="flex flex-col gap-1">
                   {exes.map(ex => (
                     <div key={ex.id} className="flex items-center gap-3 text-sm">
                       <span className="flex-1 text-text">{ex.type}</span>
                       <span className="text-text-sec text-xs tabular-nums">{ex.duration_min}min</span>
-                      {ex.calories_burned > 0 && (
-                        <span className="text-green text-xs tabular-nums">{Math.round(ex.calories_burned)} kcal</span>
-                      )}
                       {ex.sets && ex.sets.length > 0 && (
                         <span className="text-xs text-text-sec">{ex.sets.length} sets</span>
                       )}

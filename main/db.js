@@ -184,6 +184,13 @@ function initDb() {
       checked INTEGER NOT NULL DEFAULT 0,
       FOREIGN KEY (food_id) REFERENCES foods(id) ON DELETE CASCADE
     );
+
+    CREATE TABLE IF NOT EXISTS daily_energy (
+      date TEXT PRIMARY KEY,
+      resting_kcal REAL NOT NULL DEFAULT 0,
+      active_kcal REAL NOT NULL DEFAULT 0,
+      extra_kcal REAL NOT NULL DEFAULT 0
+    );
   `);
 
   // Migrations: add columns that may not exist in imported databases

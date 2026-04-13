@@ -5,7 +5,7 @@ import type {
   WeeklySummary, WeekDayDetail, BarcodeResult,
   PantryItem, ShoppingItem, PantryIngredientCheck,
   CalorieTrendPoint, MacroTrendPoint, ExerciseTrendPoint,
-  GoalType, TDEEResult, GoalSuggestion,
+  GoalType, TDEEResult, GoalSuggestion, DailyEnergy,
 } from './types';
 
 // ── Electron IPC bridge ──────────────────────────────────────────────────────
@@ -187,5 +187,12 @@ export const api = {
   goals: {
     calculateTDEE: () => invoke<TDEEResult>('goals:calculateTDEE'),
     suggest: (data: { goal_type: GoalType; tdee: number }) => invoke<GoalSuggestion>('goals:suggest', data),
+  },
+
+  dailyEnergy: {
+    get:            (date: string) => invoke<DailyEnergy>('dailyEnergy:get', { date }),
+    getRange:       (startDate: string, endDate: string) => invoke<DailyEnergy[]>('dailyEnergy:getRange', { startDate, endDate }),
+    getPrevResting: (date: string) => invoke<{ resting_kcal: number }>('dailyEnergy:getPrevResting', { date }),
+    set:            (data: DailyEnergy) => invoke<{ ok: boolean }>('dailyEnergy:set', data),
   },
 } as const;

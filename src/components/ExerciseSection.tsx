@@ -21,11 +21,9 @@ export default function ExerciseSection({ date, weightKg, onCaloriesChange }: Pr
   // Form state
   const [type, setType]             = useState('');
   const [duration, setDuration]     = useState('');
-  const [calories, setCalories]     = useState('');
   const [notes, setNotes]           = useState('');
   const [showSets, setShowSets]     = useState(false);
   const [sets, setSets]             = useState<SetRow[]>([{ reps: '', weight_kg: '' }]);
-  const [estimating, setEstimating] = useState(false);
 
   useEffect(() => {
     load();
@@ -38,19 +36,8 @@ export default function ExerciseSection({ date, weightKg, onCaloriesChange }: Pr
     onCaloriesChange(rows.reduce((s, e) => s + e.calories_burned, 0));
   }
 
-  async function handleEstimate() {
-    if (!type || !duration || !weightKg) return;
-    setEstimating(true);
-    try {
-      const res = await api.exercises.estimate({ type, duration_min: parseFloat(duration), weight_kg: weightKg });
-      setCalories(String(res.calories));
-    } finally {
-      setEstimating(false);
-    }
-  }
-
   function resetForm() {
-    setType(''); setDuration(''); setCalories(''); setNotes('');
+    setType(''); setDuration(''); setNotes('');
     setShowSets(false); setSets([{ reps: '', weight_kg: '' }]);
     setEditId(null);
   }
@@ -61,9 +48,9 @@ export default function ExerciseSection({ date, weightKg, onCaloriesChange }: Pr
       ? sets.filter(s => s.reps || s.weight_kg).map(s => ({ reps: s.reps ? parseInt(s.reps) : undefined, weight_kg: s.weight_kg ? parseFloat(s.weight_kg) : undefined }))
       : [];
     if (editId !== null) {
-      await api.exercises.update({ id: editId, type, duration_min: parseFloat(duration), calories_burned: parseFloat(calories) || 0, notes });
+      await api.exercises.update({ id: editId, type, duration_min: parseFloat(duration), calories_burned: 0, notes });
     } else {
-      await api.exercises.add({ date, type, duration_min: parseFloat(duration), calories_burned: parseFloat(calories) || 0, notes, sets: validSets });
+      await api.exercises.add({ date, type, duration_min: parseFloat(duration), calories_burned: 0, notes, sets: validSets });
     }
     resetForm();
     setOpen(false);
@@ -73,7 +60,6 @@ export default function ExerciseSection({ date, weightKg, onCaloriesChange }: Pr
   function startEdit(ex: Exercise) {
     setType(ex.type);
     setDuration(String(ex.duration_min));
-    setCalories(String(ex.calories_burned));
     setNotes(ex.notes || '');
     setShowSets(!!(ex.sets?.length));
     setSets(ex.sets?.length ? ex.sets.map(s => ({ reps: s.reps ? String(s.reps) : '', weight_kg: s.weight_kg ? String(s.weight_kg) : '' })) : [{ reps: '', weight_kg: '' }]);
@@ -88,8 +74,6 @@ export default function ExerciseSection({ date, weightKg, onCaloriesChange }: Pr
     load();
   }
 
-  const totalKcal = exercises.reduce((s, e) => s + e.calories_burned, 0);
-
   const inputCls = 'rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent w-full';
 
   const categoryGroups = exTypes.reduce<Record<string, ExerciseType[]>>((acc, t) => {
@@ -103,9 +87,6 @@ export default function ExerciseSection({ date, weightKg, onCaloriesChange }: Pr
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
           <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider">Exercise</h3>
-          {totalKcal > 0 && (
-            <span className="text-xs text-green font-medium tabular-nums">−{Math.round(totalKcal)} kcal burned</span>
-          )}
         </div>
         <button
           onClick={() => { resetForm(); setOpen(true); }}
@@ -125,9 +106,6 @@ export default function ExerciseSection({ date, weightKg, onCaloriesChange }: Pr
             <div key={ex.id} className="flex items-center gap-2 text-sm">
               <span className="flex-1 text-text">{ex.type}</span>
               <span className="text-text-sec tabular-nums text-xs">{ex.duration_min}min</span>
-              {ex.calories_burned > 0 && (
-                <span className="text-green text-xs tabular-nums">−{Math.round(ex.calories_burned)} kcal</span>
-              )}
               {ex.sets && ex.sets.length > 0 && (
                 <span className="text-xs text-text-sec">{ex.sets.length} sets</span>
               )}
@@ -156,20 +134,6 @@ export default function ExerciseSection({ date, weightKg, onCaloriesChange }: Pr
               <label className="text-xs text-text-sec">Duration (min)</label>
               <input type="number" className={inputCls} value={duration} onChange={e => setDuration(e.target.value)} placeholder="30" />
             </div>
-          </div>
-
-          <div className="flex gap-2 items-end">
-            <div className="flex-1 space-y-1">
-              <label className="text-xs text-text-sec">Calories burned (kcal)</label>
-              <input type="number" className={inputCls} value={calories} onChange={e => setCalories(e.target.value)} placeholder="estimate or enter" />
-            </div>
-            <button
-              onClick={handleEstimate}
-              disabled={!type || !duration || estimating}
-              className="px-3 py-1.5 rounded-lg text-xs border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer disabled:opacity-40 transition-colors"
-            >
-              {estimating ? '…' : 'Estimate'}
-            </button>
           </div>
 
           <input type="text" className={inputCls} value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes (optional)" />

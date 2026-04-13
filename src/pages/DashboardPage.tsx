@@ -15,7 +15,7 @@ import { buildDayMarkdown, copyToClipboard } from '../lib/exportText';
 import ExerciseSection from '../components/ExerciseSection';
 import type {
   LogEntry, Food, Recipe, RecipeIngredient, Meal,
-  WaterEntry, Streak, SupplementDay, FrequentFood, WeightEntry,
+  WaterEntry, SupplementDay, FrequentFood, WeightEntry, DailyEnergy,
 } from '../types';
 
 // ── Quick-food dialog ─────────────────────────────────────────────────────────
@@ -138,10 +138,14 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const [waterTotal, setWaterTotal] = useState(0);
   const [waterEntries, setWaterEntries] = useState<WaterEntry[]>([]);
   const [supplements, setSupplements] = useState<SupplementDay[]>([]);
-  const [streak, setStreak]         = useState<Streak>({ current: 0, best: 0 });
   const [weightKg, setWeightKg]     = useState(0);
-  const [exerciseKcal, setExerciseKcal] = useState(0);
   const [note, setNote]             = useState('');
+
+  // Apple Watch energy
+  const [restingKcal, setRestingKcal] = useState('');
+  const [activeKcal, setActiveKcal]   = useState('');
+  const [extraKcal, setExtraKcal]     = useState('');
+  const [restingFromYest, setRestingFromYest] = useState(false);
   const noteSaveTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
 
   // Form state
@@ -180,10 +184,31 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
 
   useEffect(() => {
     load();
-    api.streaks.get().then(setStreak);
     api.supplements.getDay(dateStr).then(setSupplements);
     api.weight.getAll().then((entries: WeightEntry[]) => {
       if (entries.length > 0) setWeightKg(entries[entries.length - 1].weight);
+    });
+    // Load Apple Watch energy for this date
+    api.dailyEnergy.get(dateStr).then((rec: DailyEnergy) => {
+      if (rec.resting_kcal > 0 || rec.active_kcal > 0 || rec.extra_kcal > 0) {
+        setRestingKcal(rec.resting_kcal > 0 ? String(rec.resting_kcal) : '');
+        setActiveKcal(rec.active_kcal > 0 ? String(rec.active_kcal) : '');
+        setExtraKcal(rec.extra_kcal > 0 ? String(rec.extra_kcal) : '');
+        setRestingFromYest(false);
+      } else {
+        // No record for today — carry forward resting from yesterday
+        api.dailyEnergy.getPrevResting(dateStr).then(({ resting_kcal }) => {
+          if (resting_kcal > 0) {
+            setRestingKcal(String(resting_kcal));
+            setRestingFromYest(true);
+          } else {
+            setRestingKcal('');
+            setRestingFromYest(false);
+          }
+        });
+        setActiveKcal('');
+        setExtraKcal('');
+      }
     });
   }, [load, dateStr]);
 
@@ -217,7 +242,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     }
   }
 
-  function handleClear() { setSelectedFood(null); setSelectedRecipe(null); setAmount(''); }
+  function handleClear() { setSelectedFood(null); setSelectedRecipe(null); setAmount(''); setSearchKey(k => k + 1); }
 
   const effectiveGrams = selectedFood
     ? (usePieces && selectedFood.piece_grams ? Math.round(parseFloat(amount||'0') * selectedFood.piece_grams * 100)/100 : parseFloat(amount||'0'))
@@ -225,17 +250,17 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
 
   const logStatus = planMode ? 'planned' : 'logged';
 
-  async function handleLogFood() {
+  async function handleLogFood(status: 'logged' | 'planned') {
     if (!selectedFood || !effectiveGrams) return;
-    await api.log.add({ food_id: selectedFood.id, grams: effectiveGrams, meal, date: dateStr, status: logStatus });
+    await api.log.add({ food_id: selectedFood.id, grams: effectiveGrams, meal, date: dateStr, status });
     setSelectedFood(null); setAmount(''); setSearchKey(k => k + 1); load();
   }
 
-  async function handleLogRecipe() {
+  async function handleLogRecipe(status: 'logged' | 'planned') {
     if (!selectedRecipe) return;
     for (const ing of selectedRecipe.ingredients) {
       if (ing.editGrams > 0) {
-        await api.log.add({ food_id: ing.food_id, grams: ing.editGrams, meal, date: dateStr, status: logStatus });
+        await api.log.add({ food_id: ing.food_id, grams: ing.editGrams, meal, date: dateStr, status });
       }
     }
     setSelectedRecipe(null); setSearchKey(k => k + 1); load();
@@ -295,6 +320,16 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     noteSaveTimer.current = setTimeout(()=>{ api.notes.save({ date: dateStr, note: val }); }, 1000);
   }
 
+  // ── Apple Watch energy ───────────────────────────────────────────────────────
+
+  function handleEnergySave() {
+    const resting = parseFloat(restingKcal) || 0;
+    const active  = parseFloat(activeKcal)  || 0;
+    const extra   = parseFloat(extraKcal)   || 0;
+    api.dailyEnergy.set({ date: dateStr, resting_kcal: resting, active_kcal: active, extra_kcal: extra });
+    setRestingFromYest(false);
+  }
+
   // ── Quick-log favorites/frequent ─────────────────────────────────────────────
 
   async function handleCopyDay() {
@@ -304,7 +339,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       settings,
       waterMl: waterTotal,
       waterGoalMl: settings.water_goal,
-      exerciseKcal,
+      exerciseKcal: energyOut,
       note,
     });
     const ok = await copyToClipboard(md);
@@ -319,6 +354,16 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   // ── Render ───────────────────────────────────────────────────────────────────
 
   const inputCls = "bg-card border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
+  const numInputCls = "w-full bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text outline-none focus:border-accent text-center tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
+
+  const loggedEntries  = entries.filter(e => e.status === 'logged');
+  const caloriesIn     = Math.round(loggedEntries.reduce((s, e) => s + e.calories, 0));
+  const energyResting  = parseFloat(restingKcal) || 0;
+  const energyActive   = parseFloat(activeKcal)  || 0;
+  const energyExtra    = parseFloat(extraKcal)   || 0;
+  const energyOut      = energyResting + energyActive + energyExtra;
+  const netKcal        = caloriesIn - energyOut;
+  const hasEnergyData  = energyOut > 0 || caloriesIn > 0;
 
   return (
     <div className="p-6 max-w-6xl mx-auto flex flex-col gap-6">
@@ -397,19 +442,78 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       {/* Macros summary card */}
       <DayMacrosCard entries={entries} />
 
-      {/* Streak + supplements */}
+      {/* Energy (Apple Watch) + Supplements */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Streak */}
-        <div className="bg-card border border-border rounded-xl p-4 flex gap-6">
-          <div className="flex flex-col gap-0.5">
-            <span className="text-xs text-text-sec">{t('streak.current')}</span>
-            <span className="text-2xl font-bold text-accent tabular-nums">{streak.current}</span>
-            <span className="text-xs text-text-sec">{t('streak.days')}</span>
+        {/* Energy card */}
+        <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider">{t('energy.title')}</h3>
+            <span className="text-xs text-text-sec/60">{t('energy.appleWatch')}</span>
           </div>
-          <div className="flex flex-col gap-0.5">
-            <span className="text-xs text-text-sec">{t('streak.best')}</span>
-            <span className="text-2xl font-bold text-text tabular-nums">{streak.best}</span>
-            <span className="text-xs text-text-sec">{t('streak.days')}</span>
+
+          {/* Net display */}
+          <div className="flex items-baseline gap-2">
+            <span className={`text-2xl font-bold tabular-nums ${
+              !hasEnergyData ? 'text-text-sec' :
+              netKcal < 0 ? 'text-green' : 'text-accent'
+            }`}>
+              {hasEnergyData ? `${netKcal > 0 ? '+' : ''}${netKcal}` : '—'}
+            </span>
+            {hasEnergyData && <span className="text-xs text-text-sec">kcal {t('energy.net')}</span>}
+          </div>
+
+          {/* Food in / Energy out summary */}
+          {hasEnergyData && (
+            <div className="flex gap-4 text-xs text-text-sec flex-wrap">
+              <span>{t('energy.foodIn')}: <span className="text-text tabular-nums">{caloriesIn}</span></span>
+              <span>{t('energy.out')}: <span className="text-text tabular-nums">
+                {energyResting > 0 || energyActive > 0 || energyExtra > 0
+                  ? [
+                      energyResting > 0 ? String(energyResting) : null,
+                      energyActive  > 0 ? String(energyActive)  : null,
+                      energyExtra   > 0 ? String(energyExtra)   : null,
+                    ].filter(Boolean).join(' + ')
+                  : '0'}
+              </span></span>
+            </div>
+          )}
+
+          {/* Inputs */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-text-sec text-center">{t('energy.resting')}</label>
+              <input
+                type="number"
+                value={restingKcal}
+                onChange={e => { setRestingKcal(e.target.value); setRestingFromYest(false); }}
+                onBlur={handleEnergySave}
+                placeholder="0"
+                className={numInputCls}
+              />
+              {restingFromYest && <span className="text-xs text-text-sec/60 text-center">{t('energy.fromYest')}</span>}
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-text-sec text-center">{t('energy.active')}</label>
+              <input
+                type="number"
+                value={activeKcal}
+                onChange={e => setActiveKcal(e.target.value)}
+                onBlur={handleEnergySave}
+                placeholder="0"
+                className={numInputCls}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-text-sec text-center" title={t('energy.extraHint')}>{t('energy.extra')}</label>
+              <input
+                type="number"
+                value={extraKcal}
+                onChange={e => setExtraKcal(e.target.value)}
+                onBlur={handleEnergySave}
+                placeholder="0"
+                className={numInputCls}
+              />
+            </div>
           </div>
         </div>
 
@@ -471,7 +575,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       </div>
 
       {/* Exercise */}
-      <ExerciseSection date={dateStr} weightKg={weightKg} onCaloriesChange={setExerciseKcal} />
+      <ExerciseSection date={dateStr} weightKg={weightKg} onCaloriesChange={() => {}} />
 
       {/* Favorites + frequent */}
       {favorites.length > 0 && (
@@ -501,18 +605,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
 
       {/* Log food section */}
       <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold text-text">{t('dash.logFood')}</h3>
-          {plannedEntries.some(e => e.meal === 'Lunch' || e.meal === 'Dinner') && (
-            <button
-              onClick={handleSwapLunchDinner}
-              title={t('dash.swapLunchDinner')}
-              className="text-xs text-text-sec border border-border rounded-lg px-2 py-1 hover:border-accent/50 hover:text-text cursor-pointer transition-colors"
-            >
-              🔄 {t('dash.swapLunchDinner')}
-            </button>
-          )}
-        </div>
+        <h3 className="text-sm font-semibold text-text">{t('dash.logFood')}</h3>
         <FoodSearch key={searchKey} items={searchItems} onSelect={handleSelect} onClear={handleClear} placeholder={t('dash.searchPlaceholder')} />
 
         {/* Food log form */}
@@ -557,10 +650,21 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
               )}
             </div>
             <MealPills selected={meal} onChange={setMeal} />
-            <div className="flex gap-2">
-              <button onClick={handleLogFood} disabled={!effectiveGrams} className="bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:opacity-90 disabled:opacity-40">
-                {planMode ? 'Add to Plan' : t('common.add')}
-              </button>
+            <div className="flex gap-2 flex-wrap">
+              {(planMode ? ['planned', 'logged'] : ['logged', 'planned'] as const).map((status, i) => (
+                <button
+                  key={status}
+                  onClick={() => handleLogFood(status as 'logged' | 'planned')}
+                  disabled={!effectiveGrams}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer disabled:opacity-40 transition-colors ${
+                    i === 0
+                      ? 'bg-accent text-white hover:opacity-90'
+                      : 'border border-border text-text-sec hover:text-text'
+                  }`}
+                >
+                  {status === 'logged' ? t('common.add') : t('dash.addToPlan')}
+                </button>
+              ))}
               <button onClick={handleClear} className="border border-border text-text-sec px-4 py-2 rounded-lg text-sm cursor-pointer hover:text-text">{t('common.cancel')}</button>
             </div>
           </div>
@@ -594,10 +698,20 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
               })}
             </div>
             <MealPills selected={meal} onChange={setMeal} />
-            <div className="flex gap-2">
-              <button onClick={handleLogRecipe} className="bg-accent text-white px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:opacity-90">
-                {planMode ? 'Add to Plan' : t('dash.logRecipe')}
-              </button>
+            <div className="flex gap-2 flex-wrap">
+              {(planMode ? ['planned', 'logged'] : ['logged', 'planned'] as const).map((status, i) => (
+                <button
+                  key={status}
+                  onClick={() => handleLogRecipe(status as 'logged' | 'planned')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
+                    i === 0
+                      ? 'bg-accent text-white hover:opacity-90'
+                      : 'border border-border text-text-sec hover:text-text'
+                  }`}
+                >
+                  {status === 'logged' ? t('dash.logRecipe') : t('dash.addToPlan')}
+                </button>
+              ))}
               <button onClick={handleClear} className="border border-border text-text-sec px-4 py-2 rounded-lg text-sm cursor-pointer hover:text-text">{t('common.cancel')}</button>
             </div>
           </div>
@@ -606,7 +720,18 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
 
       {/* Entries table */}
       <div>
-        <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider mb-3">{t('dash.todayEntries')}</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider">{t('dash.todayEntries')}</h3>
+          {plannedEntries.some(e => e.meal === 'Lunch' || e.meal === 'Dinner') && (
+            <button
+              onClick={handleSwapLunchDinner}
+              title={t('dash.swapLunchDinner')}
+              className="text-xs text-text-sec border border-border rounded-lg px-2 py-1 hover:border-accent/50 hover:text-text cursor-pointer transition-colors"
+            >
+              🔄 {t('dash.swapLunchDinner')}
+            </button>
+          )}
+        </div>
         {entries.length === 0
           ? <p className="text-text-sec text-sm">{t('dash.nothingLogged')}</p>
           : <EntryTable entries={entries} foods={foods} onRefresh={load} onConfirm={handleConfirmPlanned} />}
