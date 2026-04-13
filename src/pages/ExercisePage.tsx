@@ -39,7 +39,7 @@ export default function ExercisePage() {
   const totalMin      = Math.round(recentExercises.reduce((s, e) => s + e.duration_min, 0));
 
   return (
-    <div className="p-6 max-w-3xl mx-auto flex flex-col gap-6">
+    <div className="p-6 max-w-6xl mx-auto flex flex-col gap-6">
       <h1 className="text-xl font-bold text-text">Exercise</h1>
 
       {/* Stats */}

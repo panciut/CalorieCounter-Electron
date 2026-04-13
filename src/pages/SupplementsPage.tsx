@@ -154,7 +154,7 @@ export default function SupplementsPage() {
   const blankSuppl: Supplement = { id: 0, name: '', qty: 1, unit: '', notes: '', created_at: '' };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-5">
+    <div className="p-6 max-w-6xl mx-auto space-y-5">
       <h1 className="text-2xl font-bold text-text">{t('suppl.title')}</h1>
 
       {/* Tabs */}

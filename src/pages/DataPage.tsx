@@ -128,7 +128,7 @@ export default function DataPage() {
   }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto space-y-8">
+    <div className="p-6 max-w-6xl mx-auto space-y-8">
       <h1 className="text-2xl font-bold text-text">Data</h1>
 
       {/* ── Export ─────────────────────────────────────────────────────────── */}

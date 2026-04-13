@@ -62,7 +62,7 @@ export default function MeasurementsPage() {
   const numCls = "w-full bg-bg border border-border rounded-lg px-3 py-2 text-text placeholder:text-text-sec focus:outline-none focus:border-accent text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6 max-w-6xl mx-auto">
       <h1 className="text-2xl font-bold text-text mb-6">{t('meas.title')}</h1>
 
       {/* Add form */}

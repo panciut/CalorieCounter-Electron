@@ -46,7 +46,7 @@ export default function NetPage() {
   const xInterval = range === 7 ? 0 : range === 30 ? 4 : 12;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto flex flex-col gap-6">
+    <div className="p-6 max-w-6xl mx-auto flex flex-col gap-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-xl font-bold text-text">Net Calories</h1>

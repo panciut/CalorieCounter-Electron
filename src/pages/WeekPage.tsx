@@ -138,7 +138,7 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
       <button
         className="text-accent text-sm hover:opacity-80 transition-opacity cursor-pointer"
         onClick={() => navigate('history')}

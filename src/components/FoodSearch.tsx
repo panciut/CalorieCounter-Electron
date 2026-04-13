@@ -137,10 +137,10 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
                 <div className="truncate">{item.name}</div>
                 <div className="text-[11px] text-text-sec tabular-nums">
                   {Math.round(item.calories)} kcal
-                  <span className="mx-1">·</span>F {Math.round(item.fat * 10) / 10}
-                  <span className="mx-1">·</span>C {Math.round(item.carbs * 10) / 10}
-                  {(item.fiber ?? 0) > 0 && <><span className="mx-1">·</span>Fi {Math.round((item.fiber ?? 0) * 10) / 10}</>}
-                  <span className="mx-1">·</span>P {Math.round(item.protein * 10) / 10}
+                  <span className="mx-1">·</span>Fat {Math.round(item.fat * 10) / 10}g
+                  <span className="mx-1">·</span>Carbs {Math.round(item.carbs * 10) / 10}g
+                  <span className="mx-1">·</span>Fiber {Math.round((item.fiber ?? 0) * 10) / 10}g
+                  <span className="mx-1">·</span>Protein {Math.round(item.protein * 10) / 10}g
                   {!item.isRecipe && <span className="ml-1 opacity-60">/100g</span>}
                 </div>
               </div>
