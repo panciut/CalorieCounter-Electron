@@ -1,4 +1,5 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Fuse from 'fuse.js';
 import type { Food, Recipe } from '../types';
 
@@ -17,6 +18,7 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
   const [query, setQuery] = useState(value ?? '');
   const [activeIdx, setActiveIdx] = useState(-1);
   const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef  = useRef<HTMLUListElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -46,13 +48,32 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
   // Click outside closes
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      const target = e.target as Node;
+      if (containerRef.current && containerRef.current.contains(target)) return;
+      if (listRef.current && listRef.current.contains(target)) return;
+      setOpen(false);
     }
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
+
+  // Track input position for portaled dropdown
+  useLayoutEffect(() => {
+    if (!open) return;
+    function update() {
+      const el = inputRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      setRect({ top: r.bottom + 4, left: r.left, width: r.width });
+    }
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [open, query]);
 
   const select = useCallback((item: SearchItem) => {
     setQuery(clearAfterSelect ? '' : item.name);
@@ -96,10 +117,11 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
         placeholder={placeholder}
         className="w-full bg-card border border-border rounded-md px-3 py-2 text-md text-text placeholder:text-text-sec outline-none focus:border-accent transition-colors"
       />
-      {open && results.length > 0 && (
+      {open && results.length > 0 && rect && createPortal(
         <ul
           ref={listRef}
-          className="absolute z-30 top-full left-0 right-0 mt-1 bg-card border border-border rounded-md shadow-DEFAULT overflow-hidden max-h-64 overflow-y-auto"
+          style={{ position: 'fixed', top: rect.top, left: rect.left, width: rect.width }}
+          className="z-[100] bg-card border border-border rounded-md shadow-lg max-h-72 overflow-y-auto"
         >
           {results.map((item, i) => (
             <li
@@ -107,17 +129,27 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
               onMouseDown={() => select(item)}
               onMouseEnter={() => setActiveIdx(i)}
               className={[
-                'flex items-center justify-between px-3 py-2 text-md cursor-pointer transition-colors',
+                'flex items-center justify-between gap-2 px-3 py-2 text-md cursor-pointer transition-colors',
                 i === activeIdx ? 'bg-accent/15 text-text' : 'text-text hover:bg-card-hover',
               ].join(' ')}
             >
-              <span>{item.name}</span>
+              <div className="min-w-0 flex-1">
+                <div className="truncate">{item.name}</div>
+                <div className="text-[11px] text-text-sec tabular-nums">
+                  {Math.round(item.calories)} kcal
+                  <span className="mx-1">·</span>P {Math.round(item.protein * 10) / 10}
+                  <span className="mx-1">·</span>C {Math.round(item.carbs * 10) / 10}
+                  <span className="mx-1">·</span>F {Math.round(item.fat * 10) / 10}
+                  {!item.isRecipe && <span className="ml-1 opacity-60">/100g</span>}
+                </div>
+              </div>
               {item.isRecipe && (
-                <span className="text-xs px-1.5 py-0.5 rounded bg-accent/20 text-accent2 ml-2 shrink-0">recipe</span>
+                <span className="text-xs px-1.5 py-0.5 rounded bg-accent/20 text-accent2 shrink-0">recipe</span>
               )}
             </li>
           ))}
-        </ul>
+        </ul>,
+        document.body
       )}
     </div>
   );

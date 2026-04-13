@@ -1,6 +1,7 @@
 import { useState, Fragment } from 'react';
 import { useT } from '../i18n/useT';
 import { api } from '../api';
+import { useToast } from './Toast';
 import type { LogEntry, Food, Meal } from '../types';
 
 const MEAL_ORDER: Meal[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
@@ -24,7 +25,32 @@ interface EditState {
 
 export default function EntryTable({ entries, foods, onRefresh, onConfirm }: EntryTableProps) {
   const { t, tMeal } = useT();
+  const { showToast } = useToast();
   const [editing, setEditing] = useState<EditState | null>(null);
+  const [saveMeal, setSaveMeal] = useState<{ meal: Meal; entries: LogEntry[] } | null>(null);
+  const [bundleName, setBundleName] = useState('');
+
+  function openSaveMeal(meal: Meal, mealEntries: LogEntry[]) {
+    setSaveMeal({ meal, entries: mealEntries });
+    const d = mealEntries[0]?.date ?? '';
+    setBundleName(`${tMeal(meal)}${d ? ' ' + d : ''}`);
+  }
+
+  async function confirmSaveMeal() {
+    if (!saveMeal || !bundleName.trim()) return;
+    const merged = new Map<number, number>();
+    for (const e of saveMeal.entries) {
+      merged.set(e.food_id, (merged.get(e.food_id) ?? 0) + e.grams);
+    }
+    const ingredients = Array.from(merged.entries()).map(([food_id, grams]) => ({
+      food_id,
+      grams: Math.round(grams * 10) / 10,
+    }));
+    await api.recipes.create({ name: bundleName.trim(), description: '', ingredients });
+    showToast(t('entry.bundleSaved'));
+    setSaveMeal(null);
+    setBundleName('');
+  }
 
   if (!entries.length) {
     return <p className="text-text-sec text-sm py-4">{t('dash.nothingLogged')}</p>;
@@ -258,7 +284,15 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                     <td className="pt-1.5 text-right tabular-nums">{tot.carbs}g</td>
                     <td className="pt-1.5 text-right tabular-nums">{tot.fat}g</td>
                     <td className="pt-1.5 text-right tabular-nums">{tot.fiber}g</td>
-                    <td />
+                    <td className="pt-1.5 text-right">
+                      <button
+                        onClick={() => openSaveMeal(meal, groups[meal])}
+                        title={t('entry.saveAsBundle')}
+                        className="text-text-sec hover:text-accent px-1 cursor-pointer transition-colors"
+                      >
+                        ＋📦
+                      </button>
+                    </td>
                   </tr>
                 );
               })()}
@@ -266,6 +300,35 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
           </table>
         </div>
       ))}
+      {saveMeal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-md mx-4 space-y-4">
+            <h2 className="font-semibold text-text text-lg">{t('entry.saveAsBundle')}</h2>
+            <p className="text-xs text-text-sec">
+              {saveMeal.entries.length} {saveMeal.entries.length === 1 ? t('entry.item') : t('entry.items')}
+            </p>
+            <input
+              autoFocus
+              className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none focus:border-accent"
+              placeholder={t('common.name')}
+              value={bundleName}
+              onChange={e => setBundleName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') confirmSaveMeal(); }}
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => { setSaveMeal(null); setBundleName(''); }}
+                className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer"
+              >{t('common.cancel')}</button>
+              <button
+                onClick={confirmSaveMeal}
+                disabled={!bundleName.trim()}
+                className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40 cursor-pointer"
+              >{t('common.save')}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

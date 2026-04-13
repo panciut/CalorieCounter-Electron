@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
+import AddFoodRow from '../components/AddFoodRow';
 import { today } from '../lib/dateUtil';
 import type { Recipe, RecipeIngredient, ActualRecipe, ActualRecipeIngredient, Food, Meal, PantryIngredientCheck } from '../types';
 
@@ -298,9 +299,6 @@ function BundleDetailModal({ detail, foods, onClose, onSave, onChange }: {
   onSave: () => void;
   onChange: (r: Recipe) => void;
 }) {
-  const [newFoodId, setNewFoodId] = useState('');
-  const [newGrams, setNewGrams]   = useState('');
-
   function updateGrams(idx: number, val: string) {
     const ings = [...(detail.ingredients ?? [])];
     ings[idx] = { ...ings[idx], editGrams: parseFloat(val) || 0 };
@@ -313,20 +311,14 @@ function BundleDetailModal({ detail, foods, onClose, onSave, onChange }: {
     onChange({ ...detail, ingredients: ings });
   }
 
-  function addIng() {
-    const food = foods.find(f => f.id === Number(newFoodId));
-    if (!food || !newGrams) return;
-    const g = parseFloat(newGrams);
+  function addIng(food: Food, g: number) {
     const newIng: RecipeIngredient = {
       id: 0, food_id: food.id, name: food.name, grams: g, editGrams: g,
       calories: food.calories * g / 100, protein: food.protein * g / 100,
       carbs: food.carbs * g / 100, fat: food.fat * g / 100, fiber: food.fiber * g / 100,
     };
     onChange({ ...detail, ingredients: [...(detail.ingredients ?? []), newIng] });
-    setNewFoodId(''); setNewGrams('');
   }
-
-  const inputCls = 'w-full rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
@@ -345,17 +337,8 @@ function BundleDetailModal({ detail, foods, onClose, onSave, onChange }: {
             </div>
           ))}
         </div>
-        <div className="flex gap-2 border-t border-border pt-3">
-          <select
-            className="flex-1 rounded-lg border border-border bg-bg px-2 py-1.5 text-sm text-text focus:outline-none focus:border-accent"
-            value={newFoodId} onChange={e => setNewFoodId(e.target.value)}>
-            <option value="">Add ingredient…</option>
-            {foods.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-          </select>
-          <input type="number" placeholder="g"
-            className="w-20 rounded-lg border border-border bg-bg px-2 py-1.5 text-sm text-text focus:outline-none focus:border-accent"
-            value={newGrams} onChange={e => setNewGrams(e.target.value)} />
-          <button onClick={addIng} className="px-3 py-1.5 rounded-lg bg-accent/10 text-accent text-sm font-medium hover:bg-accent/20 cursor-pointer">Add</button>
+        <div className="border-t border-border pt-3">
+          <AddFoodRow foods={foods} onAdd={addIng} />
         </div>
         <div className="flex gap-2 justify-end pt-1">
           <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
@@ -366,61 +349,95 @@ function BundleDetailModal({ detail, foods, onClose, onSave, onChange }: {
   );
 }
 
-function BundleCreateModal({ foods, onClose, onCreate }: {
+function BundleCreateModal({ foods, onClose, onCreate, initial }: {
   foods: Food[];
   onClose: () => void;
   onCreate: (data: { name: string; description: string; ingredients: { food_id: number; grams: number }[] }) => Promise<void>;
+  initial?: { name?: string; ingredients?: { food_id: number; name: string; grams: number }[] };
 }) {
-  const [name, setName]               = useState('');
+  const [name, setName]               = useState(initial?.name ?? '');
   const [desc, setDesc]               = useState('');
-  const [ingredients, setIngredients] = useState<{ food_id: number; name: string; grams: number }[]>([]);
-  const [newFoodId, setNewFoodId]     = useState('');
-  const [newGrams, setNewGrams]       = useState('');
+  const [ingredients, setIngredients] = useState<{ food_id: number; name: string; grams: number }[]>(initial?.ingredients ?? []);
 
-  function addIng() {
-    const food = foods.find(f => f.id === Number(newFoodId));
-    if (!food || !newGrams) return;
-    setIngredients(prev => [...prev, { food_id: food.id, name: food.name, grams: parseFloat(newGrams) }]);
-    setNewFoodId(''); setNewGrams('');
+  function addIng(food: Food, g: number) {
+    setIngredients(prev => {
+      const idx = prev.findIndex(x => x.food_id === food.id);
+      if (idx >= 0) {
+        const next = [...prev];
+        next[idx] = { ...next[idx], grams: Math.round((next[idx].grams + g) * 10) / 10 };
+        return next;
+      }
+      return [...prev, { food_id: food.id, name: food.name, grams: g }];
+    });
   }
 
-  const inputCls = 'w-full rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent';
+  const inputCls = 'w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none focus:border-accent';
+
+  const foodsById = new Map(foods.map(f => [f.id, f]));
+  const totals = ingredients.reduce((acc, ing) => {
+    const f = foodsById.get(ing.food_id);
+    if (!f) return acc;
+    const r = ing.grams / 100;
+    acc.cal     += f.calories * r;
+    acc.protein += f.protein  * r;
+    acc.carbs   += f.carbs    * r;
+    acc.fat     += f.fat      * r;
+    acc.fiber   += f.fiber    * r;
+    return acc;
+  }, { cal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg mx-4 space-y-4 max-h-[85vh] overflow-y-auto">
-        <h2 className="font-semibold text-text text-lg">New Bundle</h2>
-        <div className="space-y-3">
-          <input className={inputCls} placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto flex flex-col gap-5">
+        <h2 className="font-semibold text-text text-xl">New Bundle</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <input className={inputCls} placeholder="Name" value={name} onChange={e => setName(e.target.value)} autoFocus />
           <input className={inputCls} placeholder="Description (optional)" value={desc} onChange={e => setDesc(e.target.value)} />
         </div>
-        <div className="space-y-2">
-          {ingredients.map((ing, i) => (
-            <div key={i} className="flex items-center gap-2 text-sm text-text">
-              <span className="flex-1">{ing.name}</span>
-              <span className="text-text-sec">{ing.grams}g</span>
-              <button onClick={() => setIngredients(p => p.filter((_, j) => j !== i))} className="text-red hover:opacity-75 cursor-pointer">✕</button>
+
+        <div className="flex flex-wrap gap-4 text-xs text-text-sec bg-bg rounded-lg px-4 py-3 tabular-nums">
+          <span><span className="text-text font-semibold text-sm">{Math.round(totals.cal)}</span> kcal</span>
+          <span>P <span className="text-text font-medium">{Math.round(totals.protein * 10) / 10}</span>g</span>
+          <span>C <span className="text-text font-medium">{Math.round(totals.carbs * 10) / 10}</span>g</span>
+          <span>F <span className="text-text font-medium">{Math.round(totals.fat * 10) / 10}</span>g</span>
+          <span>Fiber <span className="text-text font-medium">{Math.round(totals.fiber * 10) / 10}</span>g</span>
+          <span className="ml-auto">{ingredients.length} {ingredients.length === 1 ? 'ingredient' : 'ingredients'}</span>
+        </div>
+
+        <div>
+          <div className="text-xs font-semibold text-text-sec uppercase tracking-wider mb-2">Add ingredient</div>
+          <AddFoodRow foods={foods} onAdd={addIng} />
+        </div>
+
+        <div>
+          <div className="text-xs font-semibold text-text-sec uppercase tracking-wider mb-2">Ingredients</div>
+          {ingredients.length === 0 ? (
+            <p className="text-sm text-text-sec italic">No ingredients yet.</p>
+          ) : (
+            <div className="space-y-1 border border-border rounded-lg p-2 max-h-72 overflow-y-auto">
+              {ingredients.map((ing, i) => {
+                const f = foodsById.get(ing.food_id);
+                const r = ing.grams / 100;
+                return (
+                  <div key={i} className="flex items-center gap-3 text-sm text-text px-2 py-1.5 hover:bg-card-hover rounded">
+                    <span className="flex-1 truncate">{ing.name}</span>
+                    <span className="text-text-sec tabular-nums w-16 text-right">{ing.grams}g</span>
+                    <span className="text-text-sec tabular-nums w-16 text-right">{f ? Math.round(f.calories * r) : '—'} kcal</span>
+                    <button onClick={() => setIngredients(p => p.filter((_, j) => j !== i))} className="text-red hover:opacity-75 cursor-pointer px-1">✕</button>
+                  </div>
+                );
+              })}
             </div>
-          ))}
+          )}
         </div>
-        <div className="flex gap-2 border-t border-border pt-3">
-          <select
-            className="flex-1 rounded-lg border border-border bg-bg px-2 py-1.5 text-sm text-text focus:outline-none focus:border-accent"
-            value={newFoodId} onChange={e => setNewFoodId(e.target.value)}>
-            <option value="">Add ingredient…</option>
-            {foods.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-          </select>
-          <input type="number" placeholder="g"
-            className="w-20 rounded-lg border border-border bg-bg px-2 py-1.5 text-sm text-text focus:outline-none focus:border-accent"
-            value={newGrams} onChange={e => setNewGrams(e.target.value)} />
-          <button onClick={addIng} className="px-3 py-1.5 rounded-lg bg-accent/10 text-accent text-sm font-medium hover:bg-accent/20 cursor-pointer">Add</button>
-        </div>
-        <div className="flex gap-2 justify-end pt-1">
+
+        <div className="flex gap-2 justify-end pt-2 border-t border-border">
           <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
           <button
             onClick={() => onCreate({ name, description: desc, ingredients })}
             disabled={!name || ingredients.length === 0}
-            className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40 cursor-pointer"
+            className="px-5 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40 cursor-pointer"
           >Create</button>
         </div>
       </div>
