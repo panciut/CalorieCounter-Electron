@@ -27,7 +27,7 @@ function MacroRow({ macro, form, inputCls, setField, t }: {
         return (
           <input
             key={suffix}
-            type="number"
+            type="text" inputMode="decimal"
             className={inputCls}
             placeholder={label}
             value={(form[key] as number) ?? ""}
@@ -233,7 +233,7 @@ export default function GoalsPage() {
           <div className="space-y-1">
             <label className="text-xs text-text-sec">{t("goals.calcWeight")}</label>
             <input
-              type="number"
+              type="text" inputMode="decimal"
               className={inputCls}
               placeholder="kg"
               value={calcWeight}
@@ -243,7 +243,7 @@ export default function GoalsPage() {
           <div className="space-y-1">
             <label className="text-xs text-text-sec">{t("goals.calcCalories")}</label>
             <input
-              type="number"
+              type="text" inputMode="decimal"
               className={inputCls}
               value={form.cal_rec ?? ""}
               onChange={(e) => setField("cal_rec", parseFloat(e.target.value))}
@@ -287,7 +287,7 @@ export default function GoalsPage() {
               return (
                 <input
                   key={key}
-                  type="number"
+                  type="text" inputMode="decimal"
                   className={inputCls}
                   placeholder={label}
                   value={form[key] as number ?? ""}
@@ -316,7 +316,7 @@ export default function GoalsPage() {
           <div className="space-y-1">
             <label className="text-xs text-text-sec">{t("settings.goalWeight")}</label>
             <input
-              type="number"
+              type="text" inputMode="decimal"
               className={inputCls}
               value={form.weight_goal ?? ""}
               onChange={(e) => setField("weight_goal", parseFloat(e.target.value))}
@@ -325,7 +325,7 @@ export default function GoalsPage() {
           <div className="space-y-1">
             <label className="text-xs text-text-sec">{t("settings.waterGoal")}</label>
             <input
-              type="number"
+              type="text" inputMode="decimal"
               className={inputCls}
               value={form.water_goal ?? ""}
               onChange={(e) => setField("water_goal", parseFloat(e.target.value))}
@@ -343,7 +343,7 @@ export default function GoalsPage() {
                 <div key={n} className="space-y-1">
                   <label className="text-xs text-text-sec">{t(`settings.tol${n}`)}</label>
                   <input
-                    type="number"
+                    type="text" inputMode="decimal"
                     className={inputCls}
                     value={form[key] as number ?? ""}
                     onChange={(e) => setField(key, parseFloat(e.target.value))}

@@ -132,7 +132,7 @@ export default function ExerciseSection({ date, weightKg, onCaloriesChange }: Pr
             </div>
             <div className="space-y-1">
               <label className="text-xs text-text-sec">Duration (min)</label>
-              <input type="number" className={inputCls} value={duration} onChange={e => setDuration(e.target.value)} placeholder="30" />
+              <input type="text" inputMode="decimal" className={inputCls} value={duration} onChange={e => setDuration(e.target.value)} placeholder="30" />
             </div>
           </div>
 
@@ -152,8 +152,8 @@ export default function ExerciseSection({ date, weightKg, onCaloriesChange }: Pr
               {sets.map((s, i) => (
                 <div key={i} className="flex gap-2 items-center">
                   <span className="text-xs text-text-sec w-8">#{i + 1}</span>
-                  <input type="number" className="w-20 rounded-lg border border-border bg-bg px-2 py-1 text-sm text-text focus:outline-none focus:border-accent" placeholder="Reps" value={s.reps} onChange={e => setSets(ss => ss.map((x, j) => j === i ? { ...x, reps: e.target.value } : x))} />
-                  <input type="number" className="w-20 rounded-lg border border-border bg-bg px-2 py-1 text-sm text-text focus:outline-none focus:border-accent" placeholder="kg" value={s.weight_kg} onChange={e => setSets(ss => ss.map((x, j) => j === i ? { ...x, weight_kg: e.target.value } : x))} />
+                  <input type="text" inputMode="decimal" className="w-20 rounded-lg border border-border bg-bg px-2 py-1 text-sm text-text focus:outline-none focus:border-accent" placeholder="Reps" value={s.reps} onChange={e => setSets(ss => ss.map((x, j) => j === i ? { ...x, reps: e.target.value } : x))} />
+                  <input type="text" inputMode="decimal" className="w-20 rounded-lg border border-border bg-bg px-2 py-1 text-sm text-text focus:outline-none focus:border-accent" placeholder="kg" value={s.weight_kg} onChange={e => setSets(ss => ss.map((x, j) => j === i ? { ...x, weight_kg: e.target.value } : x))} />
                   {sets.length > 1 && <button onClick={() => setSets(ss => ss.filter((_, j) => j !== i))} className="text-red text-xs cursor-pointer">✕</button>}
                 </div>
               ))}

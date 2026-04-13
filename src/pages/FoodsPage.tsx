@@ -35,7 +35,7 @@ function FormFields({ form, patch }: FormFieldsProps) {
       </div>
       <div className="grid grid-cols-2 gap-2">
         {([['calories','foods.kcalPlaceholder'],['protein','foods.proteinPlaceholder'],['carbs','foods.carbsPlaceholder'],['fat','foods.fatPlaceholder'],['fiber','foods.fiberPlaceholder'],['piece_grams','foods.piecePlaceholder']] as [string,string][]).map(([field, ph]) => (
-          <input key={field} type="number" step="any" value={(form as Record<string, string>)[field]} onChange={e => patch({ [field]: e.target.value })} placeholder={t(ph)} className={`${INPUT_CLASS} w-full`} />
+          <input key={field} type="text" inputMode="decimal" step="any" value={(form as Record<string, string>)[field]} onChange={e => patch({ [field]: e.target.value })} placeholder={t(ph)} className={`${INPUT_CLASS} w-full`} />
         ))}
       </div>
       <label className="flex items-center gap-2 text-sm text-text-sec cursor-pointer">

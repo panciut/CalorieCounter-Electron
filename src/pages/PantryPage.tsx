@@ -187,7 +187,7 @@ export default function PantryPage() {
                     </div>
                   )}
                   <input
-                    type="number"
+                    type="text" inputMode="decimal"
                     value={qty}
                     onChange={e => setQty(e.target.value)}
                     placeholder={usePieces ? 'pieces' : 'grams'}
@@ -239,7 +239,7 @@ export default function PantryPage() {
                               </button>
                             )}
                             <input
-                              type="number"
+                              type="text" inputMode="decimal"
                               value={editQty}
                               onChange={e => setEditQty(e.target.value)}
                               autoFocus
@@ -299,7 +299,7 @@ export default function PantryPage() {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs font-medium text-text flex-1">{shopFood.name}</span>
                 <input
-                  type="number"
+                  type="text" inputMode="decimal"
                   value={shopQty}
                   onChange={e => setShopQty(e.target.value)}
                   placeholder="Amount (g, optional)"

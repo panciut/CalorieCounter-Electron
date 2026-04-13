@@ -156,7 +156,6 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
             <p className="text-xs text-text-sec mb-1">Avg net / day</p>
             <p className={`font-semibold text-sm ${avgNet <= 0 ? 'text-green' : 'text-accent'}`}>
               {avgNet > 0 ? '+' : ''}{avgNet} kcal
-              <span className="text-text-sec font-normal text-xs ml-1">({daysWithEnergy.length}d with energy data)</span>
             </p>
           </div>
         )}

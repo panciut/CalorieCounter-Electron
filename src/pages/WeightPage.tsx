@@ -120,7 +120,7 @@ export default function WeightPage() {
             <div className="flex gap-3 items-end flex-wrap">
               <input type="date" className={`${inputCls} flex-1 min-w-[140px]`} value={date} onChange={e => setDate(e.target.value)} />
               <input
-                type="number"
+                type="text" inputMode="decimal"
                 className={`${inputCls} w-32`}
                 placeholder={t("weight.kgPlaceholder")}
                 value={weight}
@@ -195,23 +195,23 @@ export default function WeightPage() {
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-text-sec">Weight (kg, required)</label>
-                <input type="number" className={inputCls} placeholder="kg" value={weight} onChange={e => setWeight(e.target.value)} />
+                <input type="text" inputMode="decimal" className={inputCls} placeholder="kg" value={weight} onChange={e => setWeight(e.target.value)} />
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-text-sec">Body fat (%)</label>
-                <input type="number" className={inputCls} placeholder="e.g. 18.5" value={fatPct} onChange={e => setFatPct(e.target.value)} />
+                <input type="text" inputMode="decimal" className={inputCls} placeholder="e.g. 18.5" value={fatPct} onChange={e => setFatPct(e.target.value)} />
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-text-sec">Muscle mass (kg)</label>
-                <input type="number" className={inputCls} placeholder="kg" value={muscleMass} onChange={e => setMuscleMass(e.target.value)} />
+                <input type="text" inputMode="decimal" className={inputCls} placeholder="kg" value={muscleMass} onChange={e => setMuscleMass(e.target.value)} />
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-text-sec">Body water (%)</label>
-                <input type="number" className={inputCls} placeholder="e.g. 55" value={waterPct} onChange={e => setWaterPct(e.target.value)} />
+                <input type="text" inputMode="decimal" className={inputCls} placeholder="e.g. 55" value={waterPct} onChange={e => setWaterPct(e.target.value)} />
               </div>
               <div className="space-y-1">
                 <label className="text-xs text-text-sec">Bone mass (kg)</label>
-                <input type="number" className={inputCls} placeholder="kg" value={boneMass} onChange={e => setBoneMass(e.target.value)} />
+                <input type="text" inputMode="decimal" className={inputCls} placeholder="kg" value={boneMass} onChange={e => setBoneMass(e.target.value)} />
               </div>
             </div>
             <button onClick={handleAdd} disabled={!weight} className="w-full rounded-xl bg-accent text-white py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-40 cursor-pointer">

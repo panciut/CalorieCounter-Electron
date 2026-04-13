@@ -80,7 +80,7 @@ export default function SupplementsPage() {
           <div className="w-24">
             <label className="block text-xs text-text-sec mb-1">{t('suppl.qty')}</label>
             <input
-              type="number"
+              type="text" inputMode="decimal"
               className={`w-full text-sm ${numCls}`}
               value={newQty}
               min={1}
@@ -124,7 +124,7 @@ export default function SupplementsPage() {
                       </td>
                       <td className="px-4 py-2">
                         <input
-                          type="number"
+                          type="text" inputMode="decimal"
                           className={`w-16 text-sm ${numCls}`}
                           value={editQty}
                           min={1}

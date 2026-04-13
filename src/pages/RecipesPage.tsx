@@ -236,7 +236,7 @@ function BundlesTab() {
             <div className="space-y-3">
               <div className="space-y-1">
                 <label className="text-xs text-text-sec">Scale (1 = full bundle)</label>
-                <input type="number" className={inputCls} value={logScale} step="0.1"
+                <input type="text" inputMode="decimal" className={inputCls} value={logScale} step="0.1"
                   onChange={e => setLogScale(e.target.value)} />
               </div>
               <div className="space-y-1">
@@ -328,7 +328,7 @@ function BundleDetailModal({ detail, foods, onClose, onSave, onChange }: {
           {(detail.ingredients ?? []).map((ing, i) => (
             <div key={i} className="flex items-center gap-2">
               <span className="flex-1 text-sm text-text truncate">{ing.name}</span>
-              <input type="number"
+              <input type="text" inputMode="decimal"
                 className="w-20 rounded-lg border border-border bg-bg px-2 py-1 text-sm text-text focus:outline-none focus:border-accent text-right"
                 value={ing.editGrams ?? ing.grams}
                 onChange={e => updateGrams(i, e.target.value)} />
@@ -682,7 +682,7 @@ function RecipesTab() {
             <div className="space-y-3">
               <div className="space-y-1">
                 <label className="text-xs text-text-sec">How much did you eat? (g)</label>
-                <input type="number" className={inputCls} value={logGrams} placeholder="grams eaten"
+                <input type="text" inputMode="decimal" className={inputCls} value={logGrams} placeholder="grams eaten"
                   onChange={e => setLogGrams(e.target.value)} />
               </div>
               {logPreview && (
@@ -794,7 +794,7 @@ function RecipeDetailModal({ detail: initialDetail, foods, onClose, onSave }: {
           <div className="flex gap-3 items-end">
             <div className="flex-1 space-y-1">
               <label className="text-xs text-text-sec">Yield (total cooked weight, g)</label>
-              <input type="number" className={inputCls} value={detail.yield_g || ''}
+              <input type="text" inputMode="decimal" className={inputCls} value={detail.yield_g || ''}
                 placeholder="e.g. 800"
                 onChange={e => setDetail(d => ({ ...d, yield_g: parseFloat(e.target.value) || 0 }))} />
             </div>
@@ -821,7 +821,7 @@ function RecipeDetailModal({ detail: initialDetail, foods, onClose, onSave }: {
             {(detail.ingredients ?? []).map((ing, i) => (
               <div key={i} className="flex items-center gap-2">
                 <span className="flex-1 text-sm text-text truncate">{ing.name}</span>
-                <input type="number"
+                <input type="text" inputMode="decimal"
                   className="w-20 rounded-lg border border-border bg-bg px-2 py-1 text-sm text-text focus:outline-none focus:border-accent text-right"
                   value={ing.grams} onChange={e => updateIngGrams(i, e.target.value)} />
                 <span className="text-xs text-text-sec">g</span>
@@ -835,7 +835,7 @@ function RecipeDetailModal({ detail: initialDetail, foods, onClose, onSave }: {
                 <option value="">Add ingredient…</option>
                 {foods.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
-              <input type="number" placeholder="g"
+              <input type="text" inputMode="decimal" placeholder="g"
                 className="w-20 rounded-lg border border-border bg-bg px-2 py-1.5 text-sm text-text focus:outline-none focus:border-accent"
                 value={newGrams} onChange={e => setNewGrams(e.target.value)} />
               <button onClick={addIng} className="px-3 py-1.5 rounded-lg bg-accent/10 text-accent text-sm font-medium hover:bg-accent/20 cursor-pointer">Add</button>
@@ -894,7 +894,7 @@ function RecipeCreateModal({ foods, onClose, onCreate }: {
           <input className={inputCls} placeholder="Description (optional)" value={desc} onChange={e => setDesc(e.target.value)} />
           <div className="space-y-1">
             <label className="text-xs text-text-sec">Yield (total cooked weight, g)</label>
-            <input type="number" className={inputCls} placeholder="e.g. 800" value={yieldG} onChange={e => setYieldG(e.target.value)} />
+            <input type="text" inputMode="decimal" className={inputCls} placeholder="e.g. 800" value={yieldG} onChange={e => setYieldG(e.target.value)} />
           </div>
         </div>
 
@@ -926,7 +926,7 @@ function RecipeCreateModal({ foods, onClose, onCreate }: {
                 <option value="">Add ingredient…</option>
                 {foods.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
               </select>
-              <input type="number" placeholder="g"
+              <input type="text" inputMode="decimal" placeholder="g"
                 className="w-20 rounded-lg border border-border bg-bg px-2 py-1.5 text-sm text-text focus:outline-none focus:border-accent"
                 value={newGrams} onChange={e => setNewGrams(e.target.value)} />
               <button onClick={addIng} className="px-3 py-1.5 rounded-lg bg-accent/10 text-accent text-sm font-medium hover:bg-accent/20 cursor-pointer">Add</button>

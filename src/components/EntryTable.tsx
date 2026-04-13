@@ -186,7 +186,7 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                             {hasPieces && editing.mode === 'pieces' ? (
                               <>
                                 <input
-                                  type="number"
+                                  type="text" inputMode="decimal"
                                   value={editing.piecesStr}
                                   step="1"
                                   onChange={ev => {
@@ -213,7 +213,7 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                             ) : (
                               <>
                                 <input
-                                  type="number"
+                                  type="text" inputMode="decimal"
                                   value={editing.gramsStr}
                                   step="0.1"
                                   onChange={ev => {

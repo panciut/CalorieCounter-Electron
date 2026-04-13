@@ -82,7 +82,7 @@ export default function MeasurementsPage() {
             <div key={field}>
               <label className="block text-xs text-text-sec mb-1">{t(`meas.${field}`)}</label>
               <input
-                type="number"
+                type="text" inputMode="decimal"
                 className={numCls}
                 placeholder="—"
                 value={form[field]}

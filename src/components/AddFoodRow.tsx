@@ -67,7 +67,7 @@ export default function AddFoodRow({ foods, onAdd }: AddFoodRowProps) {
           </div>
         <div className="flex items-center gap-2 flex-wrap">
           <input
-            type="number"
+            type="text" inputMode="decimal"
             value={amount}
             onChange={e => setAmount(e.target.value)}
             placeholder={usePieces ? `${t('common.pieces')} (${selected.piece_grams}g)` : t('common.grams')}

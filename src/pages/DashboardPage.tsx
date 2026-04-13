@@ -69,27 +69,27 @@ function QuickFoodDialog({ isOpen, onClose, date, meal, onLogged }: QuickFoodDia
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1">
             <label className="text-xs text-text-sec">{t('qf.kcalPer100')}</label>
-            <input type="number" value={kcal} onChange={e=>setKcal(e.target.value)} className={inputCls} />
+            <input type="text" inputMode="decimal" value={kcal} onChange={e=>setKcal(e.target.value)} className={inputCls} />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-text-sec">{t('qf.gramsToLog')}</label>
-            <input type="number" value={grams} onChange={e=>setGrams(e.target.value)} className={inputCls} />
+            <input type="text" inputMode="decimal" value={grams} onChange={e=>setGrams(e.target.value)} className={inputCls} />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-text-sec">{t('th.protein')} g/100g ({t('common.opt')})</label>
-            <input type="number" value={protein} onChange={e=>setProtein(e.target.value)} className={inputCls} />
+            <input type="text" inputMode="decimal" value={protein} onChange={e=>setProtein(e.target.value)} className={inputCls} />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-text-sec">{t('th.carbs')} g/100g ({t('common.opt')})</label>
-            <input type="number" value={carbs} onChange={e=>setCarbs(e.target.value)} className={inputCls} />
+            <input type="text" inputMode="decimal" value={carbs} onChange={e=>setCarbs(e.target.value)} className={inputCls} />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-text-sec">{t('th.fat')} g/100g ({t('common.opt')})</label>
-            <input type="number" value={fat} onChange={e=>setFat(e.target.value)} className={inputCls} />
+            <input type="text" inputMode="decimal" value={fat} onChange={e=>setFat(e.target.value)} className={inputCls} />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-xs text-text-sec">{t('qf.gPerPiece')} ({t('common.opt')})</label>
-            <input type="number" value={pieceG} onChange={e=>setPieceG(e.target.value)} className={inputCls} />
+            <input type="text" inputMode="decimal" value={pieceG} onChange={e=>setPieceG(e.target.value)} className={inputCls} />
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-1">
@@ -354,7 +354,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   // ── Render ───────────────────────────────────────────────────────────────────
 
   const inputCls = "bg-card border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
-  const numInputCls = "w-full bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text outline-none focus:border-accent text-center tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
+  const numInputCls = "w-full bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text outline-none focus:border-accent text-center tabular-nums";
 
   const loggedEntries  = entries.filter(e => e.status === 'logged');
   const caloriesIn     = Math.round(loggedEntries.reduce((s, e) => s + e.calories, 0));
@@ -483,7 +483,8 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
             <div className="flex flex-col gap-1">
               <label className="text-xs text-text-sec text-center">{t('energy.resting')}</label>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={restingKcal}
                 onChange={e => { setRestingKcal(e.target.value); setRestingFromYest(false); }}
                 onBlur={handleEnergySave}
@@ -495,7 +496,8 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
             <div className="flex flex-col gap-1">
               <label className="text-xs text-text-sec text-center">{t('energy.active')}</label>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={activeKcal}
                 onChange={e => setActiveKcal(e.target.value)}
                 onBlur={handleEnergySave}
@@ -506,7 +508,8 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
             <div className="flex flex-col gap-1">
               <label className="text-xs text-text-sec text-center" title={t('energy.extraHint')}>{t('energy.extra')}</label>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 value={extraKcal}
                 onChange={e => setExtraKcal(e.target.value)}
                 onBlur={handleEnergySave}
@@ -637,7 +640,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <input
-                type="number"
+                type="text" inputMode="decimal"
                 value={amount}
                 onChange={e=>setAmount(e.target.value)}
                 placeholder={usePieces ? `${t('common.pieces')} (${selectedFood.piece_grams}g)` : t('common.grams')}
@@ -681,7 +684,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                   <div key={ing.id} className="flex items-center gap-2 bg-bg rounded-lg px-3 py-2">
                     <span className="flex-1 text-sm text-text truncate">{ing.name}</span>
                     <input
-                      type="number"
+                      type="text" inputMode="decimal"
                       value={ing.editGrams}
                       min={0}
                       step={0.1}
@@ -763,7 +766,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
           <div className="flex flex-col gap-1">
             <label className="text-xs text-text-sec">{t('water.amountMl')}</label>
             <input
-              type="number"
+              type="text" inputMode="decimal"
               value={waterCustomMl}
               onChange={e=>setWaterCustomMl(e.target.value)}
               onKeyDown={e=>e.key==='Enter'&&handleWaterCustom()}
