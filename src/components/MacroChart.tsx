@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts';
 import MacroBreakdownTooltip from './MacroBreakdownTooltip';
+import { MACRO_COLORS } from '../lib/macroColors';
 import type { LogEntry } from '../types';
 
 interface MacroChartProps {
@@ -16,7 +17,7 @@ interface MacroChartProps {
   entries?: LogEntry[];
 }
 
-const COLORS = ['#f0921e', '#c45c00', '#a84a10'];
+const COLORS = [MACRO_COLORS.protein, MACRO_COLORS.carbs, MACRO_COLORS.fat];
 const LABELS = ['Protein', 'Carbs', 'Fat'];
 
 interface ActiveShapeProps {

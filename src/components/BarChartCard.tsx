@@ -15,6 +15,8 @@ interface BarChartCardProps {
   height?: number;
   unit?: string;
   color?: string;
+  yDomain?: [number | string, number | string];
+  onBarClick?: (index: number) => void;
 }
 
 export default function BarChartCard({
@@ -23,6 +25,8 @@ export default function BarChartCard({
   height = 220,
   unit = '',
   color = '#c45c00',
+  yDomain,
+  onBarClick,
 }: BarChartCardProps) {
   const chartData = data.map(d => ({ label: d.label, value: d.value, planned: d.planned ?? 0 }));
   const hasPlanned = chartData.some(d => d.planned > 0);
@@ -48,13 +52,14 @@ export default function BarChartCard({
           axisLine={false}
           tickLine={false}
           tickFormatter={v => `${v}${unit}`}
+          domain={yDomain}
         />
         <Tooltip
           contentStyle={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)' }}
           cursor={{ fill: 'var(--border)' }}
           formatter={(v: number, name: string) => [`${v}${unit}`, name === 'planned' ? 'planned' : 'logged']}
         />
-        <Bar dataKey="value" stackId="a" fill={color} radius={hasPlanned ? [0, 0, 0, 0] : [3, 3, 0, 0]} maxBarSize={48} />
+        <Bar dataKey="value" stackId="a" fill={color} radius={hasPlanned ? [0, 0, 0, 0] : [3, 3, 0, 0]} maxBarSize={48} onClick={onBarClick ? (_, index) => onBarClick(index) : undefined} style={onBarClick ? { cursor: 'pointer' } : undefined} />
         {hasPlanned && (
           <Bar dataKey="planned" stackId="a" fill="url(#planned-stripes)" stroke={color} strokeWidth={1} strokeOpacity={0.6} radius={[3, 3, 0, 0]} maxBarSize={48} />
         )}

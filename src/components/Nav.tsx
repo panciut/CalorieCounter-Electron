@@ -203,7 +203,7 @@ export default function Nav({ activePage }: NavProps) {
               : 'border-border text-text-sec hover:border-accent/50 hover:text-text',
           ].join(' ')}
         >
-          {editing ? t('nav.done') : t('nav.edit')}
+          {editing ? t('nav.done') : '✎'}
         </button>
       </div>
 

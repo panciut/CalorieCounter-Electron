@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 import { useSettings } from '../hooks/useSettings';
-import { formatShortDate } from '../lib/dateUtil';
+import { formatShortDate, buildDateRange } from '../lib/dateUtil';
 import {
   ResponsiveContainer, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
@@ -9,17 +9,6 @@ import {
 import type { CalorieTrendPoint } from '../types';
 
 type Range = 7 | 30 | 90;
-
-function buildDateRange(days: number): string[] {
-  const dates: string[] = [];
-  const now = new Date();
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    dates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
-  }
-  return dates;
-}
 
 export default function NetPage() {
   const { settings } = useSettings();

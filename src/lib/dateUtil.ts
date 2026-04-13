@@ -77,3 +77,14 @@ export function formatDMY(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number);
   return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
 }
+
+export function buildDateRange(days: number): string[] {
+  const dates: string[] = [];
+  const now = new Date();
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    dates.push(toLocalISO(d));
+  }
+  return dates;
+}
