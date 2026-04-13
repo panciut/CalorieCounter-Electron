@@ -73,6 +73,7 @@ export default function DayMacrosCard({ entries }: DayMacrosCardProps) {
           protein={pro} carbs={carbs} fat={fat} calories={cal}
           plannedProtein={plPro} plannedCarbs={plCarbs} plannedFat={plFat} plannedCalories={plCal}
           plannedLabel={t('dash.planned')}
+          entries={entries}
         />
       </div>
       <div className="flex-1 min-w-0 flex flex-col gap-3">
@@ -94,7 +95,7 @@ export default function DayMacrosCard({ entries }: DayMacrosCardProps) {
           </span>
           <span className="text-text-sec/70 text-xs ml-1">(target {calRec})</span>
         </div>
-        <MacroBars bars={bars} settings={settings} />
+        <MacroBars bars={bars} settings={settings} entries={entries} />
       </div>
     </div>
   );

@@ -519,13 +519,28 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
         {selectedFood && (
           <div className="flex flex-col gap-3">
             {/* Food preview */}
-            <div className="flex flex-wrap gap-3 text-xs text-text-sec bg-bg rounded-lg px-3 py-2">
-              <span className="text-text font-medium">{selectedFood.name}</span>
-              <span>{t('common.per100g')}:</span>
-              <span><span className="text-text font-medium">{selectedFood.calories}</span> kcal</span>
-              <span><span className="text-text font-medium">{selectedFood.protein}</span>g {t('macro.protein')}</span>
-              <span><span className="text-text font-medium">{selectedFood.carbs}</span>g {t('macro.carbs')}</span>
-              <span><span className="text-text font-medium">{selectedFood.fat}</span>g {t('macro.fat')}</span>
+            <div className="flex flex-col gap-1.5 text-xs bg-bg rounded-lg px-3 py-2">
+              <div className="flex flex-wrap gap-3 text-text-sec">
+                <span className="text-text font-medium">{selectedFood.name}</span>
+                <span>{t('common.per100g')}:</span>
+                <span><span className="text-text font-medium">{selectedFood.calories}</span> kcal</span>
+                <span><span className="text-text font-medium">{selectedFood.protein}</span>g {t('macro.protein')}</span>
+                <span><span className="text-text font-medium">{selectedFood.carbs}</span>g {t('macro.carbs')}</span>
+                <span><span className="text-text font-medium">{selectedFood.fat}</span>g {t('macro.fat')}</span>
+              </div>
+              {effectiveGrams > 0 && (() => {
+                const r = effectiveGrams / 100;
+                return (
+                  <div className="flex flex-wrap gap-3 text-text-sec border-t border-border pt-1.5">
+                    <span className="text-text font-medium">{Math.round(effectiveGrams * 10) / 10}g =</span>
+                    <span><span className="text-text font-semibold">{Math.round(selectedFood.calories * r)}</span> kcal</span>
+                    <span><span className="text-text font-semibold">{Math.round(selectedFood.protein * r * 10) / 10}</span>g {t('macro.protein')}</span>
+                    <span><span className="text-text font-semibold">{Math.round(selectedFood.carbs * r * 10) / 10}</span>g {t('macro.carbs')}</span>
+                    <span><span className="text-text font-semibold">{Math.round(selectedFood.fat * r * 10) / 10}</span>g {t('macro.fat')}</span>
+                    {selectedFood.fiber > 0 && <span><span className="text-text font-semibold">{Math.round(selectedFood.fiber * r * 10) / 10}</span>g {t('macro.fiber')}</span>}
+                  </div>
+                );
+              })()}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <input
@@ -539,9 +554,6 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                 <button type="button" onClick={()=>{ setUsePieces(v=>!v); setAmount(''); }} className="text-xs text-accent underline cursor-pointer">
                   {usePieces ? t('dash.switchToGrams') : t('dash.switchToPieces')}
                 </button>
-              )}
-              {effectiveGrams > 0 && !usePieces && (
-                <span className="text-xs text-text-sec">= {Math.round(selectedFood.calories * effectiveGrams / 100)} kcal</span>
               )}
             </div>
             <MealPills selected={meal} onChange={setMeal} />

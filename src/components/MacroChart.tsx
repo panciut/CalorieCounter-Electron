@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Sector } from 'recharts';
+import MacroBreakdownTooltip from './MacroBreakdownTooltip';
+import type { LogEntry } from '../types';
 
 interface MacroChartProps {
   protein: number;
@@ -11,6 +13,7 @@ interface MacroChartProps {
   plannedFat?: number;
   plannedCalories?: number;
   plannedLabel?: string;
+  entries?: LogEntry[];
 }
 
 const COLORS = ['#f0921e', '#c45c00', '#a84a10'];
@@ -41,12 +44,21 @@ function ActiveShape(props: ActiveShapeProps) {
   );
 }
 
+// Maps data array index → bar id and unit
+const SEGMENT_META = [
+  { id: 'protein', label: 'Protein', unit: 'g' },
+  { id: 'carbs',   label: 'Carbs',   unit: 'g' },
+  { id: 'fat',     label: 'Fat',     unit: 'g' },
+];
+
 export default function MacroChart({
   protein, carbs, fat, calories,
   plannedProtein = 0, plannedCarbs = 0, plannedFat = 0, plannedCalories = 0,
   plannedLabel = 'planned',
+  entries = [],
 }: MacroChartProps) {
   const [activeIdx, setActiveIdx] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const data = [
     { name: 'Protein', value: Math.round(protein * 4) },
@@ -68,8 +80,21 @@ export default function MacroChart({
   const activeItem = activeIdx !== null ? data[activeIdx] : null;
   const activePct  = activeItem && total > 0 ? Math.round(activeItem.value / total * 100) : null;
 
+  // Map active data index back to the original SEGMENT_META index (data is filtered, so indices may shift)
+  const activeSegment = activeIdx !== null && activeItem
+    ? SEGMENT_META.find(m => m.label === activeItem.name) ?? null
+    : null;
+  const activePlanned = activeSegment?.id === 'protein' ? plannedProtein
+    : activeSegment?.id === 'carbs' ? plannedCarbs
+    : activeSegment?.id === 'fat'   ? plannedFat
+    : 0;
+  const activeActual = activeSegment?.id === 'protein' ? protein
+    : activeSegment?.id === 'carbs' ? carbs
+    : activeSegment?.id === 'fat'   ? fat
+    : 0;
+
   return (
-    <div className="relative shrink-0" style={{ width: 150, height: 150 }}>
+    <div ref={containerRef} className="relative shrink-0" style={{ width: 150, height: 150 }}>
       <ResponsiveContainer width={150} height={150}>
         <PieChart>
           <Pie
@@ -146,6 +171,20 @@ export default function MacroChart({
             </div>
           ))}
         </div>
+      )}
+
+      {/* Breakdown tooltip on segment hover */}
+      {activeSegment && entries.length > 0 && containerRef.current && (
+        <MacroBreakdownTooltip
+          id={activeSegment.id}
+          label={activeSegment.label}
+          actual={activeActual}
+          planned={activePlanned}
+          unit={activeSegment.unit}
+          entries={entries}
+          anchorRect={containerRef.current.getBoundingClientRect()}
+          placement="side"
+        />
       )}
     </div>
   );

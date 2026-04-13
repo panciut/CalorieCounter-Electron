@@ -1,5 +1,7 @@
+import { useState, useRef } from 'react';
 import { getBarColor } from '../lib/macroCalc';
-import type { Settings } from '../types';
+import type { Settings, LogEntry } from '../types';
+import MacroBreakdownTooltip from './MacroBreakdownTooltip';
 
 export interface BarDef {
   id: string;
@@ -15,11 +17,27 @@ export interface BarDef {
 interface MacroBarsProps {
   bars: BarDef[];
   settings: Pick<Settings, 'tol_1' | 'tol_2' | 'tol_3'>;
+  entries?: LogEntry[];
 }
 
-const SCALE = 1.30; // 30% headroom past max for overflow visibility
+const SCALE = 1.30;
 
-export default function MacroBars({ bars, settings }: MacroBarsProps) {
+export default function MacroBars({ bars, settings, entries = [] }: MacroBarsProps) {
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  function handleMouseEnter(id: string) {
+    const el = rowRefs.current[id];
+    if (el) setAnchorRect(el.getBoundingClientRect());
+    setHoveredId(id);
+  }
+
+  function handleMouseLeave() {
+    setHoveredId(null);
+    setAnchorRect(null);
+  }
+
   return (
     <div className="flex flex-col gap-3 flex-1">
       {bars.map(({ id, label, actual, planned = 0, min, max, rec, unit }) => {
@@ -31,19 +49,26 @@ export default function MacroBars({ bars, settings }: MacroBarsProps) {
         const minPct      = scale && min ? min  / scale * 100 : null;
         const recPct      = scale && rec ? rec  / scale * 100 : null;
         const maxPct      = scale        ? 100  / SCALE       : null;
-        // Color reflects the combined projection so the user sees whether the plan lands in range
         const colorCls    = getBarColor(actual + planned, min, max, settings);
+        const isHovered   = hoveredId === id;
 
         return (
-          <div key={id} className="flex items-center gap-3">
+          <div
+            key={id}
+            ref={el => { rowRefs.current[id] = el; }}
+            className="flex items-center gap-3 cursor-default"
+            onMouseEnter={() => handleMouseEnter(id)}
+            onMouseLeave={handleMouseLeave}
+          >
             <span className="text-xs text-text-sec uppercase tracking-wider w-[72px] shrink-0">{label}</span>
-            <div className="flex-1 h-1.5 rounded-sm relative" style={{ background: 'var(--border)' }}>
-              {/* Actual (solid) */}
+            <div
+              className={`flex-1 h-1.5 rounded-sm relative transition-[height] duration-150 ${isHovered ? 'h-2' : ''}`}
+              style={{ background: 'var(--border)' }}
+            >
               <div
                 className={`absolute top-0 left-0 h-full rounded-sm transition-[width] duration-400 ${colorCls}`}
                 style={{ width: `${fillPct}%` }}
               />
-              {/* Planned (translucent overlay, striped) */}
               {plannedPct > 0 && (
                 <div
                   className={`absolute top-0 h-full rounded-sm transition-[width,left] duration-400 ${colorCls}`}
@@ -55,17 +80,14 @@ export default function MacroBars({ bars, settings }: MacroBarsProps) {
                   }}
                 />
               )}
-              {/* Min tick — green */}
               {minPct !== null && (
                 <div className="absolute top-[-3px] w-0.5 h-3 rounded-sm pointer-events-none opacity-55"
                   style={{ left: `${minPct}%`, background: 'var(--green)' }} />
               )}
-              {/* Rec tick — white */}
               {recPct !== null && (
                 <div className="absolute top-[-2px] w-0.5 h-2.5 rounded-sm pointer-events-none opacity-50"
                   style={{ left: `${recPct}%`, background: 'var(--text-sec)' }} />
               )}
-              {/* Max tick — red */}
               {maxPct !== null && (
                 <div className="absolute top-[-4px] w-0.5 h-3.5 rounded-sm pointer-events-none opacity-60"
                   style={{ left: `${maxPct}%`, background: 'var(--red)' }} />
@@ -79,6 +101,10 @@ export default function MacroBars({ bars, settings }: MacroBarsProps) {
               {rec > 0 && <span className="text-text-sec/70"> · {Math.round(rec)}{unit}</span>}
               <span className="text-text-sec/70"> · {Math.round(min)}–{Math.round(max)}{unit}</span>
             </span>
+
+            {isHovered && anchorRect && entries.length > 0 && (
+              <MacroBreakdownTooltip id={id} label={label} actual={actual} planned={planned} unit={unit} entries={entries} anchorRect={anchorRect} />
+            )}
           </div>
         );
       })}
