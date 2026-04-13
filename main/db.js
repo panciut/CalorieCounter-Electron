@@ -207,6 +207,9 @@ function initDb() {
     "ALTER TABLE weight_log ADD COLUMN muscle_mass REAL",
     "ALTER TABLE weight_log ADD COLUMN water_pct REAL",
     "ALTER TABLE weight_log ADD COLUMN bone_mass REAL",
+    "ALTER TABLE supplements ADD COLUMN unit TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE supplements ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE supplements ADD COLUMN created_at TEXT NOT NULL DEFAULT '2000-01-01'",
   ];
   for (const stmt of migrations) {
     try { database.exec(stmt); } catch (_) {}

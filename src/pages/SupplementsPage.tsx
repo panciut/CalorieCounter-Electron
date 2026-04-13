@@ -1,160 +1,320 @@
 import { useEffect, useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { api } from '../api';
-import type { Supplement } from '../types';
+import type { Supplement, SupplementAdherence } from '../types';
 
+type Tab = 'manage' | 'history';
+type HistoryRange = 7 | 30 | 90;
+
+// ── Edit form (module-level to avoid remount) ──────────────────────────────────
+interface EditFormProps {
+  supplement: Supplement;
+  onSave: (data: { name: string; qty: number; unit: string; notes: string }) => void;
+  onCancel: () => void;
+  t: (key: string) => string;
+}
+
+function EditForm({ supplement, onSave, onCancel, t }: EditFormProps) {
+  const [name, setName]   = useState(supplement.name);
+  const [qty, setQty]     = useState(supplement.qty);
+  const [unit, setUnit]   = useState(supplement.unit || '');
+  const [notes, setNotes] = useState(supplement.notes || '');
+
+  const inputCls = "bg-bg border border-border rounded-lg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent";
+
+  return (
+    <div className="flex flex-col gap-2 py-2 px-1">
+      <div className="flex gap-2 flex-wrap">
+        <input
+          type="text"
+          autoFocus
+          className={`flex-1 min-w-[140px] ${inputCls}`}
+          placeholder={t('suppl.name')}
+          value={name}
+          onChange={e => setName(e.target.value)}
+        />
+        <input
+          type="text" inputMode="decimal"
+          className={`w-16 ${inputCls}`}
+          placeholder={t('suppl.qty')}
+          value={qty}
+          onChange={e => setQty(Number(e.target.value))}
+        />
+        <input
+          type="text"
+          className={`w-28 ${inputCls}`}
+          placeholder={t('suppl.unitPlaceholder')}
+          value={unit}
+          onChange={e => setUnit(e.target.value)}
+        />
+      </div>
+      <input
+        type="text"
+        className={`w-full ${inputCls}`}
+        placeholder={t('suppl.notes')}
+        value={notes}
+        onChange={e => setNotes(e.target.value)}
+      />
+      <div className="flex gap-2">
+        <button
+          className="px-3 py-1.5 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 cursor-pointer"
+          onClick={() => onSave({ name: name.trim(), qty: qty || 1, unit: unit.trim(), notes: notes.trim() })}
+          disabled={!name.trim()}
+        >
+          {t('common.save')}
+        </button>
+        <button
+          className="px-3 py-1.5 rounded-lg border border-border text-sm text-text-sec hover:text-text cursor-pointer"
+          onClick={onCancel}
+        >
+          {t('common.cancel')}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Adherence bar ──────────────────────────────────────────────────────────────
+function AdherenceBar({ pct }: { pct: number }) {
+  const color = pct >= 80 ? 'var(--green, #4ade80)' : pct >= 50 ? 'var(--yellow, #facc15)' : 'var(--red, #f87171)';
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-1.5 rounded-full bg-border overflow-hidden">
+        <div
+          className="h-full rounded-full transition-all"
+          style={{ width: `${pct}%`, backgroundColor: color }}
+        />
+      </div>
+      <span className="text-xs tabular-nums text-text-sec w-9 text-right">{pct}%</span>
+    </div>
+  );
+}
+
+// ── Main page ──────────────────────────────────────────────────────────────────
 export default function SupplementsPage() {
   const { t } = useT();
   const { showToast } = useToast();
 
+  const [tab, setTab]             = useState<Tab>('manage');
   const [supplements, setSupplements] = useState<Supplement[]>([]);
-  const [newName, setNewName] = useState('');
-  const [newQty, setNewQty] = useState(1);
-  const [editId, setEditId] = useState<number | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editQty, setEditQty] = useState(1);
+  const [editId, setEditId]       = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Supplement | null>(null);
+  const [addOpen, setAddOpen]     = useState(true);
 
-  const load = async () => {
+  // History tab
+  const [range, setRange]         = useState<HistoryRange>(30);
+  const [adherence, setAdherence] = useState<SupplementAdherence[]>([]);
+  const [histLoading, setHistLoading] = useState(false);
+
+  async function load() {
     const data = await api.supplements.getAll();
     setSupplements(data);
-  };
+  }
 
   useEffect(() => { load(); }, []);
 
-  const handleAdd = async () => {
-    if (!newName.trim()) return;
-    await api.supplements.add({ name: newName.trim(), qty: newQty });
-    setNewName('');
-    setNewQty(1);
+  useEffect(() => {
+    if (tab !== 'history') return;
+    setHistLoading(true);
+    api.supplements.getAdherence(range).then(data => {
+      setAdherence(data);
+      setHistLoading(false);
+    });
+  }, [tab, range]);
+
+  async function handleAdd(data: { name: string; qty: number; unit: string; notes: string }) {
+    if (!data.name) return;
+    await api.supplements.add(data);
     await load();
     showToast(t('common.saved'));
-  };
+  }
 
-  const handleDelete = async (id: number) => {
-    await api.supplements.delete(id);
-    await load();
-  };
-
-  const startEdit = (s: Supplement) => {
-    setEditId(s.id);
-    setEditName(s.name);
-    setEditQty(s.qty);
-  };
-
-  const cancelEdit = () => {
+  async function handleUpdate(data: { name: string; qty: number; unit: string; notes: string }) {
+    if (editId === null || !data.name) return;
+    await api.supplements.update({ id: editId, ...data });
     setEditId(null);
-    setEditName('');
-    setEditQty(1);
-  };
-
-  const handleSave = async () => {
-    if (editId === null || !editName.trim()) return;
-    await api.supplements.update({ id: editId, name: editName.trim(), qty: editQty });
-    cancelEdit();
     await load();
     showToast(t('common.saved'));
-  };
+  }
 
-  const numCls = "bg-bg border border-border rounded-lg px-3 py-2 text-text focus:outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    await api.supplements.delete(deleteTarget.id);
+    setDeleteTarget(null);
+    await load();
+  }
+
+  const tabBtn = (v: Tab) => [
+    'px-5 py-2.5 text-sm font-medium transition-colors cursor-pointer border-b-2 -mb-px',
+    tab === v ? 'border-accent text-accent' : 'border-transparent text-text-sec hover:text-text',
+  ].join(' ');
+
+  const blankSuppl: Supplement = { id: 0, name: '', qty: 1, unit: '', notes: '', created_at: '' };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold text-text mb-6">{t('suppl.title')}</h1>
+    <div className="p-6 max-w-2xl mx-auto space-y-5">
+      <h1 className="text-2xl font-bold text-text">{t('suppl.title')}</h1>
 
-      {/* Add form */}
-      <div className="bg-card border border-border rounded-xl p-4 mb-6">
-        <h2 className="text-base font-semibold text-text mb-3">{t('suppl.addTitle')}</h2>
-        <div className="flex gap-3 items-end flex-wrap">
-          <div className="flex-1 min-w-[160px]">
-            <label className="block text-xs text-text-sec mb-1">{t('suppl.name')}</label>
-            <input
-              type="text"
-              className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-text placeholder:text-text-sec focus:outline-none focus:border-accent text-sm"
-              placeholder={t('suppl.namePlaceholder')}
-              value={newName}
-              onChange={e => setNewName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleAdd()}
-            />
-          </div>
-          <div className="w-24">
-            <label className="block text-xs text-text-sec mb-1">{t('suppl.qty')}</label>
-            <input
-              type="text" inputMode="decimal"
-              className={`w-full text-sm ${numCls}`}
-              value={newQty}
-              min={1}
-              onChange={e => setNewQty(Number(e.target.value))}
-            />
-          </div>
-          <button
-            className="bg-accent text-white font-medium px-4 py-2 rounded-lg hover:opacity-90 transition-opacity text-sm cursor-pointer"
-            onClick={handleAdd}
-          >
-            {t('common.add')}
-          </button>
-        </div>
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-border">
+        <button className={tabBtn('manage')}  onClick={() => setTab('manage')}>{t('suppl.manage')}</button>
+        <button className={tabBtn('history')} onClick={() => setTab('history')}>{t('suppl.history')}</button>
       </div>
 
-      {/* List */}
-      {supplements.length === 0 ? (
-        <p className="text-text-sec text-center py-8">{t('suppl.noSupplements')}</p>
-      ) : (
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                <th className="text-left text-text-sec text-xs font-medium uppercase tracking-wider px-4 py-3">{t('suppl.name')}</th>
-                <th className="text-left text-text-sec text-xs font-medium uppercase tracking-wider px-4 py-3 w-24">{t('suppl.qty')}</th>
-                <th className="px-4 py-3 w-28" />
-              </tr>
-            </thead>
-            <tbody>
-              {supplements.map((s) => (
-                <tr key={s.id} className="border-t border-border/50">
-                  {editId === s.id ? (
-                    <>
-                      <td className="px-4 py-2">
-                        <input
-                          type="text"
-                          className="w-full bg-bg border border-border rounded px-2 py-1 text-text text-sm focus:outline-none focus:border-accent"
-                          value={editName}
-                          onChange={e => setEditName(e.target.value)}
-                        />
-                      </td>
-                      <td className="px-4 py-2">
-                        <input
-                          type="text" inputMode="decimal"
-                          className={`w-16 text-sm ${numCls}`}
-                          value={editQty}
-                          min={1}
-                          onChange={e => setEditQty(Number(e.target.value))}
-                        />
-                      </td>
-                      <td className="px-4 py-2">
-                        <div className="flex gap-2 justify-end">
-                          <button className="text-sm text-accent font-medium hover:opacity-80 cursor-pointer" onClick={handleSave}>{t('common.save')}</button>
-                          <button className="text-sm text-text-sec hover:text-text cursor-pointer" onClick={cancelEdit}>{t('common.cancel')}</button>
+      {/* ── MANAGE TAB ─────────────────────────────────────────────────── */}
+      {tab === 'manage' && (
+          <div className="flex flex-col gap-4">
+
+            {/* Collapsible add form */}
+            <div className="border border-border rounded-xl overflow-hidden">
+              <button
+                onClick={() => setAddOpen(v => !v)}
+                className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-text hover:bg-card-hover/40 cursor-pointer transition-colors"
+              >
+                <span>{t('suppl.addTitle')}</span>
+                <span className="text-text-sec text-xs">{addOpen ? '▲' : '▼'}</span>
+              </button>
+              {addOpen && (
+                <div className="px-4 pb-4 pt-1 border-t border-border bg-card-hover/20">
+                  <EditForm
+                    supplement={blankSuppl}
+                    onSave={handleAdd}
+                    onCancel={() => setAddOpen(false)}
+                    t={t}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Supplement list */}
+            {supplements.length === 0 ? (
+              <p className="text-text-sec text-sm py-4 text-center">{t('suppl.noSupplements')}</p>
+            ) : (
+              <div className="flex flex-col divide-y divide-border/50">
+                {supplements.map(s => (
+                  <div key={s.id} className="py-3">
+                    {editId === s.id ? (
+                      <EditForm
+                        supplement={s}
+                        onSave={handleUpdate}
+                        onCancel={() => setEditId(null)}
+                        t={t}
+                      />
+                    ) : (
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-baseline gap-2 flex-wrap">
+                            <span className="font-medium text-text">{s.name}</span>
+                            <span className="text-xs text-text-sec">
+                              {s.qty}{s.unit ? ` ${s.unit}` : ''} / day
+                            </span>
+                          </div>
+                          {s.notes && (
+                            <p className="text-xs text-text-sec mt-0.5 truncate">{s.notes}</p>
+                          )}
                         </div>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="px-4 py-3 text-text">{s.name}</td>
-                      <td className="px-4 py-3 text-text">{s.qty}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2 justify-end">
-                          <button className="text-sm text-text-sec hover:text-text cursor-pointer" onClick={() => startEdit(s)}>{t('common.edit')}</button>
-                          <button className="text-sm text-text-sec hover:text-red cursor-pointer transition-colors" onClick={() => handleDelete(s.id)}>✕</button>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            onClick={() => { setEditId(s.id); setShowAdd(false); }}
+                            className="text-text-sec hover:text-text px-1.5 py-1 cursor-pointer transition-colors text-sm"
+                            title={t('common.edit')}
+                          >
+                            <span style={{ display: 'inline-block', transform: 'scaleX(-1) rotate(15deg)' }}>✎</span>
+                          </button>
+                          <button
+                            onClick={() => setDeleteTarget(s)}
+                            className="text-text-sec hover:text-red px-1.5 py-1 cursor-pointer transition-colors text-sm"
+                          >
+                            ✕
+                          </button>
                         </div>
-                      </td>
-                    </>
-                  )}
-                </tr>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+      {/* ── HISTORY TAB ────────────────────────────────────────────────── */}
+      {tab === 'history' && (
+          <div className="flex flex-col gap-5">
+            {/* Range selector */}
+            <div className="flex gap-1">
+              {([7, 30, 90] as HistoryRange[]).map(d => (
+                <button
+                  key={d}
+                  onClick={() => setRange(d)}
+                  className={[
+                    'px-3 py-1 rounded-full text-xs font-medium border cursor-pointer transition-colors',
+                    range === d
+                      ? 'bg-accent text-white border-accent'
+                      : 'border-border text-text-sec hover:border-accent/50 hover:text-text',
+                  ].join(' ')}
+                >
+                  {d}d
+                </button>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </div>
+
+            {histLoading ? (
+              <p className="text-text-sec text-sm py-4 text-center">…</p>
+            ) : adherence.length === 0 ? (
+              <p className="text-text-sec text-sm py-4 text-center">{t('suppl.noHistory')}</p>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {adherence.map(s => (
+                  <div key={s.id} className="flex flex-col gap-1.5">
+                    <div className="flex items-baseline justify-between gap-2">
+                      <div className="flex items-baseline gap-2">
+                        <span className="font-medium text-text text-sm">{s.name}</span>
+                        {s.unit && <span className="text-xs text-text-sec">{s.qty} {s.unit}/day</span>}
+                        {!s.unit && <span className="text-xs text-text-sec">{s.qty}/day</span>}
+                      </div>
+                      <span className="text-xs text-text-sec tabular-nums">{s.daysTaken} / {s.daysExpected} {t('suppl.daysTaken').toLowerCase()}</span>
+                    </div>
+                    <AdherenceBar pct={s.adherencePct} />
+                    {/* Mini log dots — last 30 entries max, newest right */}
+                    {s.logs.length > 0 && (
+                      <div className="flex gap-0.5 flex-wrap mt-0.5">
+                        {[...s.logs].reverse().slice(0, 60).map((log, i) => {
+                          const full = log.count >= s.qty;
+                          const partial = log.count > 0 && !full;
+                          return (
+                            <div
+                              key={i}
+                              title={`${log.date}: ${log.count}/${s.qty}`}
+                              className="w-2 h-2 rounded-sm"
+                              style={{
+                                backgroundColor: full
+                                  ? 'var(--accent)'
+                                  : partial
+                                    ? 'color-mix(in srgb, var(--accent) 40%, transparent)'
+                                    : 'var(--border)',
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+      {deleteTarget && (
+        <ConfirmDialog
+          message={`Delete "${deleteTarget.name}"?`}
+          confirmLabel={t('common.delete') ?? 'Delete'}
+          dangerous
+          onConfirm={confirmDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
       )}
     </div>
   );

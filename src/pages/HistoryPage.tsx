@@ -144,8 +144,8 @@ export default function HistoryPage() {
   };
 
   const tabBtn = (v: Tab) => [
-    'text-sm px-4 py-1.5 rounded-lg font-medium cursor-pointer transition-colors border',
-    tab === v ? 'border-accent bg-accent/10 text-accent' : 'border-border text-text-sec hover:text-text',
+    'px-5 py-2.5 text-sm font-medium transition-colors cursor-pointer border-b-2 -mb-px',
+    tab === v ? 'border-accent text-accent' : 'border-transparent text-text-sec hover:text-text',
   ].join(' ');
 
   const rangeBtn = (v: WeekRange | AnalyticsRange, current: WeekRange | AnalyticsRange) => [
@@ -181,13 +181,15 @@ export default function HistoryPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-text">{t('history.title')}</h1>
-        <div className="flex gap-2">
-          <button onClick={handleCopy} className="text-sm text-text-sec border border-border rounded-lg px-3 py-1.5 hover:border-accent/50 hover:text-text cursor-pointer transition-colors">
-            📋 {t('export.copyHistory')}
-          </button>
-          <button className={tabBtn('weekly')}    onClick={() => setTab('weekly')}>Weekly</button>
-          <button className={tabBtn('analytics')} onClick={() => setTab('analytics')}>Analytics</button>
-        </div>
+        <button onClick={handleCopy} className="text-sm text-text-sec border border-border rounded-lg px-3 py-1.5 hover:border-accent/50 hover:text-text cursor-pointer transition-colors">
+          📋 {t('export.copyHistory')}
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-border">
+        <button className={tabBtn('weekly')}    onClick={() => setTab('weekly')}>Weekly</button>
+        <button className={tabBtn('analytics')} onClick={() => setTab('analytics')}>Analytics</button>
       </div>
 
       {/* ── WEEKLY TAB ────────────────────────────────────────────────────────── */}

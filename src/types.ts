@@ -176,10 +176,25 @@ export interface Supplement {
   id: number;
   name: string;
   qty: number;
+  unit: string;
+  notes: string;
+  created_at: string;
 }
 
 export interface SupplementDay extends Supplement {
   taken: number;
+}
+
+export interface SupplementAdherence {
+  id: number;
+  name: string;
+  qty: number;
+  unit: string;
+  created_at: string;
+  daysExpected: number;
+  daysTaken: number;
+  adherencePct: number;
+  logs: { date: string; count: number }[];
 }
 
 export interface Measurement {

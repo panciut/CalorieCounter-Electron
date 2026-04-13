@@ -1,7 +1,7 @@
 import type {
   Food, FrequentFood, LogEntry, Meal, Recipe, ActualRecipe, Exercise, ExerciseType, Settings,
   WeightEntry, WaterDay, WaterEntry, DailyNote, Streak,
-  Supplement, SupplementDay, Measurement,
+  Supplement, SupplementDay, SupplementAdherence, Measurement,
   WeeklySummary, WeekDayDetail, BarcodeResult,
   PantryItem, ShoppingItem, PantryIngredientCheck,
   CalorieTrendPoint, MacroTrendPoint, ExerciseTrendPoint,
@@ -119,12 +119,13 @@ export const api = {
   },
 
   supplements: {
-    getAll:  () => invoke<Supplement[]>('supplements:getAll'),
-    add:     (data: { name: string; qty: number }) => invoke<{ id: number }>('supplements:add', data),
-    update:  (data: { id: number; name: string; qty: number }) => invoke<{ ok: boolean }>('supplements:update', data),
-    delete:  (id: number) => invoke<{ ok: boolean }>('supplements:delete', { id }),
-    getDay:  (date: string) => invoke<SupplementDay[]>('supplements:getDay', { date }),
-    take:    (data: { supplement_id: number; date: string }) => invoke<{ ok: boolean }>('supplements:take', data),
+    getAll:       () => invoke<Supplement[]>('supplements:getAll'),
+    add:          (data: { name: string; qty: number; unit?: string; notes?: string }) => invoke<{ id: number }>('supplements:add', data),
+    update:       (data: { id: number; name: string; qty: number; unit?: string; notes?: string }) => invoke<{ ok: boolean }>('supplements:update', data),
+    delete:       (id: number) => invoke<{ ok: boolean }>('supplements:delete', { id }),
+    getDay:       (date: string) => invoke<SupplementDay[]>('supplements:getDay', { date }),
+    take:         (data: { supplement_id: number; date: string }) => invoke<{ ok: boolean }>('supplements:take', data),
+    getAdherence: (days: number) => invoke<SupplementAdherence[]>('supplements:getAdherence', { days }),
   },
 
   settings: {
