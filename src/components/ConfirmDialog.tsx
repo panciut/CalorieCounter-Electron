@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
 interface ConfirmDialogProps {
@@ -18,14 +18,22 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const confirmRef = useRef<HTMLButtonElement>(null);
+
+  // Defer focus past the current event loop tick so any pending Enter/click
+  // that opened the dialog doesn't immediately fire on the focused button.
+  useEffect(() => {
+    const t = setTimeout(() => confirmRef.current?.focus(), 0);
+    return () => clearTimeout(t);
+  }, []);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') onCancel();
-      if (e.key === 'Enter') onConfirm();
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onConfirm, onCancel]);
+  }, [onCancel]);
 
   return createPortal(
     <div
@@ -36,13 +44,13 @@ export default function ConfirmDialog({
         <p className="text-text text-sm leading-relaxed">{message}</p>
         <div className="flex gap-2 justify-end">
           <button
-            autoFocus
             onClick={onCancel}
             className="px-4 py-2 rounded-xl text-sm font-medium text-text-sec bg-card border border-border hover:bg-card-hover transition-colors cursor-pointer"
           >
             {cancelLabel}
           </button>
           <button
+            ref={confirmRef}
             onClick={onConfirm}
             className={[
               'px-4 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer',

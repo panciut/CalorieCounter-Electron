@@ -110,6 +110,7 @@ export default function PantryPage() {
   const [discardId, setDiscardId]       = useState<number | null>(null);
   const [collapsedFoods, setCollapsedFoods] = useState<Set<number>>(new Set());
   const [editingBatch, setEditingBatch] = useState<{ id: number; qty: string; expiry: string; unit: PantryUnit } | null>(null);
+  const [pantrySearch, setPantrySearch] = useState('');
   const qtyRef = useRef<HTMLInputElement>(null);
 
   // Shopping state
@@ -420,12 +421,26 @@ export default function PantryPage() {
             )}
           </div>
 
-          {/* Pantry aggregate list */}
-          {aggregates.length === 0 ? (
-            <p className="text-sm text-text-sec text-center py-10">Pantry is empty. Add ingredients you have at home.</p>
-          ) : (
+          {/* Pantry search + aggregate list */}
+          {aggregates.length > 0 && (
+            <input
+              type="text"
+              value={pantrySearch}
+              onChange={e => setPantrySearch(e.target.value)}
+              placeholder="Search pantry…"
+              className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-text text-sm outline-none focus:border-accent"
+            />
+          )}
+          {(() => {
+            const q = pantrySearch.toLowerCase();
+            const visible = q ? aggregates.filter(a => a.food_name.toLowerCase().includes(q)) : aggregates;
+            return visible.length === 0 ? (
+              <p className="text-sm text-text-sec text-center py-10">
+                {aggregates.length === 0 ? 'Pantry is empty. Add ingredients you have at home.' : 'No matching foods in pantry.'}
+              </p>
+            ) : (
             <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
-              {aggregates.map((agg, aggIdx) => {
+              {visible.map((agg, aggIdx) => {
                 const collapsed = collapsedFoods.has(agg.food_id);
                 const expiryLbl = expiryLabel(agg.earliest_expiry, warn, urgent);
                 const expiryColor = expiryPillClass(agg.earliest_expiry, warn, urgent);

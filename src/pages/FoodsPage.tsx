@@ -1,10 +1,13 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
 import { api } from '../api';
 import BarcodeScanner from '../components/BarcodeScanner';
 import Modal from '../components/Modal';
-import type { Food, BarcodeResult } from '../types';
+import ConfirmDialog from '../components/ConfirmDialog';
+import FoodSearch from '../components/FoodSearch';
+import type { SearchItem } from '../components/FoodSearch';
+import type { Food, BarcodeResult, FoodPackage } from '../types';
 
 const INPUT_CLASS =
   'bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-full';
@@ -65,6 +68,8 @@ function FormFields({ form, patch }: FormFieldsProps) {
 
 // ── FoodsPage ─────────────────────────────────────────────────────────────────
 
+type FoodsTab = 'foods' | 'packs';
+
 export default function FoodsPage() {
   const { t } = useT();
   const { showToast } = useToast();
@@ -81,6 +86,15 @@ export default function FoodsPage() {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(true);
   const [detailMode, setDetailMode] = useState(false);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deletePackId, setDeletePackId] = useState<number | null>(null);
+  const [tab, setTab] = useState<FoodsTab>('foods');
+  const [packFood, setPackFood] = useState<Food | null>(null);
+  const [packGramsInput, setPackGramsInput] = useState('');
+  const [packUnit, setPackUnit] = useState<'g' | 'pcs'>('g');
+  const [packSearchKey, setPackSearchKey] = useState(0);
+  const packGramsRef = useRef<HTMLInputElement>(null);
+
 
   useEffect(() => { loadFoods(); }, []);
 
@@ -109,6 +123,7 @@ export default function FoodsPage() {
 
   async function handleDeletePack(id: number) {
     const res = await api.foods.deletePackage(id);
+    setDeletePackId(null);
     if (!res.ok && res.error === 'pack_in_use') {
       showToast(t('foods.packInUse').replace('{n}', String(res.batch_count ?? 0)), 'error');
       return;
@@ -139,8 +154,19 @@ export default function FoodsPage() {
     showToast(t('common.saved')); cancelEdit(); loadFoods();
   }
 
-  async function handleDelete(id: number) { await api.foods.delete(id); loadFoods(); }
+  async function handleDelete(id: number) { await api.foods.delete(id); setDeleteId(null); loadFoods(); }
   async function handleToggleFavorite(id: number) { await api.foods.toggleFavorite(id); loadFoods(); }
+
+  async function handleAddPackToFood() {
+    const v = parseFloat(packGramsInput);
+    if (!packFood || !v || v <= 0) return;
+    const grams = packUnit === 'pcs' && packFood.piece_grams ? v * packFood.piece_grams : v;
+    await api.foods.addPackage({ food_id: packFood.id, grams });
+    setPackGramsInput('');
+    setPackFood(null);
+    setPackSearchKey(k => k + 1);
+    loadFoods();
+  }
 
   async function handleImport() {
     const filePath = await api.import.selectFile();
@@ -156,6 +182,21 @@ export default function FoodsPage() {
     const q = searchQuery.toLowerCase();
     return q ? foods.filter(f=>f.name.toLowerCase().includes(q)) : foods;
   },[foods, searchQuery]);
+
+  const foodSearchItems: SearchItem[] = useMemo(
+    () => foods.map(f => ({ ...f, isRecipe: false as const, _freq: 0 })),
+    [foods]
+  );
+
+  const packRows = useMemo(() => {
+    const rows: { food: Food; pkg: FoodPackage }[] = [];
+    for (const f of foods) {
+      for (const p of f.packages ?? []) rows.push({ food: f, pkg: p });
+    }
+    const q = searchQuery.toLowerCase();
+    const filtered = q ? rows.filter(r => r.food.name.toLowerCase().includes(q)) : rows;
+    return filtered.sort((a, b) => a.food.name.localeCompare(b.food.name) || a.pkg.grams - b.pkg.grams);
+  }, [foods, searchQuery]);
 
   const presetLabels: Record<PresetKey, string> = {
     balanced:    'foods.balanced',
@@ -302,8 +343,20 @@ export default function FoodsPage() {
         )}
       </div>
 
-      {/* ── Database ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3 flex-1 min-h-0">
+      {/* ── Tab bar ───────────────────────────────────────────────────────── */}
+      <div className="flex gap-1 border-b border-border shrink-0">
+        <button
+          onClick={() => setTab('foods')}
+          className={`px-5 py-2.5 text-sm font-medium transition-colors cursor-pointer border-b-2 -mb-px ${tab === 'foods' ? 'border-accent text-accent' : 'border-transparent text-text-sec hover:text-text'}`}
+        >{t('foods.tabFoods')}</button>
+        <button
+          onClick={() => setTab('packs')}
+          className={`px-5 py-2.5 text-sm font-medium transition-colors cursor-pointer border-b-2 -mb-px ${tab === 'packs' ? 'border-accent text-accent' : 'border-transparent text-text-sec hover:text-text'}`}
+        >{t('foods.tabPacks')}</button>
+      </div>
+
+      {/* ── Foods tab ─────────────────────────────────────────────────────── */}
+      {tab === 'foods' && <div className="flex flex-col gap-3 flex-1 min-h-0">
         <div className="flex items-center gap-3 shrink-0">
           <h2 className="text-sm font-semibold text-text-sec uppercase tracking-wider shrink-0">{t('foods.title')}</h2>
           <input
@@ -367,7 +420,7 @@ export default function FoodsPage() {
                           {(food.packages ?? []).map(pkg => (
                             <div key={pkg.id} className="flex items-center gap-1 bg-bg border border-border rounded px-2 py-0.5">
                               <span className="text-xs tabular-nums">{pkg.grams}g</span>
-                              <button type="button" onClick={() => handleDeletePack(pkg.id)} className="text-xs text-text-sec hover:text-red cursor-pointer">✕</button>
+                              <button type="button" onClick={() => setDeletePackId(pkg.id)} className="text-xs text-text-sec hover:text-red cursor-pointer">✕</button>
                             </div>
                           ))}
                           <input
@@ -404,7 +457,7 @@ export default function FoodsPage() {
                       <td className="px-2 py-2.5">
                         <div className="flex gap-1 justify-end">
                           <button type="button" onClick={()=>startEdit(food)} className="text-text-sec hover:text-text px-1 cursor-pointer"><span style={{ display: 'inline-block', transform: 'scaleX(-1) rotate(15deg)' }}>✎</span></button>
-                          <button type="button" onClick={()=>handleDelete(food.id)} className="text-text-sec hover:text-red px-1 cursor-pointer transition-colors">✕</button>
+                          <button type="button" onClick={() => setDeleteId(food.id)} className="text-text-sec hover:text-red px-1 cursor-pointer transition-colors">✕</button>
                         </div>
                       </td>
                     </tr>
@@ -414,11 +467,138 @@ export default function FoodsPage() {
             </table>
           </div>
         )}
-      </div>
+      </div>}
+
+      {/* ── Packs tab ─────────────────────────────────────────────────────── */}
+      {tab === 'packs' && (
+        <div className="flex flex-col gap-3 flex-1 min-h-0">
+          {/* Add pack to existing food */}
+          <div className="bg-card border border-border rounded-xl px-4 py-3 flex flex-col gap-2 shrink-0">
+            <label className="text-xs text-text-sec">{t('foods.addPackToFood')}</label>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex-1 min-w-[240px]">
+                <FoodSearch
+                  key={packSearchKey}
+                  items={foodSearchItems}
+                  onSelect={item => {
+                    const food = foods.find(f => f.id === item.id) ?? null;
+                    setPackFood(food);
+                    setPackUnit(food?.piece_grams ? 'pcs' : 'g');
+                    setPackGramsInput('');
+                    setTimeout(() => packGramsRef.current?.focus(), 0);
+                  }}
+                  onClear={() => setPackFood(null)}
+                  placeholder={t('foods.searchPlaceholder')}
+                />
+              </div>
+              {packFood && (
+                <>
+                  {packFood.piece_grams && (
+                    <div className="flex rounded-lg border border-border overflow-hidden text-xs">
+                      <button
+                        type="button"
+                        onClick={() => { setPackUnit('g'); setPackGramsInput(''); }}
+                        className={`px-3 py-1.5 cursor-pointer transition-colors ${packUnit === 'g' ? 'bg-accent/15 text-accent font-medium' : 'text-text-sec hover:text-text'}`}
+                      >g</button>
+                      <button
+                        type="button"
+                        onClick={() => { setPackUnit('pcs'); setPackGramsInput(''); packGramsRef.current?.focus(); }}
+                        className={`px-3 py-1.5 cursor-pointer transition-colors ${packUnit === 'pcs' ? 'bg-accent/15 text-accent font-medium' : 'text-text-sec hover:text-text'}`}
+                      >pcs</button>
+                    </div>
+                  )}
+                  <input
+                    ref={packGramsRef}
+                    type="text" inputMode="decimal"
+                    value={packGramsInput}
+                    onChange={e => setPackGramsInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleAddPackToFood()}
+                    placeholder={packUnit === 'pcs' ? 'pieces' : 'grams'}
+                    className="w-24 bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent"
+                  />
+                  {packUnit === 'pcs' && packFood.piece_grams && packGramsInput && parseFloat(packGramsInput) > 0 && (
+                    <span className="text-xs text-text-sec">= {Math.round(parseFloat(packGramsInput) * packFood.piece_grams)}g</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleAddPackToFood}
+                    disabled={!parseFloat(packGramsInput)}
+                    className="px-4 py-1.5 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer"
+                  >{t('common.add')}</button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Pack list */}
+          <div className="flex items-center gap-3 shrink-0">
+            <h2 className="text-sm font-semibold text-text-sec uppercase tracking-wider shrink-0">{t('foods.tabPacks')}</h2>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder={t('foods.searchPlaceholder')}
+              className="bg-bg border border-border rounded-lg px-3 py-2 text-text text-sm outline-none focus:border-accent flex-1"
+            />
+          </div>
+          {packRows.length === 0 ? (
+            <p className="text-text-sec text-sm py-4">{t('foods.noPacks')}</p>
+          ) : (
+            <div className="overflow-auto flex-1 rounded-xl border border-border">
+              <table className="w-full text-sm min-w-[400px]">
+                <thead className="sticky top-0 bg-card">
+                  <tr className="text-text-sec text-xs uppercase tracking-wider border-b border-border">
+                    <th className="px-3 py-3 text-left">{t('th.food')}</th>
+                    <th className="px-3 py-3 text-right">{t('foods.packSize')}</th>
+                    <th className="px-2 py-3 w-12"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {packRows.map(({ food, pkg }) => (
+                    <tr key={pkg.id} className="border-t border-border/50 hover:bg-card/30 transition-colors">
+                      <td className="px-3 py-2.5 text-text font-medium">{food.name}</td>
+                      <td className="px-3 py-2.5 text-right text-text tabular-nums">{pkg.grams}g</td>
+                      <td className="px-2 py-2.5 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setDeletePackId(pkg.id)}
+                          className="text-text-sec hover:text-red px-1 cursor-pointer transition-colors"
+                        >✕</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       <Modal isOpen={scannerOpen} onClose={()=>setScannerOpen(false)} title={t('barcode.scanTitle')}>
         <BarcodeScanner onResult={handleScanResult} />
       </Modal>
+
+      {deleteId !== null && (
+        <ConfirmDialog
+          message={t('foods.confirmDelete')}
+          confirmLabel={t('common.delete')}
+          cancelLabel={t('common.cancel')}
+          dangerous
+          onConfirm={() => handleDelete(deleteId)}
+          onCancel={() => setDeleteId(null)}
+        />
+      )}
+
+      {deletePackId !== null && (
+        <ConfirmDialog
+          message={t('foods.confirmDeletePack')}
+          confirmLabel={t('common.delete')}
+          cancelLabel={t('common.cancel')}
+          dangerous
+          onConfirm={() => handleDeletePack(deletePackId)}
+          onCancel={() => setDeletePackId(null)}
+        />
+      )}
     </div>
   );
 }
