@@ -19,7 +19,6 @@ function Icon({ d, size = 16 }: { d: string; size?: number }) {
 
 const ICONS: Record<PageName, string> = {
   dashboard:    'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z M9 22V12h6v10',
-  plan:         'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2 M9 5a2 2 0 002 2h2a2 2 0 002-2 M9 5a2 2 0 012-2h2a2 2 0 012 2 M9 12h6 M9 16h4',
   exercise:     'M6.5 6.5a5 5 0 000 11M17.5 6.5a5 5 0 010 11M3 12h3m12 0h3M6.5 12h11',
   net:          'M12 2v20M2 12h20 M7 7l10 10M17 7L7 17',
   week:         'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01',
