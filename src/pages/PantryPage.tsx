@@ -299,16 +299,16 @@ export default function PantryPage() {
         <div className="flex flex-col gap-4">
 
           {/* Collapsible add form */}
-          <div className="border border-border rounded-xl overflow-hidden">
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
             <button
               onClick={() => setPantryOpen(v => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-text hover:bg-card-hover/40 cursor-pointer transition-colors"
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-text hover:bg-card-hover cursor-pointer transition-colors"
             >
               <span>Add / top up</span>
               <span className="text-text-sec text-xs">{pantryOpen ? '▲' : '▼'}</span>
             </button>
             {pantryOpen && (
-              <div className="px-4 pb-4 pt-1 border-t border-border bg-card-hover/10 flex flex-col gap-3">
+              <div className="px-4 pb-4 pt-3 border-t border-border flex flex-col gap-3">
                 <FoodSearch
                   items={foodSearchItems}
                   onSelect={handleSelect}
@@ -319,7 +319,7 @@ export default function PantryPage() {
                 {selFood && (
                   <div className="flex flex-col gap-3">
                     {/* Food info card */}
-                    <div className="bg-bg rounded-xl px-4 py-3 flex flex-col gap-1.5">
+                    <div className="bg-bg border border-border rounded-xl px-4 py-3 flex flex-col gap-1.5">
                       <p className="font-semibold text-text">{selFood.name}</p>
                       <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-text-sec tabular-nums">
                         <span><span className="text-text font-medium">{selFood.calories}</span> kcal</span>
@@ -404,40 +404,46 @@ export default function PantryPage() {
           {aggregates.length === 0 ? (
             <p className="text-sm text-text-sec text-center py-10">Pantry is empty. Add ingredients you have at home.</p>
           ) : (
-            <div className="flex flex-col gap-2">
-              {aggregates.map(agg => {
+            <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
+              {aggregates.map((agg, aggIdx) => {
                 const collapsed = collapsedFoods.has(agg.food_id);
                 const expiryLbl = expiryLabel(agg.earliest_expiry, warn, urgent);
                 const expiryColor = expiryPillClass(agg.earliest_expiry, warn, urgent);
                 return (
-                  <div key={agg.food_id} className="border border-border rounded-xl overflow-hidden">
+                  <div key={agg.food_id}>
                     {/* Aggregate header */}
                     <button
                       onClick={() => toggleCollapse(agg.food_id)}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-card-hover/30 cursor-pointer transition-colors text-left"
+                      className={[
+                        'w-full flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors text-left',
+                        aggIdx % 2 === 0 ? 'bg-card hover:bg-card-hover' : 'bg-card/60 hover:bg-card-hover',
+                      ].join(' ')}
                     >
                       <span className="text-sm font-medium text-text flex-1">{agg.food_name}</span>
                       {expiryLbl && (
                         <span className={`text-xs tabular-nums ${expiryColor}`}>{expiryLbl}</span>
                       )}
-                      <span className="text-xs text-text-sec tabular-nums font-semibold">
+                      <span className="text-sm text-text tabular-nums font-semibold">
                         {formatQty(agg.total_g, agg.piece_grams)}
                       </span>
                       {agg.batches.length > 1 && (
-                        <span className="text-xs text-text-sec/60">{agg.batches.length} batches</span>
+                        <span className="text-xs text-text-sec/50 tabular-nums">{agg.batches.length}×</span>
                       )}
-                      <span className="text-text-sec/50 text-xs">{collapsed ? '▶' : '▼'}</span>
+                      <span className="text-text-sec/40 text-xs w-3 text-right">{collapsed ? '▶' : '▼'}</span>
                     </button>
 
                     {/* Batch rows */}
                     {!collapsed && (
-                      <div className="border-t border-border divide-y divide-border/50">
-                        {agg.batches.map(batch => {
+                      <div className="divide-y divide-border/30">
+                        {agg.batches.map((batch, bIdx) => {
                           const isEditing = editingBatch?.id === batch.id;
                           const bExpiryLabel = expiryLabel(batch.expiry_date, warn, urgent);
                           const bExpiryColor = expiryPillClass(batch.expiry_date, warn, urgent);
                           return (
-                            <div key={batch.id} className="flex items-center gap-3 px-4 py-2.5 bg-bg/30 hover:bg-card/20 transition-colors">
+                            <div key={batch.id} className={[
+                              'flex items-center gap-3 pl-8 pr-4 py-2 transition-colors',
+                              bIdx % 2 === 0 ? 'bg-bg hover:bg-bg/80' : 'bg-bg/60 hover:bg-bg/80',
+                            ].join(' ')}>
                               {isEditing ? (
                                 <>
                                   <div className="flex items-center gap-1.5 flex-wrap flex-1">
@@ -516,16 +522,16 @@ export default function PantryPage() {
       {tab === 'shopping' && (
         <div className="flex flex-col gap-4">
 
-          <div className="border border-border rounded-xl overflow-hidden">
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
             <button
               onClick={() => setShopOpen(v => !v)}
-              className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-text hover:bg-card-hover/40 cursor-pointer transition-colors"
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-text hover:bg-card-hover cursor-pointer transition-colors"
             >
               <span>Add item</span>
               <span className="text-text-sec text-xs">{shopOpen ? '▲' : '▼'}</span>
             </button>
             {shopOpen && (
-              <div className="px-4 pb-4 pt-1 border-t border-border bg-card-hover/10 flex flex-col gap-3">
+              <div className="px-4 pb-4 pt-3 border-t border-border flex flex-col gap-3">
                 <FoodSearch
                   items={foodSearchItems}
                   onSelect={item => { setShopFood(item as Food); setShopQty(''); }}
