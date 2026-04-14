@@ -143,6 +143,7 @@ export const api = {
 
   export: {
     data:   (format: 'json' | 'csv') => invoke<{ ok: boolean }>('export:data', { format }),
+    foods:  () => invoke<{ ok: boolean; count?: number }>('export:foods'),
     backup: () => invoke<{ ok: boolean; path?: string }>('export:backup'),
   },
 

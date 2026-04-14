@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../api';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { copyToClipboard } from '../lib/exportText';
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
 
@@ -53,6 +54,7 @@ export default function DataPage() {
   const [pasteText, setPasteText]         = useState('');
   const [pasteError, setPasteError]       = useState('');
   const [promptCopied, setPromptCopied]   = useState(false);
+  const [foodsCopied, setFoodsCopied]     = useState(false);
   const [confirmRestore, setConfirmRestore] = useState(false);
   const [restorePath, setRestorePath]     = useState('');
 
@@ -61,6 +63,21 @@ export default function DataPage() {
   async function handleExportData(format: 'json' | 'csv') {
     const result = await api.export.data(format);
     if (result.ok) showToast('Exported successfully');
+  }
+
+  async function handleExportFoods() {
+    const result = await api.export.foods();
+    if (result.ok) showToast(`Exported ${result.count} foods`);
+  }
+
+  async function handleCopyFoods() {
+    const foods = await api.foods.getAll();
+    const json = JSON.stringify(foods.map(({ name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode, favorite }) =>
+      ({ name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode, favorite })
+    ), null, 2);
+    await copyToClipboard(json);
+    setFoodsCopied(true);
+    setTimeout(() => setFoodsCopied(false), 2000);
   }
 
   async function handleExportBackup() {
@@ -122,7 +139,7 @@ export default function DataPage() {
   }
 
   async function copyPrompt() {
-    await navigator.clipboard.writeText(AI_PROMPT);
+    await copyToClipboard(AI_PROMPT);
     setPromptCopied(true);
     setTimeout(() => setPromptCopied(false), 2000);
   }
@@ -141,6 +158,17 @@ export default function DataPage() {
           <div className="flex gap-3 flex-wrap">
             <button onClick={() => handleExportData('json')} className={btn()}>Export JSON</button>
             <button onClick={() => handleExportData('csv')}  className={btn()}>Export CSV</button>
+          </div>
+        </div>
+
+        <div className={card}>
+          <p className={sectionTitle}>Export food database</p>
+          <p className={desc}>Save your entire food database as a JSON file. Can be imported back via "Import foods" on another device or after a fresh install.</p>
+          <div className="flex gap-3 flex-wrap">
+            <button onClick={handleExportFoods} className={btn()}>Export foods (.json)</button>
+            <button onClick={handleCopyFoods} className={btn()}>
+              {foodsCopied ? '✓ Copied' : 'Copy to clipboard'}
+            </button>
           </div>
         </div>
 

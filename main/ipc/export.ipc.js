@@ -80,6 +80,21 @@ function registerExportIpc() {
     return { ok: true, path: result.filePath };
   });
 
+  // ── Export food database as JSON ──────────────────────────────────────────
+  ipcMain.handle('export:foods', async () => {
+    const db = getDb();
+    const foods = db.prepare('SELECT name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode, favorite FROM foods ORDER BY name').all();
+
+    const result = await dialog.showSaveDialog({
+      defaultPath: `foods-${new Date().toISOString().slice(0,10)}.json`,
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    });
+    if (result.canceled || !result.filePath) return { ok: false };
+
+    fs.writeFileSync(result.filePath, JSON.stringify(foods, null, 2), 'utf-8');
+    return { ok: true, path: result.filePath, count: foods.length };
+  });
+
   // ── Export full database backup (.db file) ────────────────────────────────
   ipcMain.handle('export:backup', async () => {
     const result = await dialog.showSaveDialog({
