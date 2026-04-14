@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 interface ToastMessage {
   id: number;
   text: string;
-  type: 'success' | 'error' | 'info';
+  type: 'success' | 'error' | 'info' | 'warning';
 }
 
 interface ToastContextValue {
@@ -20,6 +20,7 @@ const INDICATOR: Record<ToastMessage['type'], string> = {
   success: 'bg-green',
   error:   'bg-red',
   info:    'bg-accent',
+  warning: 'bg-yellow',
 };
 
 export function ToastProvider({ children }: { children: ReactNode }) {

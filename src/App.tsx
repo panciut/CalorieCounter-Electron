@@ -53,7 +53,8 @@ function AppInner() {
         {page === 'exercise'     && <ExercisePage />}
         {page === 'net'          && <NetPage />}
         {page === 'foods'        && <FoodsPage />}
-        {page === 'pantry'       && <PantryPage />}
+        {page === 'pantry'       && settings.pantry_enabled !== 0 && <PantryPage />}
+        {page === 'pantry'       && settings.pantry_enabled === 0 && <DashboardPage />}
         {page === 'recipes'      && <RecipesPage />}
         {page === 'history'      && <HistoryPage />}
         {page === 'week'         && <WeekPage weekStart={param?.weekStart} />}

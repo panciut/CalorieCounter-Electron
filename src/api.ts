@@ -3,10 +3,13 @@ import type {
   WeightEntry, WaterDay, WaterEntry, DailyNote, Streak,
   Supplement, SupplementDay, SupplementAdherence, Measurement,
   WeeklySummary, WeekDayDetail, BarcodeResult,
-  PantryItem, ShoppingItem, PantryIngredientCheck,
+  PantryItem, PantryAggregate, ShoppingItem, PantryIngredientCheck,
   CalorieTrendPoint, MacroTrendPoint, ExerciseTrendPoint,
   GoalType, TDEEResult, GoalSuggestion, DailyEnergy,
 } from './types';
+
+// Re-export for consumers that need it
+export type { PantryAggregate };
 
 // ── Electron IPC bridge ──────────────────────────────────────────────────────
 
@@ -40,15 +43,15 @@ export const api = {
   log: {
     getDay:             (date: string) => invoke<LogEntry[]>('log:getDay', { date }),
     add:                (data: { food_id: number; grams: number; meal: Meal; date: string; status?: 'logged' | 'planned' }) =>
-                          invoke<{ id: number }>('log:add', data),
+                          invoke<{ id: number; shortage: number; shortage_food: string | null }>('log:add', data),
     addQuick:           (data: { food: Omit<Food, 'id'>; grams: number; meal: Meal; date: string }) =>
-                          invoke<{ ok: boolean }>('log:addQuick', data),
+                          invoke<{ id: number; food_id: number; shortage: number }>('log:addQuick', data),
     update:             (data: { id: number; food_id: number; grams: number; meal: Meal }) =>
                           invoke<{ ok: boolean }>('log:update', data),
     delete:             (id: number) => invoke<{ ok: boolean }>('log:delete', { id }),
     getPlanned:         (date: string) => invoke<LogEntry[]>('log:getPlanned', { date }),
-    confirmPlanned:     (id: number) => invoke<{ ok: boolean }>('log:confirmPlanned', { id }),
-    confirmAllPlanned:  (date: string) => invoke<{ ok: boolean }>('log:confirmAllPlanned', { date }),
+    confirmPlanned:     (id: number) => invoke<{ ok: boolean; shortage: number; shortage_food: string }>('log:confirmPlanned', { id }),
+    confirmAllPlanned:  (date: string) => invoke<{ ok: boolean; shortages: { food_name: string; shortage: number }[] }>('log:confirmAllPlanned', { date }),
     swapLunchDinner:    (date: string) => invoke<{ ok: boolean }>('log:swapLunchDinner', { date }),
     getWeeklySummaries: () => invoke<WeeklySummary[]>('log:getWeeklySummaries'),
     getWeekDetail:      (weekStart: string) => invoke<WeekDayDetail[]>('log:getWeekDetail', { weekStart }),
@@ -159,9 +162,13 @@ export const api = {
 
   pantry: {
     getAll:       () => invoke<PantryItem[]>('pantry:getAll'),
-    upsert:       (data: { food_id: number; quantity_g: number }) => invoke<{ ok: boolean }>('pantry:upsert', data),
-    set:          (data: { food_id: number; quantity_g: number }) => invoke<{ ok: boolean }>('pantry:set', data),
+    addBatch:     (data: { food_id: number; quantity_g: number; expiry_date: string | null }) =>
+                    invoke<{ ok: boolean }>('pantry:addBatch', data),
+    set:          (data: { id: number; quantity_g: number; expiry_date: string | null }) =>
+                    invoke<{ ok: boolean }>('pantry:set', data),
     delete:       (id: number) => invoke<{ ok: boolean }>('pantry:delete', { id }),
+    checkStock:   (food_id: number, grams: number) =>
+                    invoke<{ have_g: number; shortage: number }>('pantry:checkStock', { food_id, grams }),
     canMake:      (recipe_id: number, recipe_type: 'actual' | 'bundle') =>
       invoke<{ recipe_id: number; can_make: boolean; ingredients: PantryIngredientCheck[]; missing: PantryIngredientCheck[] }>(
         'pantry:canMake', { recipe_id, recipe_type }),
@@ -169,7 +176,7 @@ export const api = {
       invoke<{ recipe_id: number; can_make: boolean; missing_count: number }[]>(
         'pantry:canMakeAll', { recipe_type }),
     deductRecipe: (recipe_id: number, scale: number, recipe_type: 'actual' | 'bundle') =>
-      invoke<{ ok: boolean }>('pantry:deductRecipe', { recipe_id, scale, recipe_type }),
+      invoke<{ ok: boolean; shortages: { food_name: string; shortage: number }[] }>('pantry:deductRecipe', { recipe_id, scale, recipe_type }),
   },
 
   shopping: {

@@ -138,6 +138,9 @@ export interface Settings {
   tol_3: number;
   language: 'en' | 'it';
   theme: 'dark' | 'light';
+  pantry_enabled: number;    // 0 or 1
+  pantry_warn_days: number;  // default 3
+  pantry_urgent_days: number; // default 1
 }
 
 export interface WeightEntry {
@@ -239,7 +242,17 @@ export interface PantryItem {
   food_name: string;
   piece_grams: number | null;
   quantity_g: number;
+  expiry_date: string | null; // ISO yyyy-mm-dd
   updated_at: string;
+}
+
+export interface PantryAggregate {
+  food_id: number;
+  food_name: string;
+  piece_grams: number | null;
+  total_g: number;
+  earliest_expiry: string | null;
+  batches: PantryItem[];
 }
 
 export interface PantryIngredientCheck {

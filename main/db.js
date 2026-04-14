@@ -216,6 +216,37 @@ function initDb() {
     try { database.exec(stmt); } catch (_) {}
   }
 
+  // One-time migration: drop UNIQUE(food_id) on pantry, add expiry_date column
+  try {
+    const indexes = database.prepare("PRAGMA index_list('pantry')").all();
+    const hasUniqueOnFoodId = indexes.some(idx => {
+      if (!idx.unique) return false;
+      const cols = database.prepare(`PRAGMA index_info('${idx.name}')`).all();
+      return cols.length === 1 && cols[0].name === 'food_id';
+    });
+    if (hasUniqueOnFoodId) {
+      database.transaction(() => {
+        database.exec(`
+          CREATE TABLE IF NOT EXISTS pantry_new (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            food_id INTEGER NOT NULL,
+            quantity_g REAL NOT NULL,
+            expiry_date TEXT,
+            updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (food_id) REFERENCES foods(id) ON DELETE CASCADE
+          )
+        `);
+        database.exec(`
+          INSERT INTO pantry_new (id, food_id, quantity_g, expiry_date, updated_at)
+            SELECT id, food_id, quantity_g, NULL, updated_at FROM pantry
+        `);
+        database.exec('DROP TABLE pantry');
+        database.exec('ALTER TABLE pantry_new RENAME TO pantry');
+        database.exec('CREATE INDEX IF NOT EXISTS idx_pantry_food_expiry ON pantry(food_id, expiry_date)');
+      })();
+    }
+  } catch (e) { console.error('pantry schema migration failed:', e); }
+
   // Default settings
   const insertSetting = database.prepare(
     'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)'
@@ -230,6 +261,9 @@ function initDb() {
     ['water_goal', '2000'],
     ['language', 'en'],
     ['theme', 'dark'],
+    ['pantry_enabled', '1'],
+    ['pantry_warn_days', '3'],
+    ['pantry_urgent_days', '1'],
   ]) {
     insertSetting.run(key, val);
   }

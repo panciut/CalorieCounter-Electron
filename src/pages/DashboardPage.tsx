@@ -253,27 +253,48 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
 
   async function handleLogFood(status: 'logged' | 'planned') {
     if (!selectedFood || !effectiveGrams) return;
-    await api.log.add({ food_id: selectedFood.id, grams: effectiveGrams, meal, date: dateStr, status });
+    const result = await api.log.add({ food_id: selectedFood.id, grams: effectiveGrams, meal, date: dateStr, status });
+    if (result.shortage > 0 && result.shortage_food) {
+      showToast(`Pantry short by ${Math.round(result.shortage)}g of ${result.shortage_food}`, 'warning');
+    } else if (status === 'planned') {
+      const stock = await api.pantry.checkStock(selectedFood.id, effectiveGrams);
+      if (stock.shortage > 0) showToast(`Pantry short by ${Math.round(stock.shortage)}g of ${selectedFood.name}`, 'warning');
+    }
     setSelectedFood(null); setAmount(''); setSearchKey(k => k + 1); load();
   }
 
   async function handleLogRecipe(status: 'logged' | 'planned') {
     if (!selectedRecipe) return;
+    const shortages: string[] = [];
     for (const ing of selectedRecipe.ingredients) {
       if (ing.editGrams > 0) {
-        await api.log.add({ food_id: ing.food_id, grams: ing.editGrams, meal, date: dateStr, status });
+        const result = await api.log.add({ food_id: ing.food_id, grams: ing.editGrams, meal, date: dateStr, status });
+        if (result.shortage > 0 && result.shortage_food) {
+          shortages.push(`${Math.round(result.shortage)}g of ${result.shortage_food}`);
+        } else if (status === 'planned' && result.shortage === 0) {
+          const stock = await api.pantry.checkStock(ing.food_id, ing.editGrams);
+          if (stock.shortage > 0) shortages.push(`${Math.round(stock.shortage)}g of ${ing.name}`);
+        }
       }
     }
+    if (shortages.length > 0) showToast(`Pantry short on: ${shortages.join(', ')}`, 'warning');
     setSelectedRecipe(null); setSearchKey(k => k + 1); load();
   }
 
   async function handleConfirmPlanned(id: number) {
-    await api.log.confirmPlanned(id);
+    const result = await api.log.confirmPlanned(id);
+    if (result.shortage > 0 && result.shortage_food) {
+      showToast(`Pantry short by ${Math.round(result.shortage)}g of ${result.shortage_food}`, 'warning');
+    }
     load();
   }
 
   async function handleConfirmAll() {
-    await api.log.confirmAllPlanned(dateStr);
+    const result = await api.log.confirmAllPlanned(dateStr);
+    if (result.shortages?.length > 0) {
+      const list = result.shortages.map(s => `${s.shortage}g of ${s.food_name}`).join(', ');
+      showToast(`Pantry short on: ${list}`, 'warning');
+    }
     load();
   }
 

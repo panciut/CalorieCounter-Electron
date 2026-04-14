@@ -15,6 +15,7 @@ const DEFAULT_SETTINGS: Settings = {
   weight_goal: 0, water_goal: 2000,
   tol_1: 5, tol_2: 10, tol_3: 20,
   language: 'en', theme: 'dark',
+  pantry_enabled: 1, pantry_warn_days: 3, pantry_urgent_days: 1,
 };
 
 // ── Context ───────────────────────────────────────────────────────────────────

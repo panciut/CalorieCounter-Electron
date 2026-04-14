@@ -78,6 +78,19 @@ export function formatDMY(iso: string): string {
   return `${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
 }
 
+export function parseDMY(s: string): string | null {
+  const m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s.trim());
+  if (!m) return null;
+  const [, d, mo, y] = m;
+  return `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
+}
+
+export function daysUntil(iso: string): number {
+  const t = new Date(iso + 'T00:00:00').getTime();
+  const now = new Date(today() + 'T00:00:00').getTime();
+  return Math.round((t - now) / 86400000);
+}
+
 export function buildDateRange(days: number): string[] {
   const dates: string[] = [];
   const now = new Date();

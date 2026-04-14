@@ -12,6 +12,7 @@ function registerSettingsIpc() {
       weight_goal: 0, water_goal: 2000,
       language: 'en', theme: 'dark',
       tol_1: 5, tol_2: 10, tol_3: 20,
+      pantry_enabled: 1, pantry_warn_days: 3, pantry_urgent_days: 1,
     };
     const stringKeys = new Set(['language', 'theme']);
     for (const { key, value } of getDb().prepare('SELECT key, value FROM settings').all()) {

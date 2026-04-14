@@ -86,8 +86,13 @@ function BundlesTab() {
     await api.recipes.log({ recipe_id: logTarget.id, date: logDate, meal: logMeal, scale });
     if (deductOnLog) {
       try {
-        await api.pantry.deductRecipe(logTarget.id, scale, 'bundle');
-        showToast('Logged & pantry updated');
+        const dr = await api.pantry.deductRecipe(logTarget.id, scale, 'bundle');
+        if (dr.shortages?.length > 0) {
+          const list = dr.shortages.map(s => `${s.shortage}g of ${s.food_name}`).join(', ');
+          showToast(`Logged — pantry short on: ${list}`, 'warning');
+        } else {
+          showToast('Logged & pantry updated');
+        }
       } catch {
         showToast('Logged (pantry update failed)');
       }
@@ -521,8 +526,13 @@ function RecipesTab() {
     const scale = logTarget.yield_g > 0 ? g / logTarget.yield_g : 1;
     await api.actualRecipes.log({ recipe_id: logTarget.id, grams_eaten: g, meal: logMeal, date: logDate });
     if (deductOnLog && logTarget.yield_g > 0) {
-      await api.pantry.deductRecipe(logTarget.id, scale, 'actual');
-      showToast('Logged & pantry updated');
+      const dr = await api.pantry.deductRecipe(logTarget.id, scale, 'actual');
+      if (dr.shortages?.length > 0) {
+        const list = dr.shortages.map(s => `${s.shortage}g of ${s.food_name}`).join(', ');
+        showToast(`Logged — pantry short on: ${list}`, 'warning');
+      } else {
+        showToast('Logged & pantry updated');
+      }
     } else {
       showToast('Logged');
     }

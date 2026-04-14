@@ -1,6 +1,7 @@
 const { ipcMain } = require('electron');
 const { getDb } = require('../db');
 const { pushUndo } = require('./undo.ipc');
+const { isPantryEnabled, deductFoodFEFO } = require('../lib/pantryFefo');
 
 // Use local date to avoid UTC timezone bug
 const today = () => {
@@ -49,21 +50,25 @@ function registerLogIpc() {
     const db = getDb();
     return db.transaction(() => {
       const row = db.prepare(`
-        SELECT l.id, l.date, l.grams, f.name AS food_name, f.is_liquid
+        SELECT l.id, l.food_id, l.date, l.grams, f.name AS food_name, f.is_liquid
         FROM log l JOIN foods f ON l.food_id = f.id
         WHERE l.id = ? AND l.status = 'planned'
       `).get(id);
       if (!row) return { ok: false };
       db.prepare("UPDATE log SET status = 'logged' WHERE id = ?").run(id);
       if (row.is_liquid) {
-        // Auto-add water for liquid foods on confirm (grams ≈ ml), mirroring log:add
         const existing = db.prepare('SELECT id FROM water_log WHERE log_id = ?').get(id);
         if (!existing) {
           db.prepare('INSERT INTO water_log (date, ml, source, log_id) VALUES (?, ?, ?, ?)')
             .run(row.date, row.grams, row.food_name, id);
         }
       }
-      return { ok: true };
+      let shortage = 0;
+      if (isPantryEnabled(db)) {
+        const r = deductFoodFEFO(db, row.food_id, row.grams);
+        shortage = r.shortage;
+      }
+      return { ok: true, shortage, shortage_food: row.food_name };
     })();
   });
 
@@ -72,19 +77,24 @@ function registerLogIpc() {
     const db = getDb();
     return db.transaction(() => {
       const rows = db.prepare(`
-        SELECT l.id, l.date, l.grams, f.name AS food_name, f.is_liquid
+        SELECT l.id, l.food_id, l.date, l.grams, f.name AS food_name, f.is_liquid
         FROM log l JOIN foods f ON l.food_id = f.id
         WHERE l.date = ? AND l.status = 'planned'
       `).all(d);
       db.prepare("UPDATE log SET status = 'logged' WHERE date = ? AND status = 'planned'").run(d);
       const insertWater = db.prepare('INSERT INTO water_log (date, ml, source, log_id) VALUES (?, ?, ?, ?)');
       const waterExists = db.prepare('SELECT id FROM water_log WHERE log_id = ?');
+      const shortages = [];
       for (const r of rows) {
         if (r.is_liquid && !waterExists.get(r.id)) {
           insertWater.run(r.date, r.grams, r.food_name, r.id);
         }
+        if (isPantryEnabled(db)) {
+          const res = deductFoodFEFO(db, r.food_id, r.grams);
+          if (res.shortage > 0) shortages.push({ food_name: r.food_name, shortage: Math.round(res.shortage * 10) / 10 });
+        }
       }
-      return { ok: true };
+      return { ok: true, shortages };
     })();
   });
 
@@ -92,18 +102,26 @@ function registerLogIpc() {
     const db = getDb();
     const d = date || today();
     const s = status || 'logged';
-    const result = db.prepare(
-      'INSERT INTO log (date, food_id, grams, meal, status) VALUES (?, ?, ?, ?, ?)'
-    ).run(d, food_id, grams, meal || 'Snack', s);
-    if (s === 'logged') {
-      pushUndo('log:add', { id: result.lastInsertRowid });
-      // Auto-add water for liquid foods (grams ≈ ml)
-      const food = db.prepare('SELECT name, is_liquid FROM foods WHERE id = ?').get(food_id);
-      if (food && food.is_liquid) {
-        db.prepare('INSERT INTO water_log (date, ml, source, log_id) VALUES (?, ?, ?, ?)').run(d, grams, food.name, result.lastInsertRowid);
+    let logId, shortage = 0, shortage_food = null;
+    db.transaction(() => {
+      const result = db.prepare(
+        'INSERT INTO log (date, food_id, grams, meal, status) VALUES (?, ?, ?, ?, ?)'
+      ).run(d, food_id, grams, meal || 'Snack', s);
+      logId = result.lastInsertRowid;
+      if (s === 'logged') {
+        pushUndo('log:add', { id: logId });
+        const food = db.prepare('SELECT name, is_liquid FROM foods WHERE id = ?').get(food_id);
+        if (food && food.is_liquid) {
+          db.prepare('INSERT INTO water_log (date, ml, source, log_id) VALUES (?, ?, ?, ?)').run(d, grams, food.name, logId);
+        }
+        if (isPantryEnabled(db)) {
+          const r = deductFoodFEFO(db, food_id, grams);
+          shortage = r.shortage;
+          shortage_food = food ? food.name : null;
+        }
       }
-    }
-    return { id: result.lastInsertRowid };
+    })();
+    return { id: logId, shortage, shortage_food };
   });
 
   ipcMain.handle('log:addQuick', (_, { food, grams, meal, date }) => {
@@ -119,7 +137,8 @@ function registerLogIpc() {
       if (food.is_liquid) {
         db.prepare('INSERT INTO water_log (date, ml, source, log_id) VALUES (?, ?, ?, ?)').run(d, grams, food.name, logResult.lastInsertRowid);
       }
-      return { id: logResult.lastInsertRowid, food_id: foodResult.lastInsertRowid };
+      // No FEFO deduction for quick-add (food is brand new, can't be in pantry yet)
+      return { id: logResult.lastInsertRowid, food_id: foodResult.lastInsertRowid, shortage: 0 };
     })();
   });
 

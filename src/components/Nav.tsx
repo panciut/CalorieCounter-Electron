@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from '../hooks/useNavigate';
+import { useSettings } from '../hooks/useSettings';
 import { useT } from '../i18n/useT';
 import { getThisMonday } from '../lib/dateUtil';
 import type { PageName } from '../types';
@@ -136,6 +137,7 @@ interface NavProps { activePage: PageName; }
 export default function Nav({ activePage }: NavProps) {
   const { navigate } = useNavigate();
   const { t } = useT();
+  const { settings } = useSettings();
 
   const [items, setItems]       = useState<NavItem[]>(loadOrder);
   const [hidden, setHidden]     = useState<Set<PageName>>(loadHidden);
@@ -165,7 +167,13 @@ export default function Nav({ activePage }: NavProps) {
     });
   }
 
-  const visibleItems = editing ? items : items.filter(i => !hidden.has(i.page));
+  const visibleItems = editing
+    ? items
+    : items.filter(i => {
+        if (hidden.has(i.page)) return false;
+        if (i.page === 'pantry' && settings.pantry_enabled === 0) return false;
+        return true;
+      });
 
   function handleDragStart(i: number) { dragIndex.current = i; }
 
