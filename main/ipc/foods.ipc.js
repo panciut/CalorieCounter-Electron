@@ -10,10 +10,10 @@ function registerFoodsIpc() {
     getDb().prepare('SELECT * FROM foods WHERE favorite = 1 ORDER BY name').all()
   );
 
-  ipcMain.handle('foods:add', (_, { name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid }) => {
+  ipcMain.handle('foods:add', (_, { name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode }) => {
     const result = getDb().prepare(
-      'INSERT INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece_grams || null, is_liquid ? 1 : 0);
+      'INSERT INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece_grams || null, is_liquid ? 1 : 0, barcode || null);
     return { id: result.lastInsertRowid };
   });
 
@@ -25,10 +25,10 @@ function registerFoodsIpc() {
     return { ok: true };
   });
 
-  ipcMain.handle('foods:update', (_, { id, name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid }) => {
+  ipcMain.handle('foods:update', (_, { id, name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode }) => {
     getDb().prepare(
-      'UPDATE foods SET name=?, calories=?, protein=?, carbs=?, fat=?, fiber=?, piece_grams=?, is_liquid=? WHERE id=?'
-    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece_grams || null, is_liquid ? 1 : 0, id);
+      'UPDATE foods SET name=?, calories=?, protein=?, carbs=?, fat=?, fiber=?, piece_grams=?, is_liquid=?, barcode=? WHERE id=?'
+    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece_grams || null, is_liquid ? 1 : 0, barcode || null, id);
     return { ok: true };
   });
 

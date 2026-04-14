@@ -13,6 +13,7 @@ export interface Food {
   piece_grams: number | null;
   is_liquid: number; // 0 or 1
   favorite?: number; // 0 or 1
+  barcode?: string | null;
 }
 
 export interface FrequentFood extends Food {

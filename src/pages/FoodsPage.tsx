@@ -21,13 +21,13 @@ type PresetKey = keyof typeof PRESETS;
 
 interface FoodFormState {
   name: string; calories: string; protein: string; carbs: string;
-  fat: string; fiber: string; piece_grams: string; is_liquid: boolean;
+  fat: string; fiber: string; piece_grams: string; is_liquid: boolean; barcode: string;
 }
 
-const emptyForm = (): FoodFormState => ({ name:'', calories:'', protein:'', carbs:'', fat:'', fiber:'', piece_grams:'', is_liquid: false });
-const foodToForm = (f: Food): FoodFormState => ({ name:f.name, calories:String(f.calories), protein:String(f.protein), carbs:String(f.carbs), fat:String(f.fat), fiber:String(f.fiber), piece_grams:f.piece_grams!=null?String(f.piece_grams):'', is_liquid:f.is_liquid===1 });
-const barcodeToForm = (r: BarcodeResult): FoodFormState => ({ name:r.name, calories:String(r.calories), protein:String(r.protein), carbs:String(r.carbs), fat:String(r.fat), fiber:String(r.fiber), piece_grams:'', is_liquid:r.is_liquid===1 });
-const formToData = (f: FoodFormState): Omit<Food,'id'> => ({ name:f.name.trim(), calories:parseFloat(f.calories)||0, protein:parseFloat(f.protein)||0, carbs:parseFloat(f.carbs)||0, fat:parseFloat(f.fat)||0, fiber:parseFloat(f.fiber)||0, piece_grams:f.piece_grams!==''?parseFloat(f.piece_grams):null, is_liquid:f.is_liquid?1:0 });
+const emptyForm = (): FoodFormState => ({ name:'', calories:'', protein:'', carbs:'', fat:'', fiber:'', piece_grams:'', is_liquid: false, barcode: '' });
+const foodToForm = (f: Food): FoodFormState => ({ name:f.name, calories:String(f.calories), protein:String(f.protein), carbs:String(f.carbs), fat:String(f.fat), fiber:String(f.fiber), piece_grams:f.piece_grams!=null?String(f.piece_grams):'', is_liquid:f.is_liquid===1, barcode: f.barcode ?? '' });
+const barcodeToForm = (r: BarcodeResult, barcode: string): FoodFormState => ({ name:r.name, calories:String(r.calories), protein:String(r.protein), carbs:String(r.carbs), fat:String(r.fat), fiber:String(r.fiber), piece_grams:'', is_liquid:r.is_liquid===1, barcode });
+const formToData = (f: FoodFormState): Omit<Food,'id'> => ({ name:f.name.trim(), calories:parseFloat(f.calories)||0, protein:parseFloat(f.protein)||0, carbs:parseFloat(f.carbs)||0, fat:parseFloat(f.fat)||0, fiber:parseFloat(f.fiber)||0, piece_grams:f.piece_grams!==''?parseFloat(f.piece_grams):null, is_liquid:f.is_liquid?1:0, barcode: f.barcode.trim() || null });
 
 // ── FormFields for table edit row (multi-line) ────────────────────────────────
 
@@ -78,6 +78,7 @@ export default function FoodsPage() {
   const [barcodeStatus, setBarcodeStatus] = useState<'found'|'notFound'|null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(true);
+  const [detailMode, setDetailMode] = useState(false);
 
   useEffect(() => { loadFoods(); }, []);
 
@@ -96,14 +97,14 @@ export default function FoodsPage() {
     if (!barcodeInput.trim()) return;
     setBarcodeStatus(null);
     const r = await api.barcode.lookup(barcodeInput.trim());
-    if (r) { setAddForm(barcodeToForm(r)); setBarcodeStatus('found'); }
+    if (r) { setAddForm(barcodeToForm(r, barcodeInput.trim())); setBarcodeStatus('found'); }
     else setBarcodeStatus('notFound');
   }
 
   async function handleScanResult(barcode: string) {
     setScannerOpen(false); setBarcodeInput(barcode); setBarcodeStatus(null);
     const r = await api.barcode.lookup(barcode);
-    if (r) { setAddForm(barcodeToForm(r)); setBarcodeStatus('found'); }
+    if (r) { setAddForm(barcodeToForm(r, barcode)); setBarcodeStatus('found'); }
     else setBarcodeStatus('notFound');
   }
 
@@ -265,6 +266,11 @@ export default function FoodsPage() {
             placeholder={t('foods.searchPlaceholder')}
             className="bg-bg border border-border rounded-lg px-3 py-2 text-text text-sm outline-none focus:border-accent flex-1"
           />
+          <button
+            type="button"
+            onClick={() => setDetailMode(v => !v)}
+            className={['text-xs px-3 py-1.5 rounded-lg border transition-colors cursor-pointer shrink-0', detailMode ? 'border-accent text-accent bg-accent/10' : 'border-border text-text-sec hover:border-accent hover:text-accent'].join(' ')}
+          >{t('foods.detailMode')}</button>
         </div>
 
         {filteredFoods.length === 0 ? (
@@ -283,6 +289,7 @@ export default function FoodsPage() {
                   <th className="px-3 py-3 text-right">{t('th.protein')}</th>
                   <th className="px-3 py-3 text-right">{t('th.piece')}</th>
                   <th className="px-2 py-3 text-center">{t('th.liquid')}</th>
+                  {detailMode && <th className="px-3 py-3 text-left">{t('th.barcode')}</th>}
                   <th className="px-2 py-3 w-20"></th>
                 </tr>
               </thead>
@@ -293,8 +300,20 @@ export default function FoodsPage() {
                       <td className="px-2 py-2">
                         <button type="button" onClick={()=>handleToggleFavorite(food.id)} className="text-base cursor-pointer">{food.favorite===1?'⭐':'☆'}</button>
                       </td>
-                      <td colSpan={8} className="px-3 py-2">
+                      <td colSpan={detailMode ? 9 : 8} className="px-3 py-2">
                         <FormFields form={editForm} patch={patchEdit} />
+                        {detailMode && (
+                          <div className="flex flex-col gap-0.5 mt-2">
+                            <label className="text-xs text-text-sec">{t('th.barcode')}</label>
+                            <input
+                              type="text"
+                              value={editForm.barcode}
+                              onChange={e => patchEdit({ barcode: e.target.value })}
+                              placeholder="e.g. 8001234567890"
+                              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-48"
+                            />
+                          </div>
+                        )}
                       </td>
                       <td className="px-2 py-2 align-top">
                         <div className="flex flex-col gap-1 pt-1">
@@ -316,6 +335,7 @@ export default function FoodsPage() {
                       <td className="px-3 py-2.5 text-right text-text-sec tabular-nums">{food.protein}</td>
                       <td className="px-3 py-2.5 text-right text-text-sec tabular-nums">{food.piece_grams!=null?`${food.piece_grams}g`:'—'}</td>
                       <td className="px-2 py-2.5 text-center">{food.is_liquid===1?'💧':''}</td>
+                      {detailMode && <td className="px-3 py-2.5 text-text-sec tabular-nums text-xs">{food.barcode ?? '—'}</td>}
                       <td className="px-2 py-2.5">
                         <div className="flex gap-1 justify-end">
                           <button type="button" onClick={()=>startEdit(food)} className="text-text-sec hover:text-text px-1 cursor-pointer"><span style={{ display: 'inline-block', transform: 'scaleX(-1) rotate(15deg)' }}>✎</span></button>

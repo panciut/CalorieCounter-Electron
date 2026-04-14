@@ -6,7 +6,12 @@ import FoodSearch from '../components/FoodSearch';
 import type { SearchItem } from '../components/FoodSearch';
 import BarcodeScanner from '../components/BarcodeScanner';
 import Modal from '../components/Modal';
-import type { Food, PantryItem, ShoppingItem } from '../types';
+import type { Food, PantryItem, ShoppingItem, BarcodeResult } from '../types';
+
+interface PendingFood {
+  barcode: string;
+  form: { name: string; calories: string; protein: string; carbs: string; fat: string; fiber: string; piece_grams: string; is_liquid: boolean };
+}
 
 type Tab = 'pantry' | 'shopping';
 
@@ -41,6 +46,7 @@ export default function PantryPage() {
   const [editUsePieces, setEditUsePieces] = useState(false);
   const [pantryOpen, setPantryOpen]   = useState(true);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [pendingFood, setPendingFood] = useState<PendingFood | null>(null);
   const qtyRef = useRef<HTMLInputElement>(null);
 
   // Shopping state
@@ -86,22 +92,55 @@ export default function PantryPage() {
     setScannerOpen(false);
     const result = await api.barcode.lookup(barcode);
     if (!result) { showToast('Product not found'); return; }
-    let food = foods.find(f => f.name.toLowerCase() === result.name.toLowerCase());
-    if (!food) {
-      const { id } = await api.foods.add({
-        name: result.name, calories: result.calories, protein: result.protein,
-        carbs: result.carbs, fat: result.fat, fiber: result.fiber,
-        piece_grams: null, is_liquid: result.is_liquid,
-      });
-      const allFoods = await api.foods.getAll();
-      setFoods(allFoods);
-      food = allFoods.find(f => f.id === id) ?? null;
+    // Check if already in DB by barcode or name
+    const existing = foods.find(f => (f.barcode && f.barcode === barcode) || f.name.toLowerCase() === result.name.toLowerCase());
+    if (existing) {
+      setSelFood(existing);
+      setUsePieces(!!(existing.piece_grams));
+      setQty('');
+      showToast(`Found: ${existing.name}`);
+      setTimeout(() => qtyRef.current?.focus(), 0);
+      return;
     }
+    // New food — show review modal
+    setPendingFood({
+      barcode,
+      form: {
+        name: result.name,
+        calories: String(result.calories),
+        protein: String(result.protein),
+        carbs: String(result.carbs),
+        fat: String(result.fat),
+        fiber: String(result.fiber ?? 0),
+        piece_grams: '',
+        is_liquid: result.is_liquid === 1,
+      },
+    });
+  }
+
+  async function handleConfirmPendingFood() {
+    if (!pendingFood) return;
+    const f = pendingFood.form;
+    const { id } = await api.foods.add({
+      name: f.name.trim(),
+      calories: parseFloat(f.calories) || 0,
+      protein: parseFloat(f.protein) || 0,
+      carbs: parseFloat(f.carbs) || 0,
+      fat: parseFloat(f.fat) || 0,
+      fiber: parseFloat(f.fiber) || 0,
+      piece_grams: f.piece_grams ? parseFloat(f.piece_grams) : null,
+      is_liquid: f.is_liquid ? 1 : 0,
+      barcode: pendingFood.barcode,
+    });
+    const allFoods = await api.foods.getAll();
+    setFoods(allFoods);
+    const food = allFoods.find(f => f.id === id) ?? null;
+    setPendingFood(null);
     if (food) {
       setSelFood(food);
       setUsePieces(!!(food.piece_grams));
       setQty('');
-      showToast(`Found: ${food.name}`);
+      setTimeout(() => qtyRef.current?.focus(), 0);
     }
   }
 
@@ -424,6 +463,16 @@ export default function PantryPage() {
       <Modal isOpen={scannerOpen} onClose={() => setScannerOpen(false)} title="Scan barcode">
         <BarcodeScanner onResult={handleScanResult} />
       </Modal>
+
+      {/* ── Review new food modal ───────────────────────────────────────────── */}
+      {pendingFood && (
+        <ReviewFoodModal
+          pending={pendingFood}
+          onChange={patch => setPendingFood(p => p ? { ...p, form: { ...p.form, ...patch } } : p)}
+          onConfirm={handleConfirmPendingFood}
+          onCancel={() => setPendingFood(null)}
+        />
+      )}
     </div>
   );
 }
@@ -459,6 +508,66 @@ function ShoppingRow({ item, onToggle, onDelete }: ShoppingRowProps) {
       >
         ✕
       </button>
+    </div>
+  );
+}
+
+interface ReviewFoodModalProps {
+  pending: PendingFood;
+  onChange: (patch: Partial<PendingFood['form']>) => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function ReviewFoodModal({ pending, onChange, onConfirm, onCancel }: ReviewFoodModalProps) {
+  const { form } = pending;
+  const fieldCls = "bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent w-full";
+  const macros: { key: keyof PendingFood['form']; label: string }[] = [
+    { key: 'calories',   label: 'kcal' },
+    { key: 'fat',        label: 'Fat (g)' },
+    { key: 'carbs',      label: 'Carbs (g)' },
+    { key: 'fiber',      label: 'Fiber (g)' },
+    { key: 'protein',    label: 'Protein (g)' },
+    { key: 'piece_grams', label: 'g/piece' },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-md mx-4 flex flex-col gap-4">
+        <div>
+          <h2 className="text-lg font-bold text-text">New food from barcode</h2>
+          <p className="text-xs text-text-sec mt-0.5">Review and confirm before saving to your food database.</p>
+        </div>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-0.5">
+            <label className="text-xs text-text-sec">Name</label>
+            <input type="text" value={form.name} onChange={e => onChange({ name: e.target.value })} className={fieldCls} />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {macros.map(({ key, label }) => (
+              <div key={key} className="flex flex-col gap-0.5">
+                <label className="text-xs text-text-sec">{label}</label>
+                <input
+                  type="text" inputMode="decimal"
+                  value={String((form as Record<string, unknown>)[key] ?? '')}
+                  onChange={e => onChange({ [key]: e.target.value } as Partial<PendingFood['form']>)}
+                  placeholder="0"
+                  className={fieldCls}
+                />
+              </div>
+            ))}
+          </div>
+          <label className="flex items-center gap-2 text-sm text-text-sec cursor-pointer">
+            <input type="checkbox" checked={form.is_liquid} onChange={e => onChange({ is_liquid: e.target.checked })} />
+            Liquid
+          </label>
+        </div>
+        <div className="text-xs text-text-sec">Barcode: <span className="font-mono">{pending.barcode}</span></div>
+        <div className="flex gap-2 justify-end">
+          <button onClick={onCancel} className="px-4 py-2 text-sm border border-border rounded-lg text-text-sec hover:text-text cursor-pointer">Cancel</button>
+          <button onClick={onConfirm} disabled={!form.name.trim()} className="px-4 py-2 text-sm bg-accent text-white rounded-lg font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer">Save & add to pantry</button>
+        </div>
+      </div>
     </div>
   );
 }

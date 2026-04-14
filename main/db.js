@@ -210,6 +210,7 @@ function initDb() {
     "ALTER TABLE supplements ADD COLUMN unit TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE supplements ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE supplements ADD COLUMN created_at TEXT NOT NULL DEFAULT '2000-01-01'",
+    "ALTER TABLE foods ADD COLUMN barcode TEXT",
   ];
   for (const stmt of migrations) {
     try { database.exec(stmt); } catch (_) {}
