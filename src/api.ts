@@ -1,5 +1,5 @@
 import type {
-  Food, FrequentFood, LogEntry, Meal, Recipe, ActualRecipe, Exercise, ExerciseType, Settings,
+  Food, FoodPackage, FrequentFood, LogEntry, Meal, Recipe, ActualRecipe, Exercise, ExerciseType, Settings,
   WeightEntry, WaterDay, WaterEntry, DailyNote, Streak,
   Supplement, SupplementDay, SupplementAdherence, Measurement,
   WeeklySummary, WeekDayDetail, BarcodeResult,
@@ -38,6 +38,8 @@ export const api = {
     update:         (data: Food) => invoke<{ ok: boolean }>('foods:update', data),
     getFrequent:    (limit: number) => invoke<FrequentFood[]>('foods:getFrequent', { limit }),
     toggleFavorite: (id: number) => invoke<{ favorite: boolean }>('foods:toggleFavorite', { id }),
+    addPackage:     (data: { food_id: number; grams: number }) => invoke<{ id: number }>('foods:addPackage', data),
+    deletePackage:  (id: number) => invoke<{ ok: boolean; error?: string; batch_count?: number }>('foods:deletePackage', { id }),
   },
 
   log: {
@@ -162,9 +164,9 @@ export const api = {
 
   pantry: {
     getAll:       () => invoke<PantryItem[]>('pantry:getAll'),
-    addBatch:     (data: { food_id: number; quantity_g: number; expiry_date: string | null }) =>
+    addBatch:     (data: { food_id: number; quantity_g: number; expiry_date: string | null; package_id?: number | null }) =>
                     invoke<{ ok: boolean }>('pantry:addBatch', data),
-    set:          (data: { id: number; quantity_g: number; expiry_date: string | null }) =>
+    set:          (data: { id: number; quantity_g: number; expiry_date: string | null; package_id?: number | null }) =>
                     invoke<{ ok: boolean }>('pantry:set', data),
     delete:       (id: number) => invoke<{ ok: boolean }>('pantry:delete', { id }),
     checkStock:   (food_id: number, grams: number) =>

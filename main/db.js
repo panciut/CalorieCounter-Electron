@@ -211,10 +211,24 @@ function initDb() {
     "ALTER TABLE supplements ADD COLUMN notes TEXT NOT NULL DEFAULT ''",
     "ALTER TABLE supplements ADD COLUMN created_at TEXT NOT NULL DEFAULT '2000-01-01'",
     "ALTER TABLE foods ADD COLUMN barcode TEXT",
+    "ALTER TABLE pantry ADD COLUMN package_id INTEGER",
   ];
   for (const stmt of migrations) {
     try { database.exec(stmt); } catch (_) {}
   }
+
+  // food_packages table (one-to-many with foods)
+  try {
+    database.exec(`
+      CREATE TABLE IF NOT EXISTS food_packages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        food_id INTEGER NOT NULL,
+        grams REAL NOT NULL,
+        FOREIGN KEY(food_id) REFERENCES foods(id) ON DELETE CASCADE
+      )
+    `);
+    database.exec(`CREATE INDEX IF NOT EXISTS idx_food_packages_food ON food_packages(food_id)`);
+  } catch (_) {}
 
   // One-time migration: drop UNIQUE(food_id) on pantry, add expiry_date column
   try {

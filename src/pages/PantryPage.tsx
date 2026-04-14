@@ -57,12 +57,39 @@ function resolveExpiry(iso: string): string {
   return `${nextYear}-${String(nextMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
-function formatQty(quantity_g: number, piece_grams: number | null): string {
+type PantryUnit = 'g' | 'pcs' | `pkg-${number}`;
+
+function formatQty(quantity_g: number, piece_grams: number | null, package_grams: number | null): string {
+  const g = Math.round(quantity_g);
+  if (package_grams && package_grams > 0) {
+    const count = Math.round((quantity_g / package_grams) * 10) / 10;
+    return `${count} × ${Math.round(package_grams)}g (${g}g)`;
+  }
   if (piece_grams && piece_grams > 0) {
     const pcs = Math.round((quantity_g / piece_grams) * 10) / 10;
-    return `${pcs} pcs (${Math.round(quantity_g)}g)`;
+    return `${pcs} pcs (${g}g)`;
   }
-  return `${Math.round(quantity_g)}g`;
+  return `${g}g`;
+}
+
+function defaultUnit(food: Food): PantryUnit {
+  if ((food.packages?.length ?? 0) > 0) return `pkg-${food.packages![0].id}`;
+  if (food.piece_grams) return 'pcs';
+  return 'g';
+}
+
+function unitToGrams(unit: PantryUnit, val: number, food: Food): number {
+  if (unit === 'pcs' && food.piece_grams) return val * food.piece_grams;
+  if (unit.startsWith('pkg-')) {
+    const id = Number(unit.slice(4));
+    const pkg = food.packages?.find(p => p.id === id);
+    return pkg ? val * pkg.grams : val;
+  }
+  return val;
+}
+
+function unitToPackageId(unit: PantryUnit): number | null {
+  return unit.startsWith('pkg-') ? Number(unit.slice(4)) : null;
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -78,11 +105,11 @@ export default function PantryPage() {
   const [selFood, setSelFood]           = useState<Food | null>(null);
   const [qty, setQty]                   = useState('');
   const [expiry, setExpiry]             = useState(''); // ISO date or ''
-  const [usePieces, setUsePieces]       = useState(false);
+  const [unit, setUnit]                 = useState<PantryUnit>('g');
   const [pantryOpen, setPantryOpen]     = useState(true);
   const [discardId, setDiscardId]       = useState<number | null>(null);
   const [collapsedFoods, setCollapsedFoods] = useState<Set<number>>(new Set());
-  const [editingBatch, setEditingBatch] = useState<{ id: number; qty: string; expiry: string; usePieces: boolean } | null>(null);
+  const [editingBatch, setEditingBatch] = useState<{ id: number; qty: string; expiry: string; unit: PantryUnit } | null>(null);
   const qtyRef = useRef<HTMLInputElement>(null);
 
   // Shopping state
@@ -116,6 +143,7 @@ export default function PantryPage() {
           total_g: 0,
           earliest_expiry: null,
           batches: [],
+          pack_breakdown: [],
         });
       }
       const agg = map.get(b.food_id)!;
@@ -125,6 +153,17 @@ export default function PantryPage() {
     for (const agg of map.values()) {
       agg.batches.sort((a, b) => compareExpiry(a.expiry_date, b.expiry_date));
       agg.earliest_expiry = agg.batches[0]?.expiry_date ?? null;
+      // Build pack breakdown
+      const packMap = new Map<number, number>(); // pack_grams → total count
+      for (const b of agg.batches) {
+        if (b.package_id && b.package_grams && b.package_grams > 0) {
+          const count = b.quantity_g / b.package_grams;
+          packMap.set(b.package_grams, (packMap.get(b.package_grams) ?? 0) + count);
+        }
+      }
+      agg.pack_breakdown = [...packMap.entries()]
+        .map(([grams, count]) => ({ grams, count: Math.round(count * 10) / 10 }))
+        .sort((a, b) => a.grams - b.grams);
     }
     return [...map.values()].sort((a, b) => {
       const ec = compareExpiry(a.earliest_expiry, b.earliest_expiry);
@@ -137,7 +176,7 @@ export default function PantryPage() {
   const foodSearchItems: SearchItem[] = foods.map(f => ({ ...f, isRecipe: false as const, _freq: 0 }));
 
   const addGrams = selFood
-    ? (usePieces && selFood.piece_grams ? (evalExpr(qty) ?? 0) * selFood.piece_grams : (evalExpr(qty) ?? 0))
+    ? unitToGrams(unit, evalExpr(qty) ?? 0, selFood)
     : 0;
 
   // ── Handlers ────────────────────────────────────────────────────────────────
@@ -145,7 +184,7 @@ export default function PantryPage() {
   function handleSelect(item: SearchItem) {
     const food = item as Food;
     setSelFood(food);
-    setUsePieces(!!(food.piece_grams));
+    setUnit(defaultUnit(food));
     setQty('');
     setExpiry('');
     setTimeout(() => qtyRef.current?.focus(), 0);
@@ -153,28 +192,42 @@ export default function PantryPage() {
 
   async function handleAddBatch() {
     if (!selFood || !qty || addGrams <= 0) return;
-    await api.pantry.addBatch({ food_id: selFood.id, quantity_g: addGrams, expiry_date: expiry || null });
-    setSelFood(null); setQty(''); setUsePieces(false); setExpiry('');
+    await api.pantry.addBatch({
+      food_id: selFood.id,
+      quantity_g: addGrams,
+      expiry_date: expiry || null,
+      package_id: unitToPackageId(unit),
+    });
+    setSelFood(null); setQty(''); setUnit('g'); setExpiry('');
     loadPantry();
   }
 
   function startEditBatch(batch: PantryItem) {
-    const hasPieces = !!(batch.piece_grams && batch.piece_grams > 0);
-    setEditingBatch({
-      id: batch.id,
-      qty: hasPieces
-        ? String(Math.round((batch.quantity_g / batch.piece_grams!) * 10) / 10)
-        : String(Math.round(batch.quantity_g)),
-      expiry: batch.expiry_date ?? '',
-      usePieces: hasPieces,
-    });
+    // Infer the best initial unit: pack > pieces > grams
+    let batchUnit: PantryUnit = 'g';
+    let qtyStr = String(Math.round(batch.quantity_g));
+    if (batch.package_id && batch.package_grams && batch.package_grams > 0) {
+      batchUnit = `pkg-${batch.package_id}`;
+      qtyStr = String(Math.round((batch.quantity_g / batch.package_grams) * 10) / 10);
+    } else if (batch.piece_grams && batch.piece_grams > 0) {
+      batchUnit = 'pcs';
+      qtyStr = String(Math.round((batch.quantity_g / batch.piece_grams) * 10) / 10);
+    }
+    setEditingBatch({ id: batch.id, qty: qtyStr, expiry: batch.expiry_date ?? '', unit: batchUnit });
   }
 
   async function handleSaveBatch(batch: PantryItem) {
     if (!editingBatch) return;
     const val = evalExpr(editingBatch.qty) ?? 0;
-    const grams = editingBatch.usePieces && batch.piece_grams ? val * batch.piece_grams : val;
-    await api.pantry.set({ id: editingBatch.id, quantity_g: grams || 0, expiry_date: editingBatch.expiry || null });
+    // Use the batch's associated food (from the foods list, for package lookup)
+    const food = foods.find(f => f.id === batch.food_id);
+    const grams = food ? unitToGrams(editingBatch.unit, val, food) : val;
+    await api.pantry.set({
+      id: editingBatch.id,
+      quantity_g: grams || 0,
+      expiry_date: editingBatch.expiry || null,
+      package_id: unitToPackageId(editingBatch.unit),
+    });
     setEditingBatch(null);
     loadPantry();
   }
@@ -199,7 +252,7 @@ export default function PantryPage() {
     loadPantry();
     // Pre-select the new food in the "Add / top up" form.
     setSelFood(food);
-    setUsePieces(!!(food.piece_grams));
+    setUnit(defaultUnit(food));
     setQty(''); setExpiry('');
     setTimeout(() => qtyRef.current?.focus(), 0);
   }
@@ -207,7 +260,7 @@ export default function PantryPage() {
   function handleFoodFound(food: Food) {
     // Called by AddFoodPanel when a barcode scan matches an existing food.
     setSelFood(food);
-    setUsePieces(!!(food.piece_grams));
+    setUnit(defaultUnit(food));
     setQty(''); setExpiry('');
     showToast(`Found: ${food.name}`);
     setTimeout(() => qtyRef.current?.focus(), 0);
@@ -270,7 +323,7 @@ export default function PantryPage() {
                 <FoodSearch
                   items={foodSearchItems}
                   onSelect={handleSelect}
-                  onClear={() => { setSelFood(null); setQty(''); setUsePieces(false); setExpiry(''); }}
+                  onClear={() => { setSelFood(null); setQty(''); setUnit('g'); setExpiry(''); }}
                   placeholder="Search food…"
                   clearAfterSelect
                 />
@@ -302,16 +355,25 @@ export default function PantryPage() {
                       })()}
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      {selFood.piece_grams && (
+                      {(selFood.piece_grams || (selFood.packages?.length ?? 0) > 0) && (
                         <div className="flex rounded-lg border border-border overflow-hidden text-xs">
                           <button
-                            onClick={() => { setUsePieces(false); setQty(''); }}
-                            className={`px-3 py-1.5 cursor-pointer transition-colors ${!usePieces ? 'bg-accent/15 text-accent font-medium' : 'text-text-sec hover:text-text'}`}
+                            onClick={() => { setUnit('g'); setQty(''); }}
+                            className={`px-3 py-1.5 cursor-pointer transition-colors ${unit === 'g' ? 'bg-accent/15 text-accent font-medium' : 'text-text-sec hover:text-text'}`}
                           >g</button>
-                          <button
-                            onClick={() => { setUsePieces(true); setQty(''); }}
-                            className={`px-3 py-1.5 cursor-pointer transition-colors ${usePieces ? 'bg-accent/15 text-accent font-medium' : 'text-text-sec hover:text-text'}`}
-                          >pcs</button>
+                          {selFood.piece_grams && (
+                            <button
+                              onClick={() => { setUnit('pcs'); setQty(''); }}
+                              className={`px-3 py-1.5 cursor-pointer transition-colors ${unit === 'pcs' ? 'bg-accent/15 text-accent font-medium' : 'text-text-sec hover:text-text'}`}
+                            >pcs</button>
+                          )}
+                          {selFood.packages?.map(pkg => (
+                            <button
+                              key={pkg.id}
+                              onClick={() => { setUnit(`pkg-${pkg.id}`); setQty(''); }}
+                              className={`px-3 py-1.5 cursor-pointer transition-colors tabular-nums ${unit === `pkg-${pkg.id}` ? 'bg-accent/15 text-accent font-medium' : 'text-text-sec hover:text-text'}`}
+                            >{pkg.grams}g</button>
+                          ))}
                         </div>
                       )}
                       <input
@@ -320,12 +382,12 @@ export default function PantryPage() {
                         value={qty}
                         onChange={e => setQty(e.target.value)}
                         onBlur={() => setQty(v => resolveExpr(v))}
-                        placeholder={usePieces ? 'pieces' : 'grams'}
+                        placeholder={unit === 'pcs' ? 'pieces' : unit === 'g' ? 'grams' : 'packs'}
                         className={`w-28 ${inputCls}`}
                         onKeyDown={e => { if (e.key === 'Enter') { setQty(resolveExpr(qty)); handleAddBatch(); } }}
                       />
-                      {usePieces && selFood.piece_grams && qty && (evalExpr(qty) ?? 0) > 0 && (
-                        <span className="text-xs text-text-sec">= {Math.round((evalExpr(qty) ?? 0) * selFood.piece_grams)}g</span>
+                      {unit !== 'g' && qty && (evalExpr(qty) ?? 0) > 0 && addGrams > 0 && (
+                        <span className="text-xs text-text-sec">= {Math.round(addGrams)}g</span>
                       )}
                       {/* Expiry date */}
                       <div className="flex items-center gap-1.5">
@@ -348,7 +410,7 @@ export default function PantryPage() {
                         className="px-4 py-2 bg-accent text-white text-sm rounded-lg cursor-pointer hover:opacity-90 disabled:opacity-40 font-medium"
                       >Add</button>
                       <button
-                        onClick={() => { setSelFood(null); setQty(''); setUsePieces(false); setExpiry(''); }}
+                        onClick={() => { setSelFood(null); setQty(''); setUnit('g'); setExpiry(''); }}
                         className="text-sm text-text-sec cursor-pointer hover:text-text"
                       >Cancel</button>
                     </div>
@@ -392,8 +454,17 @@ export default function PantryPage() {
                       )}
                       <div className="flex flex-col items-end shrink-0">
                         <span className="text-sm text-text tabular-nums font-semibold">
-                          {formatQty(agg.total_g, agg.piece_grams)}
+                          {formatQty(
+                            agg.total_g,
+                            agg.piece_grams,
+                            agg.pack_breakdown.length === 1 ? agg.pack_breakdown[0].grams : null,
+                          )}
                         </span>
+                        {agg.pack_breakdown.length > 1 && (
+                          <span className="text-xs text-text-sec/60 tabular-nums">
+                            {agg.pack_breakdown.map(p => `${p.count}×${p.grams}g`).join(' + ')}
+                          </span>
+                        )}
                         {totalKcal !== null && (
                           <span className="text-xs text-text-sec/60 tabular-nums">≈ {totalKcal} kcal</span>
                         )}
@@ -419,14 +490,31 @@ export default function PantryPage() {
                               {isEditing ? (
                                 <>
                                   <div className="flex items-center gap-1.5 flex-wrap flex-1">
-                                    {batch.piece_grams && (
-                                      <button
-                                        onClick={() => setEditingBatch(b => b ? { ...b, usePieces: !b.usePieces } : b)}
-                                        className="text-xs text-text-sec hover:text-accent cursor-pointer border border-border rounded px-1.5 py-0.5"
-                                      >
-                                        {editingBatch.usePieces ? 'pcs' : 'g'}
-                                      </button>
-                                    )}
+                                    {/* Unit toggle for editing */}
+                                    {(batch.piece_grams || batch.package_grams) && (() => {
+                                      const bFood = foods.find(f => f.id === batch.food_id);
+                                      return (
+                                        <div className="flex rounded border border-border overflow-hidden text-xs">
+                                          <button
+                                            onClick={() => setEditingBatch(b => b ? { ...b, unit: 'g', qty: String(Math.round(batch.quantity_g)) } : b)}
+                                            className={`px-2 py-0.5 cursor-pointer ${editingBatch.unit === 'g' ? 'bg-accent/15 text-accent' : 'text-text-sec'}`}
+                                          >g</button>
+                                          {batch.piece_grams && (
+                                            <button
+                                              onClick={() => setEditingBatch(b => b ? { ...b, unit: 'pcs', qty: String(Math.round((batch.quantity_g / batch.piece_grams!) * 10) / 10) } : b)}
+                                              className={`px-2 py-0.5 cursor-pointer ${editingBatch.unit === 'pcs' ? 'bg-accent/15 text-accent' : 'text-text-sec'}`}
+                                            >pcs</button>
+                                          )}
+                                          {bFood?.packages?.map(pkg => (
+                                            <button
+                                              key={pkg.id}
+                                              onClick={() => setEditingBatch(b => b ? { ...b, unit: `pkg-${pkg.id}`, qty: String(Math.round((batch.quantity_g / pkg.grams) * 10) / 10) } : b)}
+                                              className={`px-2 py-0.5 cursor-pointer tabular-nums ${editingBatch.unit === `pkg-${pkg.id}` ? 'bg-accent/15 text-accent' : 'text-text-sec'}`}
+                                            >{pkg.grams}g</button>
+                                          ))}
+                                        </div>
+                                      );
+                                    })()}
                                     <input
                                       type="text" inputMode="decimal"
                                       value={editingBatch.qty}
@@ -458,7 +546,7 @@ export default function PantryPage() {
                                 <>
                                   <div className="flex-1 flex items-center gap-3">
                                     <span className="text-sm font-semibold tabular-nums text-text">
-                                      {formatQty(batch.quantity_g, batch.piece_grams)}
+                                      {formatQty(batch.quantity_g, batch.piece_grams, batch.package_grams)}
                                     </span>
                                     {batch.expiry_date ? (
                                       <span className={`text-xs tabular-nums ${bExpiryColor}`}>{bExpiryLabel}</span>

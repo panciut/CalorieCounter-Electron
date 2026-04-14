@@ -72,11 +72,15 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
   const { showToast } = useToast();
   const [open, setOpen] = useState(defaultOpen);
   const [form, setForm] = useState<FoodFormState>(emptyForm());
+  const [packs, setPacks] = useState<{ grams: string }[]>([]);
   const [barcodeInput, setBarcodeInput] = useState('');
   const [barcodeStatus, setBarcodeStatus] = useState<'found' | 'notFound' | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
 
   function patch(p: Partial<FoodFormState>) { setForm(f => ({ ...f, ...p })); }
+  function addPack() { setPacks(p => [...p, { grams: '' }]); }
+  function removePack(i: number) { setPacks(p => p.filter((_, idx) => idx !== i)); }
+  function patchPack(i: number, grams: string) { setPacks(p => p.map((x, idx) => idx === i ? { grams } : x)); }
 
   async function handleBarcodeLookup() {
     if (!barcodeInput.trim()) return;
@@ -120,6 +124,10 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
   async function handleAdd() {
     if (!form.name.trim() || !form.calories) return;
     const { id } = await api.foods.add(formToData(form));
+    for (const p of packs) {
+      const g = parseFloat(p.grams);
+      if (g > 0) await api.foods.addPackage({ food_id: id, grams: g });
+    }
     showToast(t('common.saved'));
     if (onSaved) {
       const allFoods = await api.foods.getAll();
@@ -127,6 +135,7 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
       if (saved) onSaved(saved);
     }
     setForm(emptyForm());
+    setPacks([]);
     setBarcodeInput('');
     setBarcodeStatus(null);
   }
@@ -242,6 +251,29 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
                 {t('common.add')}
               </button>
             </div>
+          </div>
+
+          {/* Pack sizes */}
+          <div className="flex items-center gap-2 flex-wrap border-t border-border pt-2">
+            <label className="text-xs text-text-sec shrink-0">{t('foods.packs')}:</label>
+            {packs.map((p, i) => (
+              <div key={i} className="flex items-center gap-1">
+                <input
+                  type="text" inputMode="decimal"
+                  value={p.grams}
+                  onChange={e => patchPack(i, e.target.value)}
+                  placeholder="g"
+                  className="w-16 bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent"
+                />
+                <span className="text-xs text-text-sec">g</span>
+                <button type="button" onClick={() => removePack(i)} className="text-xs text-text-sec hover:text-red cursor-pointer px-0.5">✕</button>
+              </div>
+            ))}
+            <button
+              type="button" onClick={addPack}
+              className="text-xs px-2 py-1 rounded border border-dashed border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer">
+              + {t('foods.addPack')}
+            </button>
           </div>
         </div>
       )}

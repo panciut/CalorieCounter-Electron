@@ -71,8 +71,10 @@ export default function FoodsPage() {
 
   const [foods, setFoods] = useState<Food[]>([]);
   const [addForm, setAddForm] = useState<FoodFormState>(emptyForm());
+  const [addPacks, setAddPacks] = useState<{ grams: string }[]>([]);
   const [editId, setEditId] = useState<number|null>(null);
   const [editForm, setEditForm] = useState<FoodFormState>(emptyForm());
+  const [newPackGrams, setNewPackGrams] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [barcodeStatus, setBarcodeStatus] = useState<'found'|'notFound'|null>(null);
@@ -89,8 +91,29 @@ export default function FoodsPage() {
 
   async function handleAdd() {
     if (!addForm.name.trim() || !addForm.calories) return;
-    await api.foods.add(formToData(addForm));
-    setAddForm(emptyForm()); showToast(t('common.saved')); loadFoods();
+    const { id } = await api.foods.add(formToData(addForm));
+    for (const p of addPacks) {
+      const g = parseFloat(p.grams);
+      if (g > 0) await api.foods.addPackage({ food_id: id, grams: g });
+    }
+    setAddForm(emptyForm()); setAddPacks([]); showToast(t('common.saved')); loadFoods();
+  }
+
+  async function handleAddPack() {
+    const g = parseFloat(newPackGrams);
+    if (!g || g <= 0 || !editId) return;
+    await api.foods.addPackage({ food_id: editId, grams: g });
+    setNewPackGrams('');
+    loadFoods();
+  }
+
+  async function handleDeletePack(id: number) {
+    const res = await api.foods.deletePackage(id);
+    if (!res.ok && res.error === 'pack_in_use') {
+      showToast(t('foods.packInUse').replace('{n}', String(res.batch_count ?? 0)), 'error');
+      return;
+    }
+    loadFoods();
   }
 
   async function handleBarcodeLookup() {
@@ -251,6 +274,30 @@ export default function FoodsPage() {
                 <button type="button" onClick={handleAdd} disabled={!addForm.name.trim()||!addForm.calories} className="px-4 py-1.5 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer">{t('common.add')}</button>
               </div>
             </div>
+
+            {/* Pack sizes */}
+            <div className="flex items-center gap-2 flex-wrap border-t border-border pt-2">
+              <label className="text-xs text-text-sec shrink-0">{t('foods.packs')}:</label>
+              {addPacks.map((p, i) => (
+                <div key={i} className="flex items-center gap-1">
+                  <input
+                    type="text" inputMode="decimal"
+                    value={p.grams}
+                    onChange={e => setAddPacks(prev => prev.map((x, idx) => idx === i ? { grams: e.target.value } : x))}
+                    placeholder="g"
+                    className="w-16 bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent"
+                  />
+                  <span className="text-xs text-text-sec">g</span>
+                  <button type="button" onClick={() => setAddPacks(prev => prev.filter((_, idx) => idx !== i))} className="text-xs text-text-sec hover:text-red cursor-pointer px-0.5">✕</button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => setAddPacks(prev => [...prev, { grams: '' }])}
+                className="text-xs px-2 py-1 rounded border border-dashed border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer">
+                + {t('foods.addPack')}
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -314,6 +361,24 @@ export default function FoodsPage() {
                             />
                           </div>
                         )}
+                        {/* Pack sizes — live add/remove */}
+                        <div className="flex items-center gap-2 flex-wrap border-t border-border pt-2 mt-2">
+                          <label className="text-xs text-text-sec shrink-0">{t('foods.packs')}:</label>
+                          {(food.packages ?? []).map(pkg => (
+                            <div key={pkg.id} className="flex items-center gap-1 bg-bg border border-border rounded px-2 py-0.5">
+                              <span className="text-xs tabular-nums">{pkg.grams}g</span>
+                              <button type="button" onClick={() => handleDeletePack(pkg.id)} className="text-xs text-text-sec hover:text-red cursor-pointer">✕</button>
+                            </div>
+                          ))}
+                          <input
+                            type="text" inputMode="decimal"
+                            value={newPackGrams}
+                            onChange={e => setNewPackGrams(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && handleAddPack()}
+                            placeholder="+ g"
+                            className="w-16 text-xs bg-bg border border-dashed border-border rounded px-2 py-0.5 focus:border-accent outline-none"
+                          />
+                        </div>
                       </td>
                       <td className="px-2 py-2 align-top">
                         <div className="flex flex-col gap-1 pt-1">

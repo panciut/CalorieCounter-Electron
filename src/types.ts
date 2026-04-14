@@ -2,6 +2,12 @@
 
 export type Meal = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
 
+export interface FoodPackage {
+  id: number;
+  food_id: number;
+  grams: number;
+}
+
 export interface Food {
   id: number;
   name: string;
@@ -14,6 +20,7 @@ export interface Food {
   is_liquid: number; // 0 or 1
   favorite?: number; // 0 or 1
   barcode?: string | null;
+  packages?: FoodPackage[]; // attached by foods:getAll
 }
 
 export interface FrequentFood extends Food {
@@ -244,6 +251,8 @@ export interface PantryItem {
   quantity_g: number;
   expiry_date: string | null; // ISO yyyy-mm-dd
   updated_at: string;
+  package_id: number | null;
+  package_grams: number | null; // denormalized from food_packages join
 }
 
 export interface PantryAggregate {
@@ -253,6 +262,7 @@ export interface PantryAggregate {
   total_g: number;
   earliest_expiry: string | null;
   batches: PantryItem[];
+  pack_breakdown: { grams: number; count: number }[];
 }
 
 export interface PantryIngredientCheck {

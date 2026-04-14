@@ -7,26 +7,30 @@ function registerPantryIpc() {
   // Client aggregates into PantryAggregate.
   ipcMain.handle('pantry:getAll', () =>
     getDb().prepare(`
-      SELECT p.id, p.food_id, f.name as food_name, f.piece_grams, p.quantity_g, p.expiry_date, p.updated_at
-      FROM pantry p JOIN foods f ON f.id = p.food_id
+      SELECT p.id, p.food_id, f.name AS food_name, f.piece_grams,
+             p.quantity_g, p.expiry_date, p.updated_at,
+             p.package_id, fp.grams AS package_grams
+      FROM pantry p
+      JOIN foods f ON f.id = p.food_id
+      LEFT JOIN food_packages fp ON fp.id = p.package_id
       ORDER BY CASE WHEN p.expiry_date IS NULL THEN '9999-99-99' ELSE p.expiry_date END ASC, f.name ASC
     `).all()
   );
 
   // Add a new batch (no UNIQUE conflict — always inserts)
-  ipcMain.handle('pantry:addBatch', (_, { food_id, quantity_g, expiry_date }) => {
+  ipcMain.handle('pantry:addBatch', (_, { food_id, quantity_g, expiry_date, package_id }) => {
     getDb().prepare(`
-      INSERT INTO pantry (food_id, quantity_g, expiry_date, updated_at)
-      VALUES (?, ?, ?, datetime('now'))
-    `).run(food_id, quantity_g, expiry_date || null);
+      INSERT INTO pantry (food_id, quantity_g, expiry_date, package_id, updated_at)
+      VALUES (?, ?, ?, ?, datetime('now'))
+    `).run(food_id, quantity_g, expiry_date || null, package_id ?? null);
     return { ok: true };
   });
 
-  // Set exact quantity + expiry for a specific batch (by batch id)
-  ipcMain.handle('pantry:set', (_, { id, quantity_g, expiry_date }) => {
+  // Set exact quantity + expiry + package for a specific batch (by batch id)
+  ipcMain.handle('pantry:set', (_, { id, quantity_g, expiry_date, package_id }) => {
     getDb().prepare(`
-      UPDATE pantry SET quantity_g = ?, expiry_date = ?, updated_at = datetime('now') WHERE id = ?
-    `).run(quantity_g, expiry_date || null, id);
+      UPDATE pantry SET quantity_g = ?, expiry_date = ?, package_id = ?, updated_at = datetime('now') WHERE id = ?
+    `).run(quantity_g, expiry_date || null, package_id ?? null, id);
     return { ok: true };
   });
 
