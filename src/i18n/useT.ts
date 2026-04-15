@@ -8,8 +8,13 @@ export function useT() {
   const lang = (settings?.language ?? 'en') as 'en' | 'it';
   const map = translations[lang] ?? translations.en;
 
-  function t(key: string): string {
-    return map[key] ?? translations.en[key] ?? key;
+  function t(key: string, vars?: Record<string, string | number>): string {
+    const template = map[key] ?? translations.en[key] ?? key;
+    if (!vars) return template;
+    return template.replace(/\{(\w+)\}/g, (m, name) => {
+      const v = vars[name];
+      return v == null ? m : String(v);
+    });
   }
 
   function tMeal(meal: Meal | string): string {

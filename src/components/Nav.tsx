@@ -4,6 +4,7 @@ import { useSettings } from '../hooks/useSettings';
 import { useT } from '../i18n/useT';
 import { getThisMonday } from '../lib/dateUtil';
 import type { PageName } from '../types';
+import NotificationBell from './NotificationBell';
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 
@@ -33,6 +34,7 @@ const ICONS: Record<PageName, string> = {
   measurements: 'M2 12h20 M12 2v20 M4.93 4.93l14.14 14.14 M19.07 4.93L4.93 19.07',
   data:         'M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4 M7 10l5 5 5-5 M12 15V3',
   settings:     'M12 15a3 3 0 100-6 3 3 0 000 6z M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z',
+  notifications: 'M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9 M10.3 21a1.94 1.94 0 003.4 0',
   // pages not in main nav but in PageName
   day:          'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z',
 };
@@ -43,6 +45,7 @@ interface NavItem { page: PageName; labelKey: string; }
 
 const DEFAULT_ORDER: NavItem[] = [
   { page: 'dashboard',    labelKey: 'nav.today' },
+  { page: 'notifications', labelKey: 'nav.notifications' },
   { page: 'foods',        labelKey: 'nav.foods' },
   { page: 'pantry',       labelKey: 'nav.pantry' },
   { page: 'recipes',      labelKey: 'nav.recipes' },
@@ -200,9 +203,11 @@ export default function Nav({ activePage }: NavProps) {
   return (
     <nav className="flex flex-col w-48 shrink-0 bg-nav-bg border-r border-border py-4 overflow-y-auto">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pb-4">
+      <div className="flex items-center justify-between px-4 pb-4 gap-2">
         <span className="text-accent font-bold text-lg tracking-tight select-none">CC</span>
-        <button
+        <div className="flex items-center gap-1">
+          <NotificationBell />
+          <button
           onClick={() => setEditing(v => !v)}
           title={editing ? t('nav.done') : t('nav.reorderHide')}
           className={[
@@ -213,7 +218,8 @@ export default function Nav({ activePage }: NavProps) {
           ].join(' ')}
         >
           {editing ? t('nav.done') : <span style={{ display: 'inline-block', transform: 'scaleX(-1) rotate(15deg)' }}>✎</span>}
-        </button>
+          </button>
+        </div>
       </div>
 
       {/* Nav items */}

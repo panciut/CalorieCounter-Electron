@@ -392,7 +392,31 @@ export type PageName =
   | 'measurements'
   | 'goals'
   | 'data'
+  | 'notifications'
   | 'settings';
+
+export type NotificationType =
+  | 'pantry_expiry'
+  | 'pantry_opened'
+  | 'missing_log'
+  | 'missing_active_energy';
+
+export type NotificationSeverity = 'info' | 'warn' | 'urgent';
+
+export interface AppNotification {
+  key: string;
+  type: NotificationType;
+  severity: NotificationSeverity;
+  payload: Record<string, string | number | null>;
+  action?: { page: PageName; params?: Record<string, string> };
+  created_at: string;
+}
+
+export interface DismissedNotification {
+  key: string;
+  dismissed_at: string;
+  expires_at: string | null;
+}
 
 export interface NavParam {
   weekStart?: string;

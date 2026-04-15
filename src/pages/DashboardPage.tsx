@@ -33,6 +33,7 @@ interface QuickFoodDialogProps {
 
 function QuickFoodDialog({ isOpen, onClose, date, meal, onLogged }: QuickFoodDialogProps) {
   const { t } = useT();
+  const [mode, setMode] = useState<'detailed' | 'estimate'>('detailed');
   const [name, setName] = useState('');
   const [kcal, setKcal] = useState('');
   const [grams, setGrams] = useState('');
@@ -40,64 +41,134 @@ function QuickFoodDialog({ isOpen, onClose, date, meal, onLogged }: QuickFoodDia
   const [carbs, setCarbs] = useState('');
   const [fat, setFat] = useState('');
   const [pieceG, setPieceG] = useState('');
+  const [totalKcal, setTotalKcal] = useState('');
+  const [totalProtein, setTotalProtein] = useState('');
 
   const inputCls = "w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 
-  async function handleSubmit() {
-    if (!name.trim() || !kcal || !grams) return;
-    await api.log.addQuick({
-      food: {
-        name: name.trim(),
-        calories: parseFloat(kcal) || 0,
-        protein: parseFloat(protein) || 0,
-        carbs: parseFloat(carbs) || 0,
-        fat: parseFloat(fat) || 0,
-        fiber: 0,
-        piece_grams: pieceG ? parseFloat(pieceG) : null,
-        is_liquid: 0,
-      },
-      grams: parseFloat(grams),
-      meal,
-      date,
-    });
+  function resetAll() {
     setName(''); setKcal(''); setGrams(''); setProtein(''); setCarbs(''); setFat(''); setPieceG('');
+    setTotalKcal(''); setTotalProtein('');
+  }
+
+  async function handleSubmit() {
+    if (mode === 'estimate') {
+      if (!name.trim() || !totalKcal) return;
+      const kcalNum = parseFloat(totalKcal) || 0;
+      const proteinNum = parseFloat(totalProtein) || 0;
+      await api.log.addQuick({
+        food: {
+          name: name.trim(),
+          calories: kcalNum,
+          protein: proteinNum,
+          carbs: 0,
+          fat: 0,
+          fiber: 0,
+          piece_grams: null,
+          is_liquid: 0,
+        },
+        grams: 100,
+        meal,
+        date,
+      });
+    } else {
+      if (!name.trim() || !kcal || !grams) return;
+      await api.log.addQuick({
+        food: {
+          name: name.trim(),
+          calories: parseFloat(kcal) || 0,
+          protein: parseFloat(protein) || 0,
+          carbs: parseFloat(carbs) || 0,
+          fat: parseFloat(fat) || 0,
+          fiber: 0,
+          piece_grams: pieceG ? parseFloat(pieceG) : null,
+          is_liquid: 0,
+        },
+        grams: parseFloat(grams),
+        meal,
+        date,
+      });
+    }
+    resetAll();
     onLogged();
     onClose();
   }
 
+  const submitDisabled = mode === 'estimate'
+    ? (!name.trim() || !totalKcal)
+    : (!name.trim() || !kcal || !grams);
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={t('qf.title')}>
       <div className="flex flex-col gap-3">
-        <input type="text" value={name} onChange={e=>setName(e.target.value)} placeholder={t('qf.foodNamePlaceholder')} className={inputCls} />
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-text-sec">{t('qf.kcalPer100')}</label>
-            <input type="text" inputMode="decimal" value={kcal} onChange={e=>setKcal(e.target.value)} className={inputCls} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-text-sec">{t('qf.gramsToLog')}</label>
-            <input type="text" inputMode="decimal" value={grams} onChange={e=>setGrams(e.target.value)} className={inputCls} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-text-sec">{t('th.protein')} g/100g ({t('common.opt')})</label>
-            <input type="text" inputMode="decimal" value={protein} onChange={e=>setProtein(e.target.value)} className={inputCls} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-text-sec">{t('th.carbs')} g/100g ({t('common.opt')})</label>
-            <input type="text" inputMode="decimal" value={carbs} onChange={e=>setCarbs(e.target.value)} className={inputCls} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-text-sec">{t('th.fat')} g/100g ({t('common.opt')})</label>
-            <input type="text" inputMode="decimal" value={fat} onChange={e=>setFat(e.target.value)} className={inputCls} />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-text-sec">{t('qf.gPerPiece')} ({t('common.opt')})</label>
-            <input type="text" inputMode="decimal" value={pieceG} onChange={e=>setPieceG(e.target.value)} className={inputCls} />
-          </div>
+        {/* Mode toggle */}
+        <div className="flex gap-1 p-0.5 bg-bg border border-border rounded-lg">
+          <button
+            type="button"
+            onClick={() => setMode('detailed')}
+            className={[
+              'flex-1 text-xs px-3 py-1.5 rounded-md cursor-pointer transition-colors',
+              mode === 'detailed' ? 'bg-accent/15 text-accent font-medium' : 'text-text-sec hover:text-text',
+            ].join(' ')}
+          >
+            {t('qf.modeDetailed')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('estimate')}
+            className={[
+              'flex-1 text-xs px-3 py-1.5 rounded-md cursor-pointer transition-colors',
+              mode === 'estimate' ? 'bg-accent/15 text-accent font-medium' : 'text-text-sec hover:text-text',
+            ].join(' ')}
+          >
+            {t('qf.modeEstimate')}
+          </button>
         </div>
+
+        <input type="text" value={name} onChange={e=>setName(e.target.value)} placeholder={t('qf.foodNamePlaceholder')} className={inputCls} />
+
+        {mode === 'estimate' ? (
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-text-sec">{t('qf.totalKcal')}</label>
+              <input type="text" inputMode="decimal" value={totalKcal} onChange={e=>setTotalKcal(e.target.value)} className={inputCls} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-text-sec">{t('qf.totalProtein')}</label>
+              <input type="text" inputMode="decimal" value={totalProtein} onChange={e=>setTotalProtein(e.target.value)} className={inputCls} />
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-text-sec">{t('qf.kcalPer100')}</label>
+              <input type="text" inputMode="decimal" value={kcal} onChange={e=>setKcal(e.target.value)} className={inputCls} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-text-sec">{t('qf.gramsToLog')}</label>
+              <input type="text" inputMode="decimal" value={grams} onChange={e=>setGrams(e.target.value)} className={inputCls} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-text-sec">{t('th.protein')} g/100g ({t('common.opt')})</label>
+              <input type="text" inputMode="decimal" value={protein} onChange={e=>setProtein(e.target.value)} className={inputCls} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-text-sec">{t('th.carbs')} g/100g ({t('common.opt')})</label>
+              <input type="text" inputMode="decimal" value={carbs} onChange={e=>setCarbs(e.target.value)} className={inputCls} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-text-sec">{t('th.fat')} g/100g ({t('common.opt')})</label>
+              <input type="text" inputMode="decimal" value={fat} onChange={e=>setFat(e.target.value)} className={inputCls} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-text-sec">{t('qf.gPerPiece')} ({t('common.opt')})</label>
+              <input type="text" inputMode="decimal" value={pieceG} onChange={e=>setPieceG(e.target.value)} className={inputCls} />
+            </div>
+          </div>
+        )}
         <div className="flex justify-end gap-2 pt-1">
           <button onClick={onClose} className="px-4 py-2 text-sm text-text-sec border border-border rounded-lg cursor-pointer hover:text-text">{t('common.cancel')}</button>
-          <button onClick={handleSubmit} disabled={!name.trim()||!kcal||!grams} className="px-4 py-2 text-sm bg-accent text-white rounded-lg cursor-pointer hover:opacity-90 disabled:opacity-40 font-medium">{t('qf.addAndLog')}</button>
+          <button onClick={handleSubmit} disabled={submitDisabled} className="px-4 py-2 text-sm bg-accent text-white rounded-lg cursor-pointer hover:opacity-90 disabled:opacity-40 font-medium">{t('qf.addAndLog')}</button>
         </div>
       </div>
     </Modal>

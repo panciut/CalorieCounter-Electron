@@ -7,6 +7,7 @@ import type {
   CalorieTrendPoint, MacroTrendPoint, ExerciseTrendPoint,
   GoalType, TDEEResult, GoalSuggestion, DailyEnergy,
   DeductionEvent,
+  AppNotification, DismissedNotification,
 } from './types';
 
 // Re-export for consumers that need it
@@ -218,5 +219,15 @@ export const api = {
     getRange:       (startDate: string, endDate: string) => invoke<DailyEnergy[]>('dailyEnergy:getRange', { startDate, endDate }),
     getPrevResting: (date: string) => invoke<{ resting_kcal: number }>('dailyEnergy:getPrevResting', { date }),
     set:            (data: DailyEnergy) => invoke<{ ok: boolean }>('dailyEnergy:set', data),
+  },
+
+  notifications: {
+    getAll:          () => invoke<AppNotification[]>('notifications:getAll'),
+    dismiss:         (key: string, expires_at?: string | null) =>
+                       invoke<{ ok: boolean }>('notifications:dismiss', { key, expires_at }),
+    undoDismiss:     (key: string) => invoke<{ ok: boolean }>('notifications:undoDismiss', { key }),
+    dismissAll:      (keys?: string[]) => invoke<{ ok: boolean }>('notifications:dismissAll', { keys }),
+    recentDismissed: (limit?: number) =>
+                       invoke<DismissedNotification[]>('notifications:recentDismissed', { limit }),
   },
 } as const;

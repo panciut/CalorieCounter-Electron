@@ -24,6 +24,7 @@ const registerPantryIpc       = require('./ipc/pantry.ipc');
 const registerAnalyticsIpc    = require('./ipc/analytics.ipc');
 const registerGoalsTdeeIpc    = require('./ipc/goals_tdee.ipc');
 const registerDailyEnergyIpc  = require('./ipc/daily_energy.ipc');
+const registerNotificationsIpc = require('./ipc/notifications.ipc');
 
 let mainWindow;
 
@@ -102,6 +103,7 @@ app.whenReady().then(async () => {
   registerAnalyticsIpc();
   registerGoalsTdeeIpc();
   registerDailyEnergyIpc();
+  registerNotificationsIpc();
 
   createWindow();
 

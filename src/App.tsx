@@ -21,6 +21,7 @@ import GoalsPage        from './pages/GoalsPage';
 import DataPage         from './pages/DataPage';
 import SettingsPage     from './pages/SettingsPage';
 import ComparePage      from './pages/ComparePage';
+import NotificationsPage from './pages/NotificationsPage';
 
 import Nav from './components/Nav';
 
@@ -66,6 +67,7 @@ function AppInner() {
         {page === 'measurements' && <MeasurementsPage />}
         {page === 'goals'        && <GoalsPage />}
         {page === 'data'         && <DataPage />}
+        {page === 'notifications' && <NotificationsPage />}
         {page === 'settings'     && <SettingsPage />}
       </main>
     </div>
