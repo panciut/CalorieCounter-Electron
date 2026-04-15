@@ -68,10 +68,10 @@ export function buildDayMarkdown(input: DayExportInput): string {
   lines.push('');
   lines.push('## Targets');
   if (settings.cal_rec) lines.push(`- Calories goal: ${settings.cal_rec} kcal (range ${settings.cal_min}–${settings.cal_max})`);
-  if (settings.protein_rec) lines.push(`- Protein goal: ${settings.protein_rec}g`);
-  if (settings.carbs_rec) lines.push(`- Carbs goal: ${settings.carbs_rec}g`);
-  if (settings.fat_rec) lines.push(`- Fat goal: ${settings.fat_rec}g`);
-  if (settings.fiber_rec) lines.push(`- Fiber goal: ${settings.fiber_rec}g`);
+  if (settings.protein_rec) lines.push(`- Protein goal: ${settings.protein_rec}g (range ${settings.protein_min}–${settings.protein_max}g)`);
+  if (settings.carbs_rec) lines.push(`- Carbs goal: ${settings.carbs_rec}g (range ${settings.carbs_min}–${settings.carbs_max}g)`);
+  if (settings.fat_rec) lines.push(`- Fat goal: ${settings.fat_rec}g (range ${settings.fat_min}–${settings.fat_max}g)`);
+  if (settings.fiber_rec) lines.push(`- Fiber goal: ${settings.fiber_rec}g (range ${settings.fiber_min}–${settings.fiber_max}g)`);
   if (settings.water_goal) lines.push(`- Water goal: ${settings.water_goal} ml`);
   lines.push('');
 
@@ -129,10 +129,10 @@ export function buildPlanMarkdown(date: string, entries: LogEntry[], settings: S
   lines.push('');
   lines.push('## Targets');
   if (settings.cal_rec) lines.push(`- Calories goal: ${settings.cal_rec} kcal (range ${settings.cal_min}–${settings.cal_max})`);
-  if (settings.protein_rec) lines.push(`- Protein goal: ${settings.protein_rec}g`);
-  if (settings.carbs_rec) lines.push(`- Carbs goal: ${settings.carbs_rec}g`);
-  if (settings.fat_rec) lines.push(`- Fat goal: ${settings.fat_rec}g`);
-  if (settings.fiber_rec) lines.push(`- Fiber goal: ${settings.fiber_rec}g`);
+  if (settings.protein_rec) lines.push(`- Protein goal: ${settings.protein_rec}g (range ${settings.protein_min}–${settings.protein_max}g)`);
+  if (settings.carbs_rec) lines.push(`- Carbs goal: ${settings.carbs_rec}g (range ${settings.carbs_min}–${settings.carbs_max}g)`);
+  if (settings.fat_rec) lines.push(`- Fat goal: ${settings.fat_rec}g (range ${settings.fat_min}–${settings.fat_max}g)`);
+  if (settings.fiber_rec) lines.push(`- Fiber goal: ${settings.fiber_rec}g (range ${settings.fiber_min}–${settings.fiber_max}g)`);
   lines.push('');
 
   lines.push('## Projected totals (logged + planned)');
@@ -184,10 +184,10 @@ export function buildWeekMarkdown(weekStart: string, weekEnd: string, rows: Week
   lines.push('');
   lines.push('## Targets');
   if (settings.cal_rec) lines.push(`- Calories goal: ${settings.cal_rec} kcal/day (range ${settings.cal_min}–${settings.cal_max})`);
-  if (settings.protein_rec) lines.push(`- Protein goal: ${settings.protein_rec}g/day`);
-  if (settings.carbs_rec) lines.push(`- Carbs goal: ${settings.carbs_rec}g/day`);
-  if (settings.fat_rec) lines.push(`- Fat goal: ${settings.fat_rec}g/day`);
-  if (settings.fiber_rec) lines.push(`- Fiber goal: ${settings.fiber_rec}g/day`);
+  if (settings.protein_rec) lines.push(`- Protein goal: ${settings.protein_rec}g/day (range ${settings.protein_min}–${settings.protein_max}g)`);
+  if (settings.carbs_rec) lines.push(`- Carbs goal: ${settings.carbs_rec}g/day (range ${settings.carbs_min}–${settings.carbs_max}g)`);
+  if (settings.fat_rec) lines.push(`- Fat goal: ${settings.fat_rec}g/day (range ${settings.fat_min}–${settings.fat_max}g)`);
+  if (settings.fiber_rec) lines.push(`- Fiber goal: ${settings.fiber_rec}g/day (range ${settings.fiber_min}–${settings.fiber_max}g)`);
   lines.push('');
 
   lines.push(`## Averages (${logged.length} logged day${logged.length === 1 ? '' : 's'})`);
@@ -228,10 +228,10 @@ export function buildHistoryMarkdown(input: HistoryExportInput): string {
 
   lines.push('## Targets');
   if (settings.cal_rec) lines.push(`- Calories: ${settings.cal_rec} kcal/day (range ${settings.cal_min}–${settings.cal_max})`);
-  if (settings.protein_rec) lines.push(`- Protein: ${settings.protein_rec}g/day`);
-  if (settings.carbs_rec) lines.push(`- Carbs: ${settings.carbs_rec}g/day`);
-  if (settings.fat_rec) lines.push(`- Fat: ${settings.fat_rec}g/day`);
-  if (settings.fiber_rec) lines.push(`- Fiber: ${settings.fiber_rec}g/day`);
+  if (settings.protein_rec) lines.push(`- Protein: ${settings.protein_rec}g/day (range ${settings.protein_min}–${settings.protein_max}g)`);
+  if (settings.carbs_rec) lines.push(`- Carbs: ${settings.carbs_rec}g/day (range ${settings.carbs_min}–${settings.carbs_max}g)`);
+  if (settings.fat_rec) lines.push(`- Fat: ${settings.fat_rec}g/day (range ${settings.fat_min}–${settings.fat_max}g)`);
+  if (settings.fiber_rec) lines.push(`- Fiber: ${settings.fiber_rec}g/day (range ${settings.fiber_min}–${settings.fiber_max}g)`);
   if (settings.weight_goal) lines.push(`- Weight goal: ${settings.weight_goal} kg`);
   lines.push('');
 

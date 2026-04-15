@@ -23,17 +23,18 @@ type PresetKey = keyof typeof PRESETS;
 interface FoodFormState {
   name: string; calories: string; protein: string; carbs: string;
   fat: string; fiber: string; piece_grams: string; is_liquid: boolean; barcode: string;
+  opened_days: string;
 }
 
 function emptyForm(): FoodFormState {
-  return { name: '', calories: '', protein: '', carbs: '', fat: '', fiber: '', piece_grams: '', is_liquid: false, barcode: '' };
+  return { name: '', calories: '', protein: '', carbs: '', fat: '', fiber: '', piece_grams: '', is_liquid: false, barcode: '', opened_days: '7' };
 }
 
 function barcodeToForm(r: BarcodeResult, barcode: string): FoodFormState {
   return {
     name: r.name, calories: String(r.calories), protein: String(r.protein),
     carbs: String(r.carbs), fat: String(r.fat), fiber: String(r.fiber),
-    piece_grams: '', is_liquid: r.is_liquid === 1, barcode,
+    piece_grams: '', is_liquid: r.is_liquid === 1, barcode, opened_days: '7',
   };
 }
 
@@ -48,6 +49,7 @@ function formToData(f: FoodFormState): Omit<Food, 'id'> {
     piece_grams: f.piece_grams !== '' ? parseFloat(f.piece_grams) : null,
     is_liquid: f.is_liquid ? 1 : 0,
     barcode: f.barcode.trim() || null,
+    opened_days: f.opened_days !== '' ? parseInt(f.opened_days, 10) : null,
   };
 }
 
@@ -251,6 +253,19 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
                 {t('common.add')}
               </button>
             </div>
+          </div>
+
+          {/* Opened shelf life */}
+          <div className="flex items-center gap-3 border-t border-border pt-2">
+            <label className="text-xs text-text-sec shrink-0">{t('foods.openedDays')}</label>
+            <input
+              type="number" inputMode="numeric" min={1}
+              value={form.opened_days}
+              onChange={e => setForm(f => ({ ...f, opened_days: e.target.value }))}
+              placeholder="days"
+              className="w-20 bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <span className="text-xs text-text-sec">days</span>
           </div>
 
           {/* Pack sizes */}

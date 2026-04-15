@@ -109,9 +109,14 @@ function deductFoodFEFO(db, food_id, grams_needed) {
         UPDATE pantry
         SET quantity_g = ?,
             opened_at = datetime('now'),
+            expiry_date = CASE
+              WHEN ? IS NULL THEN expiry_date
+              WHEN expiry_date IS NULL THEN date('now', '+' || ? || ' days')
+              ELSE MIN(expiry_date, date('now', '+' || ? || ' days'))
+            END,
             updated_at = datetime('now')
         WHERE id = ?
-      `).run(newQty, batch.id);
+      `).run(newQty, defaultDays, defaultDays, defaultDays, batch.id);
       events.push({ kind: 'opened', batch_id: batch.id, food_id, food_name: foodName, default_days: defaultDays });
       if (newQty / sg <= thresholdPct / 100) {
         events.push({ kind: 'near_empty', batch_id: batch.id, food_id, food_name: foodName, remaining_g: newQty, starting_g: sg });
@@ -173,9 +178,14 @@ function deductSealedFEFO(db, food_id, grams_needed) {
         UPDATE pantry
         SET quantity_g = ?,
             opened_at = datetime('now'),
+            expiry_date = CASE
+              WHEN ? IS NULL THEN expiry_date
+              WHEN expiry_date IS NULL THEN date('now', '+' || ? || ' days')
+              ELSE MIN(expiry_date, date('now', '+' || ? || ' days'))
+            END,
             updated_at = datetime('now')
         WHERE id = ?
-      `).run(newQty, batch.id);
+      `).run(newQty, defaultDays, defaultDays, defaultDays, batch.id);
       events.push({ kind: 'opened', batch_id: batch.id, food_id, food_name: foodName, default_days: defaultDays });
       if (newQty / sg <= thresholdPct / 100) {
         events.push({ kind: 'near_empty', batch_id: batch.id, food_id, food_name: foodName, remaining_g: newQty, starting_g: sg });

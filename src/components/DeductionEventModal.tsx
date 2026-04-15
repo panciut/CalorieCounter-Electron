@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { api } from '../api';
 import type { DeductionEvent } from '../types';
 import { useT } from '../i18n/useT';
+import { useToast } from './Toast';
 
 interface Props {
   event: DeductionEvent | null;
@@ -222,6 +223,24 @@ function FinishedModal({
 // ── Root modal shell ──────────────────────────────────────────────────────────
 
 export default function DeductionEventModal({ event, onDone, pushMore, onPantryChanged }: Props) {
+  const { t } = useT();
+  const { showToast } = useToast();
+
+  // Auto-dismiss 'opened' events when the food already has a shelf-life default —
+  // show a corner toast instead of interrupting the user with a modal.
+  useEffect(() => {
+    if (!event || event.kind !== 'opened' || event.default_days == null) return;
+    showToast(
+      t('pantry.justOpenedDays')
+        .replace('{name}', event.food_name)
+        .replace('{n}', String(event.default_days)),
+      'info',
+    );
+    onPantryChanged?.();
+    onDone();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event]);
+
   // Close on Escape
   useEffect(() => {
     if (!event) return;
@@ -232,7 +251,9 @@ export default function DeductionEventModal({ event, onDone, pushMore, onPantryC
     return () => window.removeEventListener('keydown', onKey);
   }, [event, onDone]);
 
+  // Don't render a modal for auto-dismissed opened events
   if (!event) return null;
+  if (event.kind === 'opened' && event.default_days != null) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60">

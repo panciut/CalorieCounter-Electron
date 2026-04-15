@@ -142,8 +142,17 @@ function registerPantryIpc() {
 
   // Set opened_days on a specific batch (called after the user confirms in the opened-pack modal)
   ipcMain.handle('pantry:setOpenedDays', (_, { batch_id, days }) => {
-    getDb().prepare("UPDATE pantry SET opened_days = ?, updated_at = datetime('now') WHERE id = ?")
-      .run(days, batch_id);
+    getDb().prepare(`
+      UPDATE pantry
+      SET opened_days = ?,
+          expiry_date = CASE
+            WHEN opened_at IS NULL THEN expiry_date
+            WHEN expiry_date IS NULL THEN date(opened_at, '+' || ? || ' days')
+            ELSE MIN(expiry_date, date(opened_at, '+' || ? || ' days'))
+          END,
+          updated_at = datetime('now')
+      WHERE id = ?
+    `).run(days, days, days, batch_id);
     return { ok: true };
   });
 
