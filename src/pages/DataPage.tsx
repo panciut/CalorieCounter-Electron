@@ -55,6 +55,7 @@ export default function DataPage() {
   const [pasteError, setPasteError]       = useState('');
   const [promptCopied, setPromptCopied]   = useState(false);
   const [foodsCopied, setFoodsCopied]     = useState(false);
+  const [pantryCopied, setPantryCopied]   = useState(false);
   const [confirmRestore, setConfirmRestore] = useState(false);
   const [restorePath, setRestorePath]     = useState('');
 
@@ -78,6 +79,21 @@ export default function DataPage() {
     await copyToClipboard(json);
     setFoodsCopied(true);
     setTimeout(() => setFoodsCopied(false), 2000);
+  }
+
+  async function handleExportPantry() {
+    const result = await api.export.pantry();
+    if (result.ok) showToast(`Exported ${result.count} pantry batches`);
+  }
+
+  async function handleCopyPantry() {
+    const pantry = await api.pantry.getAll();
+    const json = JSON.stringify(pantry.map(({ food_name, quantity_g, expiry_date, package_grams, opened_at, opened_days }) =>
+      ({ food_name, quantity_g, expiry_date, package_grams, opened_at, opened_days })
+    ), null, 2);
+    await copyToClipboard(json);
+    setPantryCopied(true);
+    setTimeout(() => setPantryCopied(false), 2000);
   }
 
   async function handleExportBackup() {
@@ -168,6 +184,17 @@ export default function DataPage() {
             <button onClick={handleExportFoods} className={btn()}>Export foods (.json)</button>
             <button onClick={handleCopyFoods} className={btn()}>
               {foodsCopied ? '✓ Copied' : 'Copy to clipboard'}
+            </button>
+          </div>
+        </div>
+
+        <div className={card}>
+          <p className={sectionTitle}>Export pantry</p>
+          <p className={desc}>Save your current pantry (all batches with quantities, expiry dates, and package info) as a JSON snapshot.</p>
+          <div className="flex gap-3 flex-wrap">
+            <button onClick={handleExportPantry} className={btn()}>Export pantry (.json)</button>
+            <button onClick={handleCopyPantry} className={btn()}>
+              {pantryCopied ? '✓ Copied' : 'Copy to clipboard'}
             </button>
           </div>
         </div>

@@ -95,6 +95,29 @@ function registerExportIpc() {
     return { ok: true, path: result.filePath, count: foods.length };
   });
 
+  // ── Export pantry as JSON ─────────────────────────────────────────────────
+  ipcMain.handle('export:pantry', async () => {
+    const db = getDb();
+    const pantry = db.prepare(`
+      SELECT p.id, f.name AS food_name, p.quantity_g, p.expiry_date,
+             p.package_id, fp.grams AS package_grams,
+             p.opened_at, p.opened_days, p.starting_grams, p.updated_at
+      FROM pantry p
+      JOIN foods f ON f.id = p.food_id
+      LEFT JOIN food_packages fp ON fp.id = p.package_id
+      ORDER BY f.name, p.expiry_date
+    `).all();
+
+    const result = await dialog.showSaveDialog({
+      defaultPath: `pantry-${new Date().toISOString().slice(0,10)}.json`,
+      filters: [{ name: 'JSON', extensions: ['json'] }],
+    });
+    if (result.canceled || !result.filePath) return { ok: false };
+
+    fs.writeFileSync(result.filePath, JSON.stringify(pantry, null, 2), 'utf-8');
+    return { ok: true, path: result.filePath, count: pantry.length };
+  });
+
   // ── Export full database backup (.db file) ────────────────────────────────
   ipcMain.handle('export:backup', async () => {
     const result = await dialog.showSaveDialog({

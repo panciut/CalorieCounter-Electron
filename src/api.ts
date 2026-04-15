@@ -40,6 +40,7 @@ export const api = {
     getFrequent:    (limit: number) => invoke<FrequentFood[]>('foods:getFrequent', { limit }),
     toggleFavorite: (id: number) => invoke<{ favorite: boolean }>('foods:toggleFavorite', { id }),
     addPackage:     (data: { food_id: number; grams: number; price?: number | null }) => invoke<{ id: number }>('foods:addPackage', data),
+    updatePackage:  (data: { id: number; grams: number; price?: number | null }) => invoke<{ ok: boolean; error?: string; batch_count?: number }>('foods:updatePackage', data),
     deletePackage:  (id: number) => invoke<{ ok: boolean; error?: string; batch_count?: number }>('foods:deletePackage', { id }),
   },
 
@@ -150,6 +151,7 @@ export const api = {
   export: {
     data:   (format: 'json' | 'csv') => invoke<{ ok: boolean }>('export:data', { format }),
     foods:  () => invoke<{ ok: boolean; count?: number }>('export:foods'),
+    pantry: () => invoke<{ ok: boolean; count?: number }>('export:pantry'),
     backup: () => invoke<{ ok: boolean; path?: string }>('export:backup'),
   },
 

@@ -87,7 +87,10 @@ function formatQty(quantity_g: number, piece_grams: number | null, package_grams
   }
   if (package_grams && package_grams > 0) {
     const pkgG = Math.round(package_grams);
-    return count > 1 ? `${count} × ${pkgG}g (${totalG}g)` : `${pkgG}g`;
+    if (count > 1) return `${count} × ${pkgG}g (${totalG}g)`;
+    // Single pack: show actual remaining; annotate with pack size when partially consumed
+    if (Math.abs(totalG - pkgG) < 1) return `${pkgG}g`;
+    return `${totalG}g / ${pkgG}g`;
   }
   return `${totalG}g`;
 }

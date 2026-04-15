@@ -1,5 +1,23 @@
 const { ipcMain } = require('electron');
 
+// Parse "500 g", "1.5 kg", "330 ml", "6 × 200 g" → grams. Returns null if unparseable.
+function parseGrams(str) {
+  if (!str || typeof str !== 'string') return null;
+  const re = /(\d+(?:[.,]\d+)?)\s*(kg|g|ml|cl|l)\b/gi;
+  let match, last = null;
+  while ((match = re.exec(str)) !== null) last = match;
+  if (!last) return null;
+  const num = parseFloat(last[1].replace(',', '.'));
+  switch (last[2].toLowerCase()) {
+    case 'kg': return num * 1000;
+    case 'g':  return num;
+    case 'l':  return num * 1000;
+    case 'cl': return num * 10;
+    case 'ml': return num;
+    default:   return null;
+  }
+}
+
 function registerBarcodeIpc() {
   ipcMain.handle('barcode:lookup', async (_, { barcode }) => {
     try {
@@ -30,6 +48,7 @@ function registerBarcodeIpc() {
         fat:      r2(n.fat_100g),
         fiber:    r2(n.fiber_100g),
         is_liquid: isLiquid,
+        pack_grams: parseGrams(p.quantity),
       };
     } catch (e) {
       console.error('Barcode lookup error:', e.message);

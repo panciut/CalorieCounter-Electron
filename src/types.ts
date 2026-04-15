@@ -371,6 +371,7 @@ export interface BarcodeResult {
   fat: number;
   fiber: number;
   is_liquid: number;
+  pack_grams?: number | null;
 }
 
 // ── Page navigation ──────────────────────────────────────────────────────────

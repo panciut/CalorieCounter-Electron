@@ -32,7 +32,7 @@ function deductFoodFEFO(db, food_id, grams_needed) {
   ).get(food_id);
   const foodName = food ? food.name : String(food_id);
   const defaultDays = food ? (food.opened_days ?? null) : null;
-  const thresholdPct = food ? (food.discard_threshold_pct ?? 10) : 10;
+  const thresholdPct = food ? (food.discard_threshold_pct ?? 5) : 5;
 
   // Load all batches in FEFO order (earliest expiry first, null last)
   const allBatches = db.prepare(`
@@ -148,7 +148,7 @@ function deductSealedFEFO(db, food_id, grams_needed) {
   ).get(food_id);
   const foodName = food ? food.name : String(food_id);
   const defaultDays = food ? (food.opened_days ?? null) : null;
-  const thresholdPct = food ? (food.discard_threshold_pct ?? 10) : 10;
+  const thresholdPct = food ? (food.discard_threshold_pct ?? 5) : 5;
 
   const sealedBatches = db.prepare(`
     SELECT id, quantity_g, expiry_date, starting_grams

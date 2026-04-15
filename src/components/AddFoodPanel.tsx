@@ -76,21 +76,37 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
   const { showToast } = useToast();
   const [open, setOpen] = useState(defaultOpen);
   const [form, setForm] = useState<FoodFormState>(emptyForm());
-  const [packs, setPacks] = useState<{ grams: string }[]>([]);
+  const [packs, setPacks] = useState<{ grams: string }[]>([{ grams: '' }]);
   const [barcodeInput, setBarcodeInput] = useState('');
   const [barcodeStatus, setBarcodeStatus] = useState<'found' | 'notFound' | null>(null);
+  const [packFromBarcode, setPackFromBarcode] = useState<number | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
 
   function patch(p: Partial<FoodFormState>) { setForm(f => ({ ...f, ...p })); }
-  function addPack() { setPacks(p => [...p, { grams: '' }]); }
+  function updatePackGrams(i: number, grams: string) { setPacks(p => p.map((x, idx) => idx === i ? { grams } : x)); }
   function removePack(i: number) { setPacks(p => p.filter((_, idx) => idx !== i)); }
-  function patchPack(i: number, grams: string) { setPacks(p => p.map((x, idx) => idx === i ? { grams } : x)); }
+  function addBlankPack() { setPacks(p => [...p, { grams: '' }]); }
+
+  function applyBarcodeResult(r: BarcodeResult, barcode: string) {
+    setForm(barcodeToForm(r, barcode));
+    setBarcodeStatus('found');
+    setOpen(true);
+    const allBlank = packs.every(p => !p.grams);
+    if (r.pack_grams && allBlank) {
+      const g = Math.round(r.pack_grams);
+      setPacks([{ grams: String(g) }]);
+      setPackFromBarcode(g);
+    } else {
+      setPackFromBarcode(null);
+    }
+  }
 
   async function handleBarcodeLookup() {
     if (!barcodeInput.trim()) return;
     setBarcodeStatus(null);
+    setPackFromBarcode(null);
     const r = await api.barcode.lookup(barcodeInput.trim());
-    if (r) { setForm(barcodeToForm(r, barcodeInput.trim())); setBarcodeStatus('found'); setOpen(true); }
+    if (r) applyBarcodeResult(r, barcodeInput.trim());
     else setBarcodeStatus('notFound');
   }
 
@@ -98,6 +114,7 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
     setScannerOpen(false);
     setBarcodeInput(barcode);
     setBarcodeStatus(null);
+    setPackFromBarcode(null);
 
     // If a known-foods list was provided, check for an existing match first.
     if (knownFoods && onFoodFound) {
@@ -109,7 +126,7 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
     }
 
     const r = await api.barcode.lookup(barcode);
-    if (r) { setForm(barcodeToForm(r, barcode)); setBarcodeStatus('found'); setOpen(true); }
+    if (r) applyBarcodeResult(r, barcode);
     else setBarcodeStatus('notFound');
   }
 
@@ -139,9 +156,10 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
       if (saved) onSaved(saved);
     }
     setForm(emptyForm());
-    setPacks([]);
+    setPacks([{ grams: '' }]);
     setBarcodeInput('');
     setBarcodeStatus(null);
+    setPackFromBarcode(null);
   }
 
   const presetLabels: Record<PresetKey, string> = {
@@ -158,7 +176,6 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
     { key: 'carbs',       label: t('th.carbs')   },
     { key: 'fiber',       label: t('th.fiber')   },
     { key: 'protein',     label: t('th.protein') },
-    { key: 'piece_grams', label: 'g/piece'       },
   ];
 
   return (
@@ -228,7 +245,7 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
             />
           </div>
 
-          {/* Macros + actions */}
+          {/* Macros + flags */}
           <div className="flex items-end gap-2">
             {macroFields.map(({ key, label }) => (
               <div key={key} className="flex flex-col gap-0.5 flex-1 min-w-0">
@@ -251,19 +268,63 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
               <label className="text-xs text-text-sec">{t('foods.bulk')}</label>
               <input type="checkbox" checked={form.is_bulk} onChange={e => patch({ is_bulk: e.target.checked, piece_grams: e.target.checked ? '' : form.piece_grams })} className="cursor-pointer accent-accent w-4 h-4" />
             </div>
-            <div className="shrink-0 pb-0.5 ml-auto">
-              <button
-                type="button" onClick={handleAdd}
-                disabled={!form.name.trim() || !form.calories}
-                className="px-4 py-1.5 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer">
-                {t('common.add')}
+          </div>
+
+          {/* Packs */}
+          <div className="border-t border-border pt-2 flex flex-col gap-2">
+            <div className="flex items-baseline gap-2">
+              <span className="text-xs font-semibold text-text">{t('foods.packsSection')}</span>
+              <span className="text-[10px] text-text-sec">{t('foods.packsHelp')}</span>
+            </div>
+            {/* Pack rows — horizontal, + button on the right adds another */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {packs.map((p, i) => (
+                <div key={i} className="flex items-center gap-1">
+                  <input
+                    type="text" inputMode="decimal"
+                    value={p.grams}
+                    onChange={e => updatePackGrams(i, e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (i === packs.length - 1 && parseFloat(p.grams) > 0) addBlankPack(); } }}
+                    placeholder="0"
+                    className="w-20 bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent tabular-nums"
+                  />
+                  <span className="text-xs text-text-sec">g</span>
+                  {packs.length > 1 && (
+                    <button type="button" onClick={() => removePack(i)}
+                      className="text-xs text-text-sec hover:text-red cursor-pointer px-1">✕</button>
+                  )}
+                </div>
+              ))}
+              <button type="button" onClick={addBlankPack}
+                className="px-3 py-1.5 rounded-lg border border-dashed border-border text-text-sec text-sm hover:border-accent hover:text-accent transition-colors cursor-pointer">
+                + {t('foods.addPack')}
               </button>
             </div>
+            {packFromBarcode != null && (
+              <p className="text-[10px] text-accent">
+                {t('foods.packFromBarcode').replace('{g}', String(packFromBarcode))} ✓
+              </p>
+            )}
+            {/* piece_grams (Shape B) — only when a pack exists */}
+            {packs.length > 0 && !form.is_bulk && (
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-text-sec shrink-0">{t('foods.pieceInPack')}:</label>
+                <input
+                  type="text" inputMode="decimal"
+                  value={form.piece_grams}
+                  onChange={e => patch({ piece_grams: e.target.value })}
+                  onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                  placeholder="g"
+                  className="w-20 bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent"
+                />
+                <span className="text-[10px] text-text-sec">{t('foods.pieceHelp')}</span>
+              </div>
+            )}
           </div>
-          <p className="text-[10px] text-text-sec -mt-1">{t('foods.pieceHelp')}</p>
 
-          {/* Opened shelf life + price */}
-          <div className="flex items-center gap-3 flex-wrap border-t border-border pt-2">
+          {/* Shelf life + price */}
+          <div className="border-t border-border pt-2 flex items-center gap-3 flex-wrap">
+            <span className="text-xs font-semibold text-text shrink-0">{t('foods.shelfPriceSection')}</span>
             <label className="text-xs text-text-sec shrink-0">{t('foods.openedDays')}</label>
             <input
               type="number" inputMode="numeric" min={1}
@@ -284,29 +345,13 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
             />
           </div>
 
-          {/* Pack sizes */}
-          <div className="border-t border-border pt-2">
-            <p className="text-[10px] text-text-sec mb-1">{t('foods.packsHelp')}</p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap -mt-2">
-            <label className="text-xs text-text-sec shrink-0">{t('foods.packs')}:</label>
-            {packs.map((p, i) => (
-              <div key={i} className="flex items-center gap-1">
-                <input
-                  type="text" inputMode="decimal"
-                  value={p.grams}
-                  onChange={e => patchPack(i, e.target.value)}
-                  placeholder="g"
-                  className="w-16 bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent"
-                />
-                <span className="text-xs text-text-sec">g</span>
-                <button type="button" onClick={() => removePack(i)} className="text-xs text-text-sec hover:text-red cursor-pointer px-0.5">✕</button>
-              </div>
-            ))}
+          {/* Add button — bottom right */}
+          <div className="flex justify-end border-t border-border pt-3">
             <button
-              type="button" onClick={addPack}
-              className="text-xs px-2 py-1 rounded border border-dashed border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer">
-              + {t('foods.addPack')}
+              type="button" onClick={handleAdd}
+              disabled={!form.name.trim() || !form.calories}
+              className="px-5 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer">
+              {t('common.add')}
             </button>
           </div>
         </div>

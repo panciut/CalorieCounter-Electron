@@ -24,7 +24,7 @@ function registerFoodsIpc() {
     const piece = bulk ? null : (piece_grams || null);
     const result = getDb().prepare(
       'INSERT INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, is_bulk, barcode, opened_days, discard_threshold_pct, price_per_100g) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece, is_liquid ? 1 : 0, bulk, barcode || null, opened_days ?? null, discard_threshold_pct ?? 10, price_per_100g ?? null);
+    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece, is_liquid ? 1 : 0, bulk, barcode || null, opened_days ?? null, discard_threshold_pct ?? 5, price_per_100g ?? null);
     return { id: result.lastInsertRowid };
   });
 
@@ -41,7 +41,7 @@ function registerFoodsIpc() {
     const piece = bulk ? null : (piece_grams || null);
     getDb().prepare(
       'UPDATE foods SET name=?, calories=?, protein=?, carbs=?, fat=?, fiber=?, piece_grams=?, is_liquid=?, is_bulk=?, barcode=?, opened_days=?, discard_threshold_pct=?, price_per_100g=? WHERE id=?'
-    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece, is_liquid ? 1 : 0, bulk, barcode || null, opened_days ?? null, discard_threshold_pct ?? 10, price_per_100g ?? null, id);
+    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece, is_liquid ? 1 : 0, bulk, barcode || null, opened_days ?? null, discard_threshold_pct ?? 5, price_per_100g ?? null, id);
     return { ok: true };
   });
 
@@ -66,6 +66,14 @@ function registerFoodsIpc() {
   ipcMain.handle('foods:addPackage', (_, { food_id, grams, price }) => {
     const result = getDb().prepare('INSERT INTO food_packages (food_id, grams, price) VALUES (?, ?, ?)').run(food_id, grams, price ?? null);
     return { id: result.lastInsertRowid };
+  });
+
+  ipcMain.handle('foods:updatePackage', (_, { id, grams, price }) => {
+    const db = getDb();
+    const count = db.prepare('SELECT COUNT(*) as n FROM pantry WHERE package_id = ?').get(id).n;
+    if (count > 0) return { ok: false, error: 'pack_in_use', batch_count: count };
+    db.prepare('UPDATE food_packages SET grams = ?, price = ? WHERE id = ?').run(grams, price ?? null, id);
+    return { ok: true };
   });
 
   ipcMain.handle('foods:deletePackage', (_, { id }) => {

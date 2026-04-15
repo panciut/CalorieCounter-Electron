@@ -29,10 +29,10 @@ interface FoodFormState {
   opened_days: string; discard_threshold_pct: string; price_per_100g: string;
 }
 
-const emptyForm = (): FoodFormState => ({ name:'', calories:'', protein:'', carbs:'', fat:'', fiber:'', piece_grams:'', is_liquid: false, is_bulk: true, barcode: '', opened_days: '7', discard_threshold_pct: '10', price_per_100g: '' });
-const foodToForm = (f: Food): FoodFormState => ({ name:f.name, calories:String(f.calories), protein:String(f.protein), carbs:String(f.carbs), fat:String(f.fat), fiber:String(f.fiber), piece_grams:f.piece_grams!=null?String(f.piece_grams):'', is_liquid:f.is_liquid===1, is_bulk: f.is_bulk===1, barcode: f.barcode ?? '', opened_days: f.opened_days != null ? String(f.opened_days) : '', discard_threshold_pct: f.discard_threshold_pct != null ? String(f.discard_threshold_pct) : '10', price_per_100g: f.price_per_100g != null ? String(f.price_per_100g) : '' });
-const barcodeToForm = (r: BarcodeResult, barcode: string): FoodFormState => ({ name:r.name, calories:String(r.calories), protein:String(r.protein), carbs:String(r.carbs), fat:String(r.fat), fiber:String(r.fiber), piece_grams:'', is_liquid:r.is_liquid===1, is_bulk: false, barcode, opened_days: '7', discard_threshold_pct: '10', price_per_100g: '' });
-const formToData = (f: FoodFormState): Omit<Food,'id'> => ({ name:f.name.trim(), calories:parseFloat(f.calories)||0, protein:parseFloat(f.protein)||0, carbs:parseFloat(f.carbs)||0, fat:parseFloat(f.fat)||0, fiber:parseFloat(f.fiber)||0, piece_grams: f.is_bulk ? null : (f.piece_grams!==''?parseFloat(f.piece_grams):null), is_liquid:f.is_liquid?1:0, is_bulk: f.is_bulk?1:0, barcode: f.barcode.trim() || null, opened_days: f.opened_days !== '' ? parseInt(f.opened_days, 10) : null, discard_threshold_pct: parseFloat(f.discard_threshold_pct) || 10, price_per_100g: f.price_per_100g !== '' ? parseFloat(f.price_per_100g) : null });
+const emptyForm = (): FoodFormState => ({ name:'', calories:'', protein:'', carbs:'', fat:'', fiber:'', piece_grams:'', is_liquid: false, is_bulk: true, barcode: '', opened_days: '7', discard_threshold_pct: '5', price_per_100g: '' });
+const foodToForm = (f: Food): FoodFormState => ({ name:f.name, calories:String(f.calories), protein:String(f.protein), carbs:String(f.carbs), fat:String(f.fat), fiber:String(f.fiber), piece_grams:f.piece_grams!=null?String(f.piece_grams):'', is_liquid:f.is_liquid===1, is_bulk: f.is_bulk===1, barcode: f.barcode ?? '', opened_days: f.opened_days != null ? String(f.opened_days) : '', discard_threshold_pct: f.discard_threshold_pct != null ? String(f.discard_threshold_pct) : '5', price_per_100g: f.price_per_100g != null ? String(f.price_per_100g) : '' });
+const barcodeToForm = (r: BarcodeResult, barcode: string): FoodFormState => ({ name:r.name, calories:String(r.calories), protein:String(r.protein), carbs:String(r.carbs), fat:String(r.fat), fiber:String(r.fiber), piece_grams:'', is_liquid:r.is_liquid===1, is_bulk: false, barcode, opened_days: '7', discard_threshold_pct: '5', price_per_100g: '' });
+const formToData = (f: FoodFormState): Omit<Food,'id'> => ({ name:f.name.trim(), calories:parseFloat(f.calories)||0, protein:parseFloat(f.protein)||0, carbs:parseFloat(f.carbs)||0, fat:parseFloat(f.fat)||0, fiber:parseFloat(f.fiber)||0, piece_grams: f.is_bulk ? null : (f.piece_grams!==''?parseFloat(f.piece_grams):null), is_liquid:f.is_liquid?1:0, is_bulk: f.is_bulk?1:0, barcode: f.barcode.trim() || null, opened_days: f.opened_days !== '' ? parseInt(f.opened_days, 10) : null, discard_threshold_pct: parseFloat(f.discard_threshold_pct) || 5, price_per_100g: f.price_per_100g !== '' ? parseFloat(f.price_per_100g) : null });
 
 // ── FormFields for table edit row (multi-line) ────────────────────────────────
 
@@ -85,7 +85,8 @@ export default function FoodsPage() {
 
   const [foods, setFoods] = useState<Food[]>([]);
   const [addForm, setAddForm] = useState<FoodFormState>(emptyForm());
-  const [addPacks, setAddPacks] = useState<{ grams: string }[]>([]);
+  const [addPacks, setAddPacks] = useState<{ grams: string }[]>([{ grams: '' }]);
+  const [packFromBarcode, setPackFromBarcode] = useState<number | null>(null);
   const [editId, setEditId] = useState<number|null>(null);
   const [editForm, setEditForm] = useState<FoodFormState>(emptyForm());
   const [newPackGrams, setNewPackGrams] = useState('');
@@ -120,7 +121,25 @@ export default function FoodsPage() {
       const g = parseFloat(p.grams);
       if (g > 0) await api.foods.addPackage({ food_id: id, grams: g });
     }
-    setAddForm(emptyForm()); setAddPacks([]); showToast(t('common.saved')); loadFoods();
+    setAddForm(emptyForm()); setAddPacks([{ grams: '' }]); setPackFromBarcode(null); setBarcodeInput(''); setBarcodeStatus(null); showToast(t('common.saved')); loadFoods();
+  }
+
+  function updateAddPackGrams(i: number, grams: string) { setAddPacks(p => p.map((x, idx) => idx === i ? { grams } : x)); }
+  function removeAddPack(i: number) { setAddPacks(p => p.filter((_, idx) => idx !== i)); }
+  function addBlankAddPack() { setAddPacks(p => [...p, { grams: '' }]); }
+
+  function applyBarcodeResult(r: BarcodeResult, barcode: string) {
+    setAddForm(barcodeToForm(r, barcode));
+    setBarcodeStatus('found');
+    setFormOpen(true);
+    const allBlank = addPacks.every(p => !p.grams);
+    if (r.pack_grams && allBlank) {
+      const g = Math.round(r.pack_grams);
+      setAddPacks([{ grams: String(g) }]);
+      setPackFromBarcode(g);
+    } else {
+      setPackFromBarcode(null);
+    }
   }
 
   async function handleAddPack() {
@@ -146,15 +165,16 @@ export default function FoodsPage() {
   async function handleBarcodeLookup() {
     if (!barcodeInput.trim()) return;
     setBarcodeStatus(null);
+    setPackFromBarcode(null);
     const r = await api.barcode.lookup(barcodeInput.trim());
-    if (r) { setAddForm(barcodeToForm(r, barcodeInput.trim())); setBarcodeStatus('found'); }
+    if (r) applyBarcodeResult(r, barcodeInput.trim());
     else setBarcodeStatus('notFound');
   }
 
   async function handleScanResult(barcode: string) {
-    setScannerOpen(false); setBarcodeInput(barcode); setBarcodeStatus(null);
+    setScannerOpen(false); setBarcodeInput(barcode); setBarcodeStatus(null); setPackFromBarcode(null);
     const r = await api.barcode.lookup(barcode);
-    if (r) { setAddForm(barcodeToForm(r, barcode)); setBarcodeStatus('found'); }
+    if (r) applyBarcodeResult(r, barcode);
     else setBarcodeStatus('notFound');
   }
 
@@ -232,12 +252,11 @@ export default function FoodsPage() {
 
   // Macro fields for the single-line add form
   const macroFields: { key: keyof FoodFormState; label: string }[] = [
-    { key: 'calories',    label: 'kcal'         },
-    { key: 'fat',         label: t('th.fat')    },
-    { key: 'carbs',       label: t('th.carbs')  },
-    { key: 'fiber',       label: t('th.fiber')  },
-    { key: 'protein',     label: t('th.protein')},
-    { key: 'piece_grams', label: 'g/piece'      },
+    { key: 'calories', label: 'kcal'          },
+    { key: 'fat',      label: t('th.fat')     },
+    { key: 'carbs',    label: t('th.carbs')   },
+    { key: 'fiber',    label: t('th.fiber')   },
+    { key: 'protein',  label: t('th.protein') },
   ];
 
   return (
@@ -307,9 +326,8 @@ export default function FoodsPage() {
               );
             })()}
 
-            {/* Macros + actions row */}
+            {/* Macros + flags */}
             <div className="flex items-end gap-2">
-              {/* Macro fields */}
               {macroFields.map(({ key, label }) => (
                 <div key={key} className="flex flex-col gap-0.5 flex-1 min-w-0">
                   <label className="text-xs text-text-sec truncate">{label}</label>
@@ -324,85 +342,103 @@ export default function FoodsPage() {
                   />
                 </div>
               ))}
-
-              {/* Liquid checkbox */}
               <div className="flex flex-col gap-0.5 items-center shrink-0 pb-1.5">
                 <label className="text-xs text-text-sec">💧</label>
                 <input type="checkbox" checked={addForm.is_liquid} onChange={e => patchAdd({ is_liquid: e.target.checked })} className="cursor-pointer accent-accent w-4 h-4" />
               </div>
-              {/* Bulk checkbox */}
               <div className="flex flex-col gap-0.5 items-center shrink-0 pb-1.5" title={t('foods.bulkHelp')}>
                 <label className="text-xs text-text-sec">{t('foods.bulk')}</label>
                 <input type="checkbox" checked={addForm.is_bulk} onChange={e => patchAdd({ is_bulk: e.target.checked, piece_grams: e.target.checked ? '' : addForm.piece_grams })} className="cursor-pointer accent-accent w-4 h-4" />
               </div>
-
-              {/* Actions */}
-              <div className="flex gap-1 shrink-0 pb-0.5 ml-auto">
-                <button type="button" onClick={handleImport} className="px-3 py-1.5 rounded-lg border border-border text-text-sec text-sm hover:border-accent hover:text-accent transition-colors cursor-pointer">{t('import.foods')}</button>
-                <button type="button" onClick={handleAdd} disabled={!addForm.name.trim()||!addForm.calories} className="px-4 py-1.5 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer">{t('common.add')}</button>
-              </div>
-            </div>
-            <p className="text-[10px] text-text-sec -mt-1">{t('foods.pieceHelp')}</p>
-
-            {/* Opened-lifecycle fields */}
-            <div className="flex items-center gap-4 flex-wrap border-t border-border pt-2">
-              <div className="flex flex-col gap-0.5">
-                <label className="text-xs text-text-sec">{t('foods.openedDays')}</label>
-                <input
-                  type="number" inputMode="numeric" min={1}
-                  value={addForm.opened_days}
-                  onChange={e => patchAdd({ opened_days: e.target.value })}
-                  placeholder="days"
-                  className="w-24 bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
-                />
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <label className="text-xs text-text-sec">{t('foods.discardThreshold')}</label>
-                <input
-                  type="number" inputMode="numeric" min={1} max={100}
-                  value={addForm.discard_threshold_pct}
-                  onChange={e => patchAdd({ discard_threshold_pct: e.target.value })}
-                  placeholder="10"
-                  className="w-20 bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
-                />
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <label className="text-xs text-text-sec">{t('foods.pricePer100g').replace('{cur}', settings.currency_symbol ?? '€')}</label>
-                <input
-                  type="number" inputMode="decimal" min={0}
-                  value={addForm.price_per_100g}
-                  onChange={e => patchAdd({ price_per_100g: e.target.value })}
-                  placeholder="0.00"
-                  className="w-24 bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
-                />
-              </div>
             </div>
 
-            {/* Pack sizes */}
-            <div className="border-t border-border pt-2">
-              <p className="text-[10px] text-text-sec mb-1">{t('foods.packsHelp')}</p>
-            </div>
-            <div className="flex items-center gap-2 flex-wrap -mt-2">
-              <label className="text-xs text-text-sec shrink-0">{t('foods.packs')}:</label>
-              {addPacks.map((p, i) => (
-                <div key={i} className="flex items-center gap-1">
+            {/* Packs */}
+            <div className="border-t border-border pt-2 flex flex-col gap-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-xs font-semibold text-text">{t('foods.packsSection')}</span>
+                <span className="text-[10px] text-text-sec">{t('foods.packsHelp')}</span>
+              </div>
+              {/* Pack rows — horizontal, + button on the right adds another */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {addPacks.map((p, i) => (
+                  <div key={i} className="flex items-center gap-1">
+                    <input
+                      type="text" inputMode="decimal"
+                      value={p.grams}
+                      onChange={e => updateAddPackGrams(i, e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (i === addPacks.length - 1 && parseFloat(p.grams) > 0) addBlankAddPack(); } }}
+                      placeholder="0"
+                      className="w-20 bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent tabular-nums"
+                    />
+                    <span className="text-xs text-text-sec">g</span>
+                    {addPacks.length > 1 && (
+                      <button type="button" onClick={() => removeAddPack(i)}
+                        className="text-xs text-text-sec hover:text-red cursor-pointer px-1">✕</button>
+                    )}
+                  </div>
+                ))}
+                <button type="button" onClick={addBlankAddPack}
+                  className="px-3 py-1.5 rounded-lg border border-dashed border-border text-text-sec text-sm hover:border-accent hover:text-accent transition-colors cursor-pointer">
+                  + {t('foods.addPack')}
+                </button>
+              </div>
+              {packFromBarcode != null && (
+                <p className="text-[10px] text-accent">
+                  {t('foods.packFromBarcode').replace('{g}', String(packFromBarcode))} ✓
+                </p>
+              )}
+              {/* piece_grams (Shape B) — only when a pack exists */}
+              {addPacks.length > 0 && !addForm.is_bulk && (
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-text-sec shrink-0">{t('foods.pieceInPack')}:</label>
                   <input
                     type="text" inputMode="decimal"
-                    value={p.grams}
-                    onChange={e => setAddPacks(prev => prev.map((x, idx) => idx === i ? { grams: e.target.value } : x))}
+                    value={addForm.piece_grams}
+                    onChange={e => patchAdd({ piece_grams: e.target.value })}
+                    onKeyDown={e => e.key === 'Enter' && handleAdd()}
                     placeholder="g"
-                    className="w-16 bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent"
+                    className="w-20 bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent"
                   />
-                  <span className="text-xs text-text-sec">g</span>
-                  <button type="button" onClick={() => setAddPacks(prev => prev.filter((_, idx) => idx !== i))} className="text-xs text-text-sec hover:text-red cursor-pointer px-0.5">✕</button>
+                  <span className="text-[10px] text-text-sec">{t('foods.pieceHelp')}</span>
                 </div>
-              ))}
-              <button
-                type="button"
-                onClick={() => setAddPacks(prev => [...prev, { grams: '' }])}
-                className="text-xs px-2 py-1 rounded border border-dashed border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer">
-                + {t('foods.addPack')}
-              </button>
+              )}
+            </div>
+
+            {/* Shelf life + price */}
+            <div className="border-t border-border pt-2 flex items-center gap-3 flex-wrap">
+              <span className="text-xs font-semibold text-text shrink-0">{t('foods.shelfPriceSection')}</span>
+              <label className="text-xs text-text-sec shrink-0">{t('foods.openedDays')}</label>
+              <input
+                type="number" inputMode="numeric" min={1}
+                value={addForm.opened_days}
+                onChange={e => patchAdd({ opened_days: e.target.value })}
+                placeholder="days"
+                className="w-20 bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+              />
+              <span className="text-xs text-border mx-1">·</span>
+              <label className="text-xs text-text-sec shrink-0">{t('foods.discardThreshold')}</label>
+              <input
+                type="number" inputMode="numeric" min={1} max={100}
+                value={addForm.discard_threshold_pct}
+                onChange={e => patchAdd({ discard_threshold_pct: e.target.value })}
+                placeholder="5"
+                className="w-16 bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+              />
+              <span className="text-xs text-border mx-1">·</span>
+              <label className="text-xs text-text-sec shrink-0">{t('foods.pricePer100g').replace('{cur}', settings.currency_symbol ?? '€')}</label>
+              <input
+                type="number" inputMode="decimal" min={0}
+                value={addForm.price_per_100g}
+                onChange={e => patchAdd({ price_per_100g: e.target.value })}
+                placeholder="0.00"
+                className="w-20 bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+              />
+            </div>
+
+            {/* Actions — bottom right */}
+            <div className="flex justify-end gap-2 border-t border-border pt-3">
+              <button type="button" onClick={handleImport} className="px-3 py-2 rounded-lg border border-border text-text-sec text-sm hover:border-accent hover:text-accent transition-colors cursor-pointer">{t('import.foods')}</button>
+              <button type="button" onClick={handleAdd} disabled={!addForm.name.trim()||!addForm.calories} className="px-5 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer">{t('common.add')}</button>
             </div>
           </div>
         )}
@@ -503,7 +539,7 @@ export default function FoodsPage() {
                                 max={100}
                                 value={editForm.discard_threshold_pct}
                                 onChange={e => patchEdit({ discard_threshold_pct: e.target.value })}
-                                placeholder="10"
+                                placeholder="5"
                                 className="bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
                               />
                             </div>
@@ -525,30 +561,41 @@ export default function FoodsPage() {
                         <div className="border-t border-border pt-2 mt-2">
                           <p className="text-[10px] text-text-sec mb-1">{t('foods.packsHelp')}</p>
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <label className="text-xs text-text-sec shrink-0">{t('foods.packs')}:</label>
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-xs text-text-sec">{t('foods.packs')}:</label>
                           {(food.packages ?? []).map(pkg => (
-                            <div key={pkg.id} className="flex items-center gap-1 bg-bg border border-border rounded px-2 py-0.5">
-                              <span className="text-xs tabular-nums">{pkg.grams}g{pkg.price != null ? ` · ${settings.currency_symbol ?? '€'}${pkg.price}` : ''}</span>
-                              <button type="button" onClick={() => setDeletePackId(pkg.id)} className="text-xs text-text-sec hover:text-red cursor-pointer">✕</button>
-                            </div>
+                            <EditablePackRow
+                              key={pkg.id}
+                              pkg={pkg}
+                              currency={settings.currency_symbol ?? '€'}
+                              onSaved={loadFoods}
+                              onDelete={() => setDeletePackId(pkg.id)}
+                              showError={(msg) => showToast(msg, 'error')}
+                              tLocked={t('foods.packInUse')}
+                            />
                           ))}
-                          <input
-                            type="text" inputMode="decimal"
-                            value={newPackGrams}
-                            onChange={e => setNewPackGrams(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && handleAddPack()}
-                            placeholder="+ g"
-                            className="w-16 text-xs bg-bg border border-dashed border-border rounded px-2 py-0.5 focus:border-accent outline-none"
-                          />
-                          <input
-                            type="text" inputMode="decimal"
-                            value={newPackPrice}
-                            onChange={e => setNewPackPrice(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && handleAddPack()}
-                            placeholder={`${settings.currency_symbol ?? '€'} opt.`}
-                            className="w-20 text-xs bg-bg border border-dashed border-border rounded px-2 py-0.5 focus:border-accent outline-none"
-                          />
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text" inputMode="decimal"
+                              value={newPackGrams}
+                              onChange={e => setNewPackGrams(e.target.value)}
+                              onKeyDown={e => e.key === 'Enter' && handleAddPack()}
+                              placeholder="+ g"
+                              className="w-20 text-xs bg-bg border border-dashed border-border rounded px-2 py-1 focus:border-accent outline-none"
+                            />
+                            <input
+                              type="text" inputMode="decimal"
+                              value={newPackPrice}
+                              onChange={e => setNewPackPrice(e.target.value)}
+                              onKeyDown={e => e.key === 'Enter' && handleAddPack()}
+                              placeholder={`${settings.currency_symbol ?? '€'} opt.`}
+                              className="w-24 text-xs bg-bg border border-dashed border-border rounded px-2 py-1 focus:border-accent outline-none"
+                            />
+                            <button type="button" onClick={handleAddPack}
+                              className="text-xs px-2 py-1 rounded border border-dashed border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer">
+                              + {t('foods.addPack')}
+                            </button>
+                          </div>
                         </div>
                       </td>
                       <td className="px-2 py-2 align-top">
@@ -720,6 +767,65 @@ export default function FoodsPage() {
           onCancel={() => setDeletePackId(null)}
         />
       )}
+    </div>
+  );
+}
+
+// ── EditablePackRow ───────────────────────────────────────────────────────────
+
+interface EditablePackRowProps {
+  pkg: FoodPackage;
+  currency: string;
+  onSaved: () => void;
+  onDelete: () => void;
+  showError: (msg: string) => void;
+  tLocked: string;
+}
+
+function EditablePackRow({ pkg, currency, onSaved, onDelete, showError, tLocked }: EditablePackRowProps) {
+  const [grams, setGrams] = useState(String(pkg.grams));
+  const [price, setPrice] = useState(pkg.price != null ? String(pkg.price) : '');
+
+  useEffect(() => { setGrams(String(pkg.grams)); }, [pkg.grams]);
+  useEffect(() => { setPrice(pkg.price != null ? String(pkg.price) : ''); }, [pkg.price]);
+
+  async function commit() {
+    const g = parseFloat(grams);
+    const p = price !== '' ? parseFloat(price) : null;
+    if (!g || g <= 0) { setGrams(String(pkg.grams)); return; }
+    const samePrice = (p ?? null) === (pkg.price ?? null);
+    if (g === pkg.grams && samePrice) return;
+    const res = await api.foods.updatePackage({ id: pkg.id, grams: g, price: p });
+    if (!res.ok && res.error === 'pack_in_use') {
+      showError(tLocked.replace('{n}', String(res.batch_count ?? 0)));
+      setGrams(String(pkg.grams));
+      setPrice(pkg.price != null ? String(pkg.price) : '');
+      return;
+    }
+    onSaved();
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        type="text" inputMode="decimal"
+        value={grams}
+        onChange={e => setGrams(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+        className="w-20 text-xs bg-bg border border-border rounded px-2 py-1 text-text outline-none focus:border-accent tabular-nums"
+      />
+      <span className="text-xs text-text-sec">g</span>
+      <input
+        type="text" inputMode="decimal"
+        value={price}
+        onChange={e => setPrice(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+        placeholder={`${currency} opt.`}
+        className="w-24 text-xs bg-bg border border-border rounded px-2 py-1 text-text outline-none focus:border-accent"
+      />
+      <button type="button" onClick={onDelete} className="text-xs text-text-sec hover:text-red cursor-pointer px-1">✕</button>
     </div>
   );
 }
