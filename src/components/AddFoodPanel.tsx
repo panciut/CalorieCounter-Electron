@@ -252,7 +252,7 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
                 <label className="text-xs text-text-sec truncate">{label}</label>
                 <input
                   type="text" inputMode="decimal"
-                  value={(form as Record<string, string>)[key]}
+                  value={(form as unknown as Record<string, string>)[key]}
                   onChange={e => patch({ [key]: e.target.value })}
                   onKeyDown={e => e.key === 'Enter' && handleAdd()}
                   placeholder="0"

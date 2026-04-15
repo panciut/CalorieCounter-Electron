@@ -320,7 +320,7 @@ export default function HistoryPage() {
                 <Tooltip
                   contentStyle={tooltipStyle}
                   cursor={{ stroke: 'var(--border)', strokeWidth: 1 }}
-                  formatter={(v: number, name: string) => [`${v} kcal`, name]}
+                  formatter={((v: unknown, name: unknown) => [`${Number(v)} kcal`, String(name)]) as never}
                 />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: 'var(--text-sec)' }} />
                 {calRec > 0 && <ReferenceLine y={calRec} stroke="var(--text-sec)" strokeDasharray="5 4" strokeWidth={1} />}
@@ -342,7 +342,7 @@ export default function HistoryPage() {
                 <Tooltip
                   contentStyle={tooltipStyle}
                   cursor={{ fill: 'var(--border)' }}
-                  formatter={(v: number, n: string) => [`${v}g`, n]}
+                  formatter={((v: unknown, n: unknown) => [`${Number(v)}g`, String(n)]) as never}
                 />
                 <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: 'var(--text-sec)' }} />
                 <Bar dataKey="fat"     name="Fat"     stackId="a" fill={MACRO_COLORS.fat}     radius={[0,0,0,0]} maxBarSize={48} />
@@ -365,7 +365,7 @@ export default function HistoryPage() {
                   <Tooltip
                     contentStyle={tooltipStyle}
                     cursor={{ stroke: 'var(--border)', strokeWidth: 1 }}
-                    formatter={(v: number, name: string) => [name === 'fat_pct' ? `${v}%` : `${v} kg`, name === 'fat_pct' ? 'Body fat' : 'Weight']}
+                    formatter={((v: unknown, name: unknown) => [name === 'fat_pct' ? `${Number(v)}%` : `${Number(v)} kg`, name === 'fat_pct' ? 'Body fat' : 'Weight']) as never}
                   />
                   <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: 'var(--text-sec)' }} />
                   <Line type="monotone" dataKey="weight"  name="Weight" stroke="var(--accent)" strokeWidth={2} dot={false} connectNulls />

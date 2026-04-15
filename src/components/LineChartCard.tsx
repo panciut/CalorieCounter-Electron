@@ -62,7 +62,7 @@ export default function LineChartCard({
         />
         <Tooltip
           contentStyle={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)' }}
-          formatter={(v: number) => [`${v}${unit}`, '']}
+          formatter={((v: unknown) => [`${Number(v)}${unit}`, '']) as never}
         />
         <Line
           type="monotone"

@@ -107,7 +107,7 @@ export default function NetPage() {
             />
             <Tooltip
               contentStyle={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)' }}
-              formatter={(v: number, name: string) => [`${v} kcal`, name]}
+              formatter={((v: unknown, name: unknown) => [`${Number(v)} kcal`, String(name)]) as never}
             />
             <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: 'var(--text-sec)' }} />
             {calRec > 0 && (

@@ -16,6 +16,7 @@ const DEFAULT_SETTINGS: Settings = {
   tol_1: 5, tol_2: 10, tol_3: 20,
   language: 'en', theme: 'dark',
   pantry_enabled: 1, pantry_warn_days: 3, pantry_urgent_days: 1,
+  currency_symbol: '€',
 };
 
 // ── Context ───────────────────────────────────────────────────────────────────

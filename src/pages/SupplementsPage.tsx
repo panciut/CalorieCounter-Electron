@@ -217,7 +217,7 @@ export default function SupplementsPage() {
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
                           <button
-                            onClick={() => { setEditId(s.id); setShowAdd(false); }}
+                            onClick={() => { setEditId(s.id); setAddOpen(false); }}
                             className="text-text-sec hover:text-text px-1.5 py-1 cursor-pointer transition-colors text-sm"
                             title={t('common.edit')}
                           >

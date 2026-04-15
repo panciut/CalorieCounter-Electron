@@ -99,6 +99,7 @@ export default function MacroChart({
       <ResponsiveContainer width={150} height={150}>
         <PieChart>
           <Pie
+            {...{ activeIndex: activeIdx ?? undefined }}
             data={total === 0 ? [{ name: 'empty', value: 1 }] : data}
             cx="50%"
             cy="50%"
@@ -107,7 +108,6 @@ export default function MacroChart({
             dataKey="value"
             strokeWidth={0}
             paddingAngle={total === 0 ? 0 : 2}
-            activeIndex={activeIdx ?? undefined}
             activeShape={total > 0 ? (props: unknown) => <ActiveShape {...(props as ActiveShapeProps)} /> : undefined}
             onMouseEnter={(_, index) => total > 0 && setActiveIdx(index)}
             onMouseLeave={() => setActiveIdx(null)}

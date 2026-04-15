@@ -58,7 +58,7 @@ export default function BarChartCard({
         <Tooltip
           contentStyle={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)' }}
           cursor={false}
-          formatter={(v: number, name: string) => [`${v}${unit}`, name === 'planned' ? 'planned' : 'logged']}
+          formatter={((v: unknown, name: unknown) => [`${Number(v)}${unit}`, name === 'planned' ? 'planned' : 'logged']) as never}
         />
         <Bar dataKey="value" stackId="a" fill={color} radius={hasPlanned ? [0, 0, 0, 0] : [3, 3, 0, 0]} maxBarSize={48} activeBar={{ fill: color, fillOpacity: 0.65 }} onClick={onBarClick ? (_, index) => onBarClick(index) : undefined} style={onBarClick ? { cursor: 'pointer' } : undefined} />
         {hasPlanned && (

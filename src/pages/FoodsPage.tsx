@@ -56,7 +56,7 @@ function FormFields({ form, patch }: FormFieldsProps) {
         {macros.map(({ key, label }) => (
           <div key={key} className="flex flex-col gap-0.5">
             <label className="text-xs text-text-sec">{label}</label>
-            <input type="text" inputMode="decimal" value={(form as Record<string,string>)[key]} onChange={e => patch({ [key]: e.target.value })} placeholder="0" className={FIELD_CLS} />
+            <input type="text" inputMode="decimal" value={(form as unknown as Record<string,string>)[key]} onChange={e => patch({ [key]: e.target.value })} placeholder="0" className={FIELD_CLS} />
           </div>
         ))}
       </div>
@@ -204,8 +204,8 @@ export default function FoodsPage() {
     const filePath = await api.import.selectFile();
     if (!filePath) return;
     try {
-      const { count } = await api.import.foods({ filePath });
-      showToast(`${t('import.success').replace('{n}', String(count)).replace('{s}','0')}`);
+      const { imported, skipped } = await api.import.foods(filePath);
+      showToast(`${t('import.success').replace('{n}', String(imported)).replace('{s}', String(skipped))}`);
       loadFoods();
     } catch { showToast(t('import.error')); }
   }
@@ -334,7 +334,7 @@ export default function FoodsPage() {
                   <input
                     type="text"
                     inputMode="decimal"
-                    value={(addForm as Record<string,string>)[key]}
+                    value={(addForm as unknown as Record<string,string>)[key]}
                     onChange={e => patchAdd({ [key]: e.target.value })}
                     onKeyDown={e => e.key === 'Enter' && handleAdd()}
                     placeholder="0"

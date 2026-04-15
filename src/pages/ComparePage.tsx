@@ -658,7 +658,7 @@ function RankTab({
             </tr>
           </thead>
           <tbody>
-            {ranked.map(({ food, value, pricePer100g }, i) => (
+            {ranked.map(({ food, value, pricePer100g, pricePer100kcal }, i) => (
               <tr
                 key={food.id}
                 className="border-t border-border/40 hover:bg-card/30 transition-colors cursor-pointer"

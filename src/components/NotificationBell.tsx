@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from '../hooks/useNavigate';
 import { useT } from '../i18n/useT';
 import { useNotifications } from '../hooks/useNotifications';
@@ -78,14 +79,37 @@ export default function NotificationBell() {
   const { notifications, dismiss, dismissAll } = useNotifications();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
   useEffect(() => {
     if (!open) return;
     function onClick(e: MouseEvent) {
-      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (wrapRef.current?.contains(target)) return;
+      if (popRef.current?.contains(target)) return;
+      setOpen(false);
     }
     document.addEventListener('mousedown', onClick);
     return () => document.removeEventListener('mousedown', onClick);
+  }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open || !btnRef.current) return;
+    function update() {
+      const r = btnRef.current!.getBoundingClientRect();
+      const width = 320;
+      const left = Math.min(Math.max(8, r.left), window.innerWidth - width - 8);
+      setPos({ top: r.bottom + 8, left });
+    }
+    update();
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
   }, [open]);
 
   const sorted = sortNotifications(notifications);
@@ -100,6 +124,7 @@ export default function NotificationBell() {
   return (
     <div ref={wrapRef} className="relative">
       <button
+        ref={btnRef}
         type="button"
         onClick={() => setOpen(v => !v)}
         title={t('notifications.title')}
@@ -113,8 +138,12 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {open && (
-        <div className="absolute left-0 top-full mt-2 z-50 w-80 max-w-[calc(100vw-2rem)] bg-card border border-border rounded-lg shadow-lg overflow-hidden">
+      {open && createPortal(
+        <div
+          ref={popRef}
+          style={{ position: 'fixed', top: pos.top, left: pos.left, width: 320 }}
+          className="z-[1000] bg-card border border-border rounded-lg shadow-lg overflow-hidden"
+        >
           <div className="flex items-center justify-between px-3 py-2 border-b border-border">
             <span className="text-sm font-semibold text-text">{t('notifications.title')}</span>
             {count > 0 && (
@@ -172,7 +201,8 @@ export default function NotificationBell() {
               {t('notifications.seeAll', { n: count })}
             </button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
