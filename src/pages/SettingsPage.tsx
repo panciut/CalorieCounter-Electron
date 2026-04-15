@@ -100,6 +100,23 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* ── Currency ───────────────────────────────────────────────────────── */}
+      <section>
+        <h2 className={sectionTitle}>{t('settings.currencySymbol')}</h2>
+        <div className="bg-card border border-border rounded-xl p-4">
+          <div className="flex items-center gap-3">
+            <input
+              type="text"
+              maxLength={3}
+              value={settings.currency_symbol ?? '€'}
+              onChange={e => updateSettings({ currency_symbol: e.target.value || '€' })}
+              className="w-16 bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent text-center"
+            />
+            <span className="text-sm text-text-sec">{t('settings.currencySymbol')}</span>
+          </div>
+        </div>
+      </section>
+
       {/* ── Apple Health ───────────────────────────────────────────────────── */}
       <section>
         <h2 className={sectionTitle}>Apple Health</h2>

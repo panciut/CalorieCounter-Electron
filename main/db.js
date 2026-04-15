@@ -221,6 +221,8 @@ function initDb() {
     "ALTER TABLE actual_recipes ADD COLUMN cook_time_min INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE actual_recipes ADD COLUMN tools TEXT",
     "ALTER TABLE actual_recipes ADD COLUMN procedure TEXT",
+    "ALTER TABLE foods ADD COLUMN price_per_100g REAL",
+    "ALTER TABLE food_packages ADD COLUMN price REAL",
   ];
   for (const stmt of migrations) {
     try { database.exec(stmt); } catch (_) {}
@@ -292,6 +294,7 @@ function initDb() {
     ['pantry_enabled', '1'],
     ['pantry_warn_days', '3'],
     ['pantry_urgent_days', '1'],
+    ['currency_symbol', '€'],
   ]) {
     insertSetting.run(key, val);
   }

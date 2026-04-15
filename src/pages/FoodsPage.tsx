@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
+import { useSettings } from '../hooks/useSettings';
 import { api } from '../api';
 import BarcodeScanner from '../components/BarcodeScanner';
 import Modal from '../components/Modal';
@@ -25,13 +26,13 @@ type PresetKey = keyof typeof PRESETS;
 interface FoodFormState {
   name: string; calories: string; protein: string; carbs: string;
   fat: string; fiber: string; piece_grams: string; is_liquid: boolean; barcode: string;
-  opened_days: string; discard_threshold_pct: string;
+  opened_days: string; discard_threshold_pct: string; price_per_100g: string;
 }
 
-const emptyForm = (): FoodFormState => ({ name:'', calories:'', protein:'', carbs:'', fat:'', fiber:'', piece_grams:'', is_liquid: false, barcode: '', opened_days: '7', discard_threshold_pct: '10' });
-const foodToForm = (f: Food): FoodFormState => ({ name:f.name, calories:String(f.calories), protein:String(f.protein), carbs:String(f.carbs), fat:String(f.fat), fiber:String(f.fiber), piece_grams:f.piece_grams!=null?String(f.piece_grams):'', is_liquid:f.is_liquid===1, barcode: f.barcode ?? '', opened_days: f.opened_days != null ? String(f.opened_days) : '', discard_threshold_pct: f.discard_threshold_pct != null ? String(f.discard_threshold_pct) : '10' });
-const barcodeToForm = (r: BarcodeResult, barcode: string): FoodFormState => ({ name:r.name, calories:String(r.calories), protein:String(r.protein), carbs:String(r.carbs), fat:String(r.fat), fiber:String(r.fiber), piece_grams:'', is_liquid:r.is_liquid===1, barcode, opened_days: '7', discard_threshold_pct: '10' });
-const formToData = (f: FoodFormState): Omit<Food,'id'> => ({ name:f.name.trim(), calories:parseFloat(f.calories)||0, protein:parseFloat(f.protein)||0, carbs:parseFloat(f.carbs)||0, fat:parseFloat(f.fat)||0, fiber:parseFloat(f.fiber)||0, piece_grams:f.piece_grams!==''?parseFloat(f.piece_grams):null, is_liquid:f.is_liquid?1:0, barcode: f.barcode.trim() || null, opened_days: f.opened_days !== '' ? parseInt(f.opened_days, 10) : null, discard_threshold_pct: parseFloat(f.discard_threshold_pct) || 10 });
+const emptyForm = (): FoodFormState => ({ name:'', calories:'', protein:'', carbs:'', fat:'', fiber:'', piece_grams:'', is_liquid: false, barcode: '', opened_days: '7', discard_threshold_pct: '10', price_per_100g: '' });
+const foodToForm = (f: Food): FoodFormState => ({ name:f.name, calories:String(f.calories), protein:String(f.protein), carbs:String(f.carbs), fat:String(f.fat), fiber:String(f.fiber), piece_grams:f.piece_grams!=null?String(f.piece_grams):'', is_liquid:f.is_liquid===1, barcode: f.barcode ?? '', opened_days: f.opened_days != null ? String(f.opened_days) : '', discard_threshold_pct: f.discard_threshold_pct != null ? String(f.discard_threshold_pct) : '10', price_per_100g: f.price_per_100g != null ? String(f.price_per_100g) : '' });
+const barcodeToForm = (r: BarcodeResult, barcode: string): FoodFormState => ({ name:r.name, calories:String(r.calories), protein:String(r.protein), carbs:String(r.carbs), fat:String(r.fat), fiber:String(r.fiber), piece_grams:'', is_liquid:r.is_liquid===1, barcode, opened_days: '7', discard_threshold_pct: '10', price_per_100g: '' });
+const formToData = (f: FoodFormState): Omit<Food,'id'> => ({ name:f.name.trim(), calories:parseFloat(f.calories)||0, protein:parseFloat(f.protein)||0, carbs:parseFloat(f.carbs)||0, fat:parseFloat(f.fat)||0, fiber:parseFloat(f.fiber)||0, piece_grams:f.piece_grams!==''?parseFloat(f.piece_grams):null, is_liquid:f.is_liquid?1:0, barcode: f.barcode.trim() || null, opened_days: f.opened_days !== '' ? parseInt(f.opened_days, 10) : null, discard_threshold_pct: parseFloat(f.discard_threshold_pct) || 10, price_per_100g: f.price_per_100g !== '' ? parseFloat(f.price_per_100g) : null });
 
 // ── FormFields for table edit row (multi-line) ────────────────────────────────
 
@@ -74,6 +75,7 @@ type FoodsTab = 'foods' | 'packs';
 export default function FoodsPage() {
   const { t } = useT();
   const { showToast } = useToast();
+  const { settings } = useSettings();
 
   const [foods, setFoods] = useState<Food[]>([]);
   const [addForm, setAddForm] = useState<FoodFormState>(emptyForm());
@@ -81,6 +83,7 @@ export default function FoodsPage() {
   const [editId, setEditId] = useState<number|null>(null);
   const [editForm, setEditForm] = useState<FoodFormState>(emptyForm());
   const [newPackGrams, setNewPackGrams] = useState('');
+  const [newPackPrice, setNewPackPrice] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [barcodeStatus, setBarcodeStatus] = useState<'found'|'notFound'|null>(null);
@@ -117,8 +120,10 @@ export default function FoodsPage() {
   async function handleAddPack() {
     const g = parseFloat(newPackGrams);
     if (!g || g <= 0 || !editId) return;
-    await api.foods.addPackage({ food_id: editId, grams: g });
+    const price = newPackPrice !== '' ? parseFloat(newPackPrice) : null;
+    await api.foods.addPackage({ food_id: editId, grams: g, price: price && price > 0 ? price : null });
     setNewPackGrams('');
+    setNewPackPrice('');
     loadFoods();
   }
 
@@ -349,6 +354,16 @@ export default function FoodsPage() {
                   className="w-20 bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>
+              <div className="flex flex-col gap-0.5">
+                <label className="text-xs text-text-sec">{t('foods.pricePer100g').replace('{cur}', settings.currency_symbol ?? '€')}</label>
+                <input
+                  type="number" inputMode="decimal" min={0}
+                  value={addForm.price_per_100g}
+                  onChange={e => patchAdd({ price_per_100g: e.target.value })}
+                  placeholder="0.00"
+                  className="w-24 bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                />
+              </div>
             </div>
 
             {/* Pack sizes */}
@@ -427,6 +442,7 @@ export default function FoodsPage() {
                   {detailMode && <th className="px-3 py-3 text-left">{t('th.barcode')}</th>}
                   {detailMode && <th className="px-3 py-3 text-right">{t('foods.openedDays')}</th>}
                   {detailMode && <th className="px-3 py-3 text-right">{t('foods.discardThreshold')}</th>}
+                  {detailMode && <th className="px-3 py-3 text-right">{t('foods.pricePer100g').replace('{cur}', settings.currency_symbol ?? '€')}</th>}
                   <th className="px-2 py-3 w-20"></th>
                 </tr>
               </thead>
@@ -476,6 +492,18 @@ export default function FoodsPage() {
                                 className="bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
                               />
                             </div>
+                            <div className="flex flex-col gap-0.5">
+                              <label className="text-xs text-text-sec">{t('foods.pricePer100g').replace('{cur}', settings.currency_symbol ?? '€')}</label>
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                min={0}
+                                value={editForm.price_per_100g}
+                                onChange={e => patchEdit({ price_per_100g: e.target.value })}
+                                placeholder="0.00"
+                                className="bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-24 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                              />
+                            </div>
                           </div>
                         )}
                         {/* Pack sizes — live add/remove */}
@@ -483,7 +511,7 @@ export default function FoodsPage() {
                           <label className="text-xs text-text-sec shrink-0">{t('foods.packs')}:</label>
                           {(food.packages ?? []).map(pkg => (
                             <div key={pkg.id} className="flex items-center gap-1 bg-bg border border-border rounded px-2 py-0.5">
-                              <span className="text-xs tabular-nums">{pkg.grams}g</span>
+                              <span className="text-xs tabular-nums">{pkg.grams}g{pkg.price != null ? ` · ${settings.currency_symbol ?? '€'}${pkg.price}` : ''}</span>
                               <button type="button" onClick={() => setDeletePackId(pkg.id)} className="text-xs text-text-sec hover:text-red cursor-pointer">✕</button>
                             </div>
                           ))}
@@ -494,6 +522,14 @@ export default function FoodsPage() {
                             onKeyDown={e => e.key === 'Enter' && handleAddPack()}
                             placeholder="+ g"
                             className="w-16 text-xs bg-bg border border-dashed border-border rounded px-2 py-0.5 focus:border-accent outline-none"
+                          />
+                          <input
+                            type="text" inputMode="decimal"
+                            value={newPackPrice}
+                            onChange={e => setNewPackPrice(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && handleAddPack()}
+                            placeholder={`${settings.currency_symbol ?? '€'} opt.`}
+                            className="w-20 text-xs bg-bg border border-dashed border-border rounded px-2 py-0.5 focus:border-accent outline-none"
                           />
                         </div>
                       </td>
@@ -520,6 +556,7 @@ export default function FoodsPage() {
                       {detailMode && <td className="px-3 py-2.5 text-text-sec tabular-nums text-xs">{food.barcode ?? '—'}</td>}
                       {detailMode && <td className="px-3 py-2.5 text-right text-text-sec tabular-nums text-xs">{food.opened_days != null ? `${food.opened_days}d` : '—'}</td>}
                       {detailMode && <td className="px-3 py-2.5 text-right text-text-sec tabular-nums text-xs">{food.discard_threshold_pct != null ? `${food.discard_threshold_pct}%` : '—'}</td>}
+                      {detailMode && <td className="px-3 py-2.5 text-right text-text-sec tabular-nums text-xs">{food.price_per_100g != null ? `${settings.currency_symbol ?? '€'}${food.price_per_100g}` : '—'}</td>}
                       <td className="px-2 py-2.5">
                         <div className="flex gap-1 justify-end">
                           <button type="button" onClick={()=>startEdit(food)} className="text-text-sec hover:text-text px-1 cursor-pointer"><span style={{ display: 'inline-block', transform: 'scaleX(-1) rotate(15deg)' }}>✎</span></button>

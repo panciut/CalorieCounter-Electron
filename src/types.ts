@@ -6,6 +6,7 @@ export interface FoodPackage {
   id: number;
   food_id: number;
   grams: number;
+  price?: number | null;
 }
 
 export interface Food {
@@ -23,6 +24,7 @@ export interface Food {
   packages?: FoodPackage[]; // attached by foods:getAll
   opened_days?: number | null;
   discard_threshold_pct?: number;
+  price_per_100g?: number | null;
 }
 
 export interface FrequentFood extends Food {
@@ -154,6 +156,7 @@ export interface Settings {
   pantry_enabled: number;    // 0 or 1
   pantry_warn_days: number;  // default 3
   pantry_urgent_days: number; // default 1
+  currency_symbol: string;   // default '€'
 }
 
 export interface WeightEntry {
@@ -362,6 +365,7 @@ export type PageName =
   | 'exercise'
   | 'net'
   | 'foods'
+  | 'compare'
   | 'pantry'
   | 'recipes'
   | 'history'

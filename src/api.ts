@@ -39,7 +39,7 @@ export const api = {
     update:         (data: Food) => invoke<{ ok: boolean }>('foods:update', data),
     getFrequent:    (limit: number) => invoke<FrequentFood[]>('foods:getFrequent', { limit }),
     toggleFavorite: (id: number) => invoke<{ favorite: boolean }>('foods:toggleFavorite', { id }),
-    addPackage:     (data: { food_id: number; grams: number }) => invoke<{ id: number }>('foods:addPackage', data),
+    addPackage:     (data: { food_id: number; grams: number; price?: number | null }) => invoke<{ id: number }>('foods:addPackage', data),
     deletePackage:  (id: number) => invoke<{ ok: boolean; error?: string; batch_count?: number }>('foods:deletePackage', { id }),
   },
 

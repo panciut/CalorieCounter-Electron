@@ -23,18 +23,18 @@ type PresetKey = keyof typeof PRESETS;
 interface FoodFormState {
   name: string; calories: string; protein: string; carbs: string;
   fat: string; fiber: string; piece_grams: string; is_liquid: boolean; barcode: string;
-  opened_days: string;
+  opened_days: string; price_per_100g: string;
 }
 
 function emptyForm(): FoodFormState {
-  return { name: '', calories: '', protein: '', carbs: '', fat: '', fiber: '', piece_grams: '', is_liquid: false, barcode: '', opened_days: '7' };
+  return { name: '', calories: '', protein: '', carbs: '', fat: '', fiber: '', piece_grams: '', is_liquid: false, barcode: '', opened_days: '7', price_per_100g: '' };
 }
 
 function barcodeToForm(r: BarcodeResult, barcode: string): FoodFormState {
   return {
     name: r.name, calories: String(r.calories), protein: String(r.protein),
     carbs: String(r.carbs), fat: String(r.fat), fiber: String(r.fiber),
-    piece_grams: '', is_liquid: r.is_liquid === 1, barcode, opened_days: '7',
+    piece_grams: '', is_liquid: r.is_liquid === 1, barcode, opened_days: '7', price_per_100g: '',
   };
 }
 
@@ -50,6 +50,7 @@ function formToData(f: FoodFormState): Omit<Food, 'id'> {
     is_liquid: f.is_liquid ? 1 : 0,
     barcode: f.barcode.trim() || null,
     opened_days: f.opened_days !== '' ? parseInt(f.opened_days, 10) : null,
+    price_per_100g: f.price_per_100g !== '' ? parseFloat(f.price_per_100g) : null,
   };
 }
 
@@ -255,8 +256,8 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
             </div>
           </div>
 
-          {/* Opened shelf life */}
-          <div className="flex items-center gap-3 border-t border-border pt-2">
+          {/* Opened shelf life + price */}
+          <div className="flex items-center gap-3 flex-wrap border-t border-border pt-2">
             <label className="text-xs text-text-sec shrink-0">{t('foods.openedDays')}</label>
             <input
               type="number" inputMode="numeric" min={1}
@@ -266,6 +267,15 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
               className="w-20 bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
             />
             <span className="text-xs text-text-sec">days</span>
+            <span className="text-xs text-border mx-1">·</span>
+            <label className="text-xs text-text-sec shrink-0">{t('foods.pricePer100g').replace('{cur}', '€')}</label>
+            <input
+              type="number" inputMode="decimal" min={0}
+              value={form.price_per_100g}
+              onChange={e => patch({ price_per_100g: e.target.value })}
+              placeholder="0.00"
+              className="w-20 bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+            />
           </div>
 
           {/* Pack sizes */}

@@ -20,6 +20,7 @@ import MeasurementsPage from './pages/MeasurementsPage';
 import GoalsPage        from './pages/GoalsPage';
 import DataPage         from './pages/DataPage';
 import SettingsPage     from './pages/SettingsPage';
+import ComparePage      from './pages/ComparePage';
 
 import Nav from './components/Nav';
 
@@ -53,6 +54,7 @@ function AppInner() {
         {page === 'exercise'     && <ExercisePage />}
         {page === 'net'          && <NetPage />}
         {page === 'foods'        && <FoodsPage />}
+        {page === 'compare'      && <ComparePage />}
         {page === 'pantry'       && settings.pantry_enabled !== 0 && <PantryPage />}
         {page === 'pantry'       && settings.pantry_enabled === 0 && <DashboardPage />}
         {page === 'recipes'      && <RecipesPage />}

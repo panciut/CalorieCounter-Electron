@@ -5,11 +5,11 @@ function registerFoodsIpc() {
   ipcMain.handle('foods:getAll', () => {
     const db = getDb();
     const foods = db.prepare('SELECT * FROM foods ORDER BY name').all();
-    const packages = db.prepare('SELECT id, food_id, grams FROM food_packages ORDER BY food_id, grams ASC').all();
+    const packages = db.prepare('SELECT id, food_id, grams, price FROM food_packages ORDER BY food_id, grams ASC').all();
     const byFood = new Map();
     for (const p of packages) {
       if (!byFood.has(p.food_id)) byFood.set(p.food_id, []);
-      byFood.get(p.food_id).push({ id: p.id, food_id: p.food_id, grams: p.grams });
+      byFood.get(p.food_id).push({ id: p.id, food_id: p.food_id, grams: p.grams, price: p.price ?? null });
     }
     for (const f of foods) f.packages = byFood.get(f.id) ?? [];
     return foods;
@@ -19,10 +19,10 @@ function registerFoodsIpc() {
     getDb().prepare('SELECT * FROM foods WHERE favorite = 1 ORDER BY name').all()
   );
 
-  ipcMain.handle('foods:add', (_, { name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode, opened_days, discard_threshold_pct }) => {
+  ipcMain.handle('foods:add', (_, { name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode, opened_days, discard_threshold_pct, price_per_100g }) => {
     const result = getDb().prepare(
-      'INSERT INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode, opened_days, discard_threshold_pct) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece_grams || null, is_liquid ? 1 : 0, barcode || null, opened_days ?? null, discard_threshold_pct ?? 10);
+      'INSERT INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode, opened_days, discard_threshold_pct, price_per_100g) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece_grams || null, is_liquid ? 1 : 0, barcode || null, opened_days ?? null, discard_threshold_pct ?? 10, price_per_100g ?? null);
     return { id: result.lastInsertRowid };
   });
 
@@ -34,10 +34,10 @@ function registerFoodsIpc() {
     return { ok: true };
   });
 
-  ipcMain.handle('foods:update', (_, { id, name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode, opened_days, discard_threshold_pct }) => {
+  ipcMain.handle('foods:update', (_, { id, name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode, opened_days, discard_threshold_pct, price_per_100g }) => {
     getDb().prepare(
-      'UPDATE foods SET name=?, calories=?, protein=?, carbs=?, fat=?, fiber=?, piece_grams=?, is_liquid=?, barcode=?, opened_days=?, discard_threshold_pct=? WHERE id=?'
-    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece_grams || null, is_liquid ? 1 : 0, barcode || null, opened_days ?? null, discard_threshold_pct ?? 10, id);
+      'UPDATE foods SET name=?, calories=?, protein=?, carbs=?, fat=?, fiber=?, piece_grams=?, is_liquid=?, barcode=?, opened_days=?, discard_threshold_pct=?, price_per_100g=? WHERE id=?'
+    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece_grams || null, is_liquid ? 1 : 0, barcode || null, opened_days ?? null, discard_threshold_pct ?? 10, price_per_100g ?? null, id);
     return { ok: true };
   });
 
@@ -59,8 +59,8 @@ function registerFoodsIpc() {
     return { favorite: food.favorite };
   });
 
-  ipcMain.handle('foods:addPackage', (_, { food_id, grams }) => {
-    const result = getDb().prepare('INSERT INTO food_packages (food_id, grams) VALUES (?, ?)').run(food_id, grams);
+  ipcMain.handle('foods:addPackage', (_, { food_id, grams, price }) => {
+    const result = getDb().prepare('INSERT INTO food_packages (food_id, grams, price) VALUES (?, ?, ?)').run(food_id, grams, price ?? null);
     return { id: result.lastInsertRowid };
   });
 

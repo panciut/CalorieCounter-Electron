@@ -284,6 +284,87 @@ export function buildHistoryMarkdown(input: HistoryExportInput): string {
   return lines.join('\n').trimEnd() + '\n';
 }
 
+// ── Food compare ─────────────────────────────────────────────────────────────
+
+export interface CompareRow {
+  name: string;
+  gramsEff: number | null;
+  kcalBudget: number | null;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  fiber: number;
+  netCarbs: number;
+  energyDensity: number;
+  proteinDensity: number;
+  satiety: number;
+  macroPctP: number;
+  macroPctC: number;
+  macroPctF: number;
+  price: number | null;
+  pricePer100g: number | null;
+  pricePer100kcal: number | null;
+  pricePer10gProtein: number | null;
+  available: boolean;
+}
+
+function cell(v: number | null, d = 1): string {
+  return v == null ? '—' : String(r(v, d));
+}
+
+export function buildCompareMarkdown(rows: CompareRow[], mode: string, currency: string): string {
+  const date = new Date().toISOString().slice(0, 10);
+  const names = rows.map(row => row.name);
+  const sep = names.map(() => '---:');
+  const line = (label: string, vals: string[]) =>
+    `| ${label} | ${vals.join(' | ')} |`;
+
+  const lines: string[] = [];
+  lines.push(`# Food comparison — ${date}`);
+  lines.push(`Mode: ${mode}`);
+  lines.push('');
+
+  lines.push('## Nutrition');
+  lines.push(`| | ${names.join(' | ')} |`);
+  lines.push(`|---|${sep.join('|')}|`);
+  if (rows.some(r => r.gramsEff != null))
+    lines.push(line('Effective grams (g)', rows.map(r => cell(r.gramsEff))));
+  if (rows.some(r => r.kcalBudget != null))
+    lines.push(line('Kcal budget', rows.map(r => cell(r.kcalBudget, 0))));
+  lines.push(line('Calories (kcal)', rows.map(r => cell(r.calories, 1))));
+  lines.push(line('Protein (g)', rows.map(r => cell(r.protein))));
+  lines.push(line('Carbs (g)', rows.map(r => cell(r.carbs))));
+  lines.push(line('Fat (g)', rows.map(r => cell(r.fat))));
+  lines.push(line('Fiber (g)', rows.map(r => cell(r.fiber))));
+  lines.push('');
+
+  lines.push('## Derived metrics');
+  lines.push(`| | ${names.join(' | ')} |`);
+  lines.push(`|---|${sep.join('|')}|`);
+  lines.push(line('Net carbs (g)', rows.map(r => cell(r.netCarbs))));
+  lines.push(line('Energy density (kcal/g)', rows.map(r => cell(r.energyDensity, 2))));
+  lines.push(line('Protein density (g/100 kcal)', rows.map(r => cell(r.proteinDensity))));
+  lines.push(line('Satiety (P+Fi /100 kcal)', rows.map(r => cell(r.satiety))));
+  lines.push(line('Macro split P/C/F (%)', rows.map(r =>
+    r.available ? `${r.macroPctP}/${r.macroPctC}/${r.macroPctF}` : '—'
+  )));
+  lines.push('');
+
+  const hasPrices = rows.some(r => r.pricePer100g != null);
+  if (hasPrices) {
+    lines.push(`## Price (${currency})`);
+    lines.push(`| | ${names.join(' | ')} |`);
+    lines.push(`|---|${sep.join('|')}|`);
+    lines.push(line(`Per 100 g (${currency})`, rows.map(r => cell(r.pricePer100g, 2))));
+    lines.push(line(`Per 100 kcal (${currency})`, rows.map(r => cell(r.pricePer100kcal, 2))));
+    lines.push(line(`Per 10 g protein (${currency})`, rows.map(r => cell(r.pricePer10gProtein, 2))));
+    lines.push('');
+  }
+
+  return lines.join('\n').trimEnd() + '\n';
+}
+
 export async function copyToClipboard(text: string): Promise<boolean> {
   try {
     if (navigator.clipboard && window.isSecureContext) {

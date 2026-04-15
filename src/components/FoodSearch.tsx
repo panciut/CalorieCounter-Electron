@@ -12,9 +12,10 @@ interface FoodSearchProps {
   value?: string;
   onClear?: () => void;
   clearAfterSelect?: boolean;
+  showAllWhenEmpty?: boolean;
 }
 
-export default function FoodSearch({ items, onSelect, placeholder = 'Search…', value, onClear, clearAfterSelect = false }: FoodSearchProps) {
+export default function FoodSearch({ items, onSelect, placeholder = 'Search…', value, onClear, clearAfterSelect = false, showAllWhenEmpty = false }: FoodSearchProps) {
   const [query, setQuery] = useState(value ?? '');
   const [activeIdx, setActiveIdx] = useState(-1);
   const [open, setOpen] = useState(false);
@@ -25,8 +26,12 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
 
   const fuse = useMemo(() => new Fuse(items, { keys: ['name'], threshold: 0.4, includeScore: true }), [items]);
 
+  const allSorted = useMemo(() => [...items].sort((a, b) => a.name.localeCompare(b.name)), [items]);
+
   const results = useMemo(() => {
-    if (!query.trim()) return [];
+    if (!query.trim()) {
+      return showAllWhenEmpty ? allSorted : [];
+    }
     const raw = fuse.search(query).slice(0, 20);
     // Sort: exact prefix match first, then by frequency, then fuse score
     return raw
@@ -100,7 +105,7 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setQuery(e.target.value);
-    setOpen(true);
+    setOpen(e.target.value.length > 0 || showAllWhenEmpty);
     setActiveIdx(-1);
     if (!e.target.value && onClear) onClear();
   }
@@ -112,7 +117,7 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
         type="text"
         value={query}
         onChange={handleChange}
-        onFocus={() => query && setOpen(true)}
+        onFocus={() => (query || showAllWhenEmpty) && setOpen(true)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
         className="w-full bg-bg border border-border rounded-md px-3 py-2 text-md text-text placeholder:text-text-sec outline-none focus:border-accent transition-colors"
