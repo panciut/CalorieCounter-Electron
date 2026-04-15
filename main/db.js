@@ -217,6 +217,10 @@ function initDb() {
     "ALTER TABLE pantry ADD COLUMN opened_at TEXT",
     "ALTER TABLE pantry ADD COLUMN opened_days INTEGER",
     "ALTER TABLE pantry ADD COLUMN starting_grams REAL",
+    "ALTER TABLE actual_recipes ADD COLUMN prep_time_min INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE actual_recipes ADD COLUMN cook_time_min INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE actual_recipes ADD COLUMN tools TEXT",
+    "ALTER TABLE actual_recipes ADD COLUMN procedure TEXT",
   ];
   for (const stmt of migrations) {
     try { database.exec(stmt); } catch (_) {}

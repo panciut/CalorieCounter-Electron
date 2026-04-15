@@ -102,6 +102,10 @@ export interface ActualRecipe {
   description: string | null;
   yield_g: number;
   notes: string | null;
+  prep_time_min: number;
+  cook_time_min: number;
+  tools: string | null;
+  procedure: string | null;
   created_at: string;
   total_calories: number;
   total_protein: number;

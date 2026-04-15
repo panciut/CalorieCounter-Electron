@@ -6,7 +6,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 function registerActualRecipesIpc() {
   ipcMain.handle('actualRecipes:getAll', () =>
     getDb().prepare(`
-      SELECT r.id, r.name, r.description, r.yield_g, r.notes, r.created_at,
+      SELECT r.id, r.name, r.description, r.yield_g, r.notes, r.prep_time_min, r.cook_time_min, r.created_at,
         ROUND(SUM(f.calories * ri.grams / 100), 2) AS total_calories,
         ROUND(SUM(f.protein  * ri.grams / 100), 2) AS total_protein,
         ROUND(SUM(f.carbs    * ri.grams / 100), 2) AS total_carbs,
@@ -38,12 +38,12 @@ function registerActualRecipesIpc() {
     return { ...recipe, ingredients };
   });
 
-  ipcMain.handle('actualRecipes:create', (_, { name, description, yield_g, notes, ingredients }) => {
+  ipcMain.handle('actualRecipes:create', (_, { name, description, yield_g, notes, prep_time_min, cook_time_min, tools, procedure, ingredients }) => {
     const db = getDb();
     return db.transaction(() => {
       const { lastInsertRowid } = db.prepare(
-        'INSERT INTO actual_recipes (name, description, yield_g, notes) VALUES (?, ?, ?, ?)'
-      ).run(name, description || null, yield_g || 0, notes || null);
+        'INSERT INTO actual_recipes (name, description, yield_g, notes, prep_time_min, cook_time_min, tools, procedure) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(name, description || null, yield_g || 0, notes || null, prep_time_min || 0, cook_time_min || 0, tools || null, procedure || null);
       const insertIng = db.prepare(
         'INSERT INTO actual_recipe_ingredients (recipe_id, food_id, grams) VALUES (?, ?, ?)'
       );
@@ -54,10 +54,10 @@ function registerActualRecipesIpc() {
     })();
   });
 
-  ipcMain.handle('actualRecipes:update', (_, { id, name, description, yield_g, notes }) => {
+  ipcMain.handle('actualRecipes:update', (_, { id, name, description, yield_g, notes, prep_time_min, cook_time_min, tools, procedure }) => {
     getDb().prepare(
-      'UPDATE actual_recipes SET name=?, description=?, yield_g=?, notes=? WHERE id=?'
-    ).run(name, description || null, yield_g || 0, notes || null, id);
+      'UPDATE actual_recipes SET name=?, description=?, yield_g=?, notes=?, prep_time_min=?, cook_time_min=?, tools=?, procedure=? WHERE id=?'
+    ).run(name, description || null, yield_g || 0, notes || null, prep_time_min || 0, cook_time_min || 0, tools || null, procedure || null, id);
     return { ok: true };
   });
 

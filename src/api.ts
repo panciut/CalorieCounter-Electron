@@ -88,9 +88,9 @@ export const api = {
   actualRecipes: {
     getAll:            () => invoke<ActualRecipe[]>('actualRecipes:getAll'),
     get:               (id: number) => invoke<ActualRecipe>('actualRecipes:get', { id }),
-    create:            (data: { name: string; description: string; yield_g: number; notes: string; ingredients: { food_id: number; grams: number }[] }) =>
+    create:            (data: { name: string; description: string; yield_g: number; notes: string; prep_time_min: number; cook_time_min: number; tools: string; procedure: string; ingredients: { food_id: number; grams: number }[] }) =>
                          invoke<{ id: number }>('actualRecipes:create', data),
-    update:            (data: { id: number; name: string; description: string; yield_g: number; notes: string }) =>
+    update:            (data: { id: number; name: string; description: string; yield_g: number; notes: string; prep_time_min: number; cook_time_min: number; tools: string; procedure: string }) =>
                          invoke<{ ok: boolean }>('actualRecipes:update', data),
     updateIngredients: (data: { id: number; ingredients: { food_id: number; grams: number }[] }) =>
                          invoke<{ ok: boolean }>('actualRecipes:updateIngredients', data),
