@@ -531,10 +531,12 @@ function RankTab({
           ['calories','protein','carbs','fat','fiber','netCarbs'].includes(metric)) {
         value = food.calories > 0 ? (value / food.calories) * 100 : null;
       }
+      const pp100g = effectivePricePer100g(food, null);
       return {
         food,
         value,
-        pricePer100g: effectivePricePer100g(food, null),
+        pricePer100g: pp100g,
+        pricePer100kcal: (pp100g != null && food.calories > 0) ? (pp100g * 100 / food.calories) : null,
       };
     });
     const filtered = search
@@ -572,7 +574,7 @@ function RankTab({
     { label: 'F',  m: 'fat'     },
     { label: 'Fi', m: 'fiber'   },
   ];
-  const FIXED_METRIC_KEYS = new Set<RankMetric>(['calories', 'protein', 'carbs', 'fat', 'fiber', 'pricePer100g']);
+  const FIXED_METRIC_KEYS = new Set<RankMetric>(['calories', 'protein', 'carbs', 'fat', 'fiber', 'pricePer100g', 'pricePer100kcal']);
   const isDerived = !FIXED_METRIC_KEYS.has(metric);
 
   function thCls(m: RankMetric) {
@@ -650,8 +652,8 @@ function RankTab({
                   {label}{dirArrow(m)}
                 </th>
               ))}
-              <th className={thCls('pricePer100g')} onClick={() => handleColClick('pricePer100g')}>
-                {currency}/100g{dirArrow('pricePer100g')}
+              <th className={thCls(is100kcal ? 'pricePer100kcal' : 'pricePer100g')} onClick={() => handleColClick(is100kcal ? 'pricePer100kcal' : 'pricePer100g')}>
+                {currency}/{is100kcal ? '100kcal' : '100g'}{dirArrow(is100kcal ? 'pricePer100kcal' : 'pricePer100g')}
               </th>
             </tr>
           </thead>
@@ -694,8 +696,8 @@ function RankTab({
                 <td className={`px-3 py-2 text-right tabular-nums ${metric === 'fiber' ? 'text-accent font-semibold' : 'text-text-sec'}`}>
                   {fmt(scaleVal(food.fiber, food), 1)}
                 </td>
-                <td className={`px-3 py-2 text-right tabular-nums text-xs ${metric === 'pricePer100g' ? 'text-accent font-semibold' : 'text-text-sec'}`}>
-                  {pricePer100g != null ? `${currency}${fmt(pricePer100g, 2)}` : '—'}
+                <td className={`px-3 py-2 text-right tabular-nums text-xs ${(is100kcal ? metric === 'pricePer100kcal' : metric === 'pricePer100g') ? 'text-accent font-semibold' : 'text-text-sec'}`}>
+                  {(() => { const v = is100kcal ? pricePer100kcal : pricePer100g; return v != null ? `${currency}${fmt(v, 2)}` : '—'; })()}
                 </td>
               </tr>
             ))}
