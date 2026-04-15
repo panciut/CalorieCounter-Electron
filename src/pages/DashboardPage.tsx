@@ -18,6 +18,8 @@ import type {
   LogEntry, Food, Recipe, RecipeIngredient, Meal,
   WaterEntry, SupplementDay, FrequentFood, WeightEntry, DailyEnergy,
 } from '../types';
+import { useDeductionEvents } from '../hooks/useDeductionEvents';
+import DeductionEventModal from '../components/DeductionEventModal';
 
 // ── Quick-food dialog ─────────────────────────────────────────────────────────
 
@@ -149,6 +151,9 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const [restingFromYest, setRestingFromYest] = useState(false);
   const noteSaveTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
 
+  // Pantry deduction event queue (opened-pack lifecycle prompts)
+  const { current: deductionEvent, next: nextDeduction, push: pushDeduction } = useDeductionEvents();
+
   // Form state
   const [selectedFood, setSelectedFood]     = useState<Food|null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<RecipeEditState|null>(null);
@@ -260,12 +265,14 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       const stock = await api.pantry.checkStock(selectedFood.id, effectiveGrams);
       if (stock.shortage > 0) showToast(`Pantry short by ${Math.round(stock.shortage)}g of ${selectedFood.name}`, 'warning');
     }
+    if (result.events?.length) pushDeduction(result.events);
     setSelectedFood(null); setAmount(''); setSearchKey(k => k + 1); load();
   }
 
   async function handleLogRecipe(status: 'logged' | 'planned') {
     if (!selectedRecipe) return;
     const shortages: string[] = [];
+    const allEvents: import('../types').DeductionEvent[] = [];
     for (const ing of selectedRecipe.ingredients) {
       if (ing.editGrams > 0) {
         const result = await api.log.add({ food_id: ing.food_id, grams: ing.editGrams, meal, date: dateStr, status });
@@ -275,9 +282,11 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
           const stock = await api.pantry.checkStock(ing.food_id, ing.editGrams);
           if (stock.shortage > 0) shortages.push(`${Math.round(stock.shortage)}g of ${ing.name}`);
         }
+        if (result.events?.length) allEvents.push(...result.events);
       }
     }
     if (shortages.length > 0) showToast(`Pantry short on: ${shortages.join(', ')}`, 'warning');
+    if (allEvents.length) pushDeduction(allEvents);
     setSelectedRecipe(null); setSearchKey(k => k + 1); load();
   }
 
@@ -286,6 +295,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     if (result.shortage > 0 && result.shortage_food) {
       showToast(`Pantry short by ${Math.round(result.shortage)}g of ${result.shortage_food}`, 'warning');
     }
+    if (result.events?.length) pushDeduction(result.events);
     load();
   }
 
@@ -295,6 +305,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       const list = result.shortages.map(s => `${s.shortage}g of ${s.food_name}`).join(', ');
       showToast(`Pantry short on: ${list}`, 'warning');
     }
+    if (result.events?.length) pushDeduction(result.events);
     load();
   }
 
@@ -834,6 +845,13 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
           </div>
         </div>
       </Modal>
+
+      <DeductionEventModal
+        event={deductionEvent}
+        onDone={nextDeduction}
+        pushMore={pushDeduction}
+        onPantryChanged={load}
+      />
     </div>
   );
 }

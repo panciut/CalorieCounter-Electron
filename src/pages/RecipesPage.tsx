@@ -5,6 +5,8 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import AddFoodRow from '../components/AddFoodRow';
 import { today } from '../lib/dateUtil';
 import type { Recipe, RecipeIngredient, ActualRecipe, ActualRecipeIngredient, Food, Meal, PantryIngredientCheck } from '../types';
+import { useDeductionEvents } from '../hooks/useDeductionEvents';
+import DeductionEventModal from '../components/DeductionEventModal';
 
 type PantryCheckResult = { can_make: boolean; missing: PantryIngredientCheck[] };
 
@@ -19,6 +21,7 @@ function nf(v: unknown) { return Math.round((Number(v) || 0) * 10) / 10; }
 
 function BundlesTab() {
   const { showToast } = useToast();
+  const { current: deductionEvent, next: nextDeduction, push: pushDeduction } = useDeductionEvents();
   const [bundles, setBundles]           = useState<Recipe[]>([]);
   const [foods, setFoods]               = useState<Food[]>([]);
   const [detailId, setDetailId]         = useState<number | null>(null);
@@ -93,6 +96,7 @@ function BundlesTab() {
         } else {
           showToast('Logged & pantry updated');
         }
+        if (dr.events?.length) pushDeduction(dr.events);
       } catch {
         showToast('Logged (pantry update failed)');
       }
@@ -293,6 +297,12 @@ function BundlesTab() {
           onCancel={() => setDeleteTarget(null)}
         />
       )}
+
+      <DeductionEventModal
+        event={deductionEvent}
+        onDone={nextDeduction}
+        pushMore={pushDeduction}
+      />
     </div>
   );
 }
@@ -456,6 +466,7 @@ function BundleCreateModal({ foods, onClose, onCreate, initial }: {
 
 function RecipesTab() {
   const { showToast } = useToast();
+  const { current: deductionEvent, next: nextDeduction, push: pushDeduction } = useDeductionEvents();
   const [recipes, setRecipes]           = useState<ActualRecipe[]>([]);
   const [foods, setFoods]               = useState<Food[]>([]);
   const [detailId, setDetailId]         = useState<number | null>(null);
@@ -533,6 +544,7 @@ function RecipesTab() {
       } else {
         showToast('Logged & pantry updated');
       }
+      if (dr.events?.length) pushDeduction(dr.events);
     } else {
       showToast('Logged');
     }
@@ -752,6 +764,12 @@ function RecipesTab() {
           onCancel={() => setDeleteTarget(null)}
         />
       )}
+
+      <DeductionEventModal
+        event={deductionEvent}
+        onDone={nextDeduction}
+        pushMore={pushDeduction}
+      />
     </div>
   );
 }

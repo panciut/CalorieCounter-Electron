@@ -6,6 +6,7 @@ import type {
   PantryItem, PantryAggregate, ShoppingItem, PantryIngredientCheck,
   CalorieTrendPoint, MacroTrendPoint, ExerciseTrendPoint,
   GoalType, TDEEResult, GoalSuggestion, DailyEnergy,
+  DeductionEvent,
 } from './types';
 
 // Re-export for consumers that need it
@@ -45,15 +46,15 @@ export const api = {
   log: {
     getDay:             (date: string) => invoke<LogEntry[]>('log:getDay', { date }),
     add:                (data: { food_id: number; grams: number; meal: Meal; date: string; status?: 'logged' | 'planned' }) =>
-                          invoke<{ id: number; shortage: number; shortage_food: string | null }>('log:add', data),
+                          invoke<{ id: number; shortage: number; shortage_food: string | null; events: DeductionEvent[] }>('log:add', data),
     addQuick:           (data: { food: Omit<Food, 'id'>; grams: number; meal: Meal; date: string }) =>
                           invoke<{ id: number; food_id: number; shortage: number }>('log:addQuick', data),
     update:             (data: { id: number; food_id: number; grams: number; meal: Meal }) =>
                           invoke<{ ok: boolean }>('log:update', data),
     delete:             (id: number) => invoke<{ ok: boolean }>('log:delete', { id }),
     getPlanned:         (date: string) => invoke<LogEntry[]>('log:getPlanned', { date }),
-    confirmPlanned:     (id: number) => invoke<{ ok: boolean; shortage: number; shortage_food: string }>('log:confirmPlanned', { id }),
-    confirmAllPlanned:  (date: string) => invoke<{ ok: boolean; shortages: { food_name: string; shortage: number }[] }>('log:confirmAllPlanned', { date }),
+    confirmPlanned:     (id: number) => invoke<{ ok: boolean; shortage: number; shortage_food: string; events: DeductionEvent[] }>('log:confirmPlanned', { id }),
+    confirmAllPlanned:  (date: string) => invoke<{ ok: boolean; shortages: { food_name: string; shortage: number }[]; events: DeductionEvent[] }>('log:confirmAllPlanned', { date }),
     swapLunchDinner:    (date: string) => invoke<{ ok: boolean }>('log:swapLunchDinner', { date }),
     getWeeklySummaries: () => invoke<WeeklySummary[]>('log:getWeeklySummaries'),
     getWeekDetail:      (weekStart: string) => invoke<WeekDayDetail[]>('log:getWeekDetail', { weekStart }),
@@ -177,8 +178,11 @@ export const api = {
     canMakeAll:   (recipe_type: 'actual' | 'bundle') =>
       invoke<{ recipe_id: number; can_make: boolean; missing_count: number }[]>(
         'pantry:canMakeAll', { recipe_type }),
-    deductRecipe: (recipe_id: number, scale: number, recipe_type: 'actual' | 'bundle') =>
-      invoke<{ ok: boolean; shortages: { food_name: string; shortage: number }[] }>('pantry:deductRecipe', { recipe_id, scale, recipe_type }),
+    deductRecipe:     (recipe_id: number, scale: number, recipe_type: 'actual' | 'bundle') =>
+      invoke<{ ok: boolean; shortages: { food_name: string; shortage: number }[]; events: DeductionEvent[] }>('pantry:deductRecipe', { recipe_id, scale, recipe_type }),
+    setOpenedDays:    (batch_id: number, days: number) => invoke<{ ok: boolean }>('pantry:setOpenedDays', { batch_id, days }),
+    resolveResidual:  (food_id: number, overflow_g: number, mode: 'residual' | 'new_open') =>
+      invoke<{ ok: boolean; events: DeductionEvent[] }>('pantry:resolveResidual', { food_id, overflow_g, mode }),
   },
 
   shopping: {

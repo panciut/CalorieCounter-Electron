@@ -25,12 +25,13 @@ type PresetKey = keyof typeof PRESETS;
 interface FoodFormState {
   name: string; calories: string; protein: string; carbs: string;
   fat: string; fiber: string; piece_grams: string; is_liquid: boolean; barcode: string;
+  opened_days: string; discard_threshold_pct: string;
 }
 
-const emptyForm = (): FoodFormState => ({ name:'', calories:'', protein:'', carbs:'', fat:'', fiber:'', piece_grams:'', is_liquid: false, barcode: '' });
-const foodToForm = (f: Food): FoodFormState => ({ name:f.name, calories:String(f.calories), protein:String(f.protein), carbs:String(f.carbs), fat:String(f.fat), fiber:String(f.fiber), piece_grams:f.piece_grams!=null?String(f.piece_grams):'', is_liquid:f.is_liquid===1, barcode: f.barcode ?? '' });
-const barcodeToForm = (r: BarcodeResult, barcode: string): FoodFormState => ({ name:r.name, calories:String(r.calories), protein:String(r.protein), carbs:String(r.carbs), fat:String(r.fat), fiber:String(r.fiber), piece_grams:'', is_liquid:r.is_liquid===1, barcode });
-const formToData = (f: FoodFormState): Omit<Food,'id'> => ({ name:f.name.trim(), calories:parseFloat(f.calories)||0, protein:parseFloat(f.protein)||0, carbs:parseFloat(f.carbs)||0, fat:parseFloat(f.fat)||0, fiber:parseFloat(f.fiber)||0, piece_grams:f.piece_grams!==''?parseFloat(f.piece_grams):null, is_liquid:f.is_liquid?1:0, barcode: f.barcode.trim() || null });
+const emptyForm = (): FoodFormState => ({ name:'', calories:'', protein:'', carbs:'', fat:'', fiber:'', piece_grams:'', is_liquid: false, barcode: '', opened_days: '', discard_threshold_pct: '10' });
+const foodToForm = (f: Food): FoodFormState => ({ name:f.name, calories:String(f.calories), protein:String(f.protein), carbs:String(f.carbs), fat:String(f.fat), fiber:String(f.fiber), piece_grams:f.piece_grams!=null?String(f.piece_grams):'', is_liquid:f.is_liquid===1, barcode: f.barcode ?? '', opened_days: f.opened_days != null ? String(f.opened_days) : '', discard_threshold_pct: f.discard_threshold_pct != null ? String(f.discard_threshold_pct) : '10' });
+const barcodeToForm = (r: BarcodeResult, barcode: string): FoodFormState => ({ name:r.name, calories:String(r.calories), protein:String(r.protein), carbs:String(r.carbs), fat:String(r.fat), fiber:String(r.fiber), piece_grams:'', is_liquid:r.is_liquid===1, barcode, opened_days: '', discard_threshold_pct: '10' });
+const formToData = (f: FoodFormState): Omit<Food,'id'> => ({ name:f.name.trim(), calories:parseFloat(f.calories)||0, protein:parseFloat(f.protein)||0, carbs:parseFloat(f.carbs)||0, fat:parseFloat(f.fat)||0, fiber:parseFloat(f.fiber)||0, piece_grams:f.piece_grams!==''?parseFloat(f.piece_grams):null, is_liquid:f.is_liquid?1:0, barcode: f.barcode.trim() || null, opened_days: f.opened_days !== '' ? parseInt(f.opened_days, 10) : null, discard_threshold_pct: parseFloat(f.discard_threshold_pct) || 10 });
 
 // ── FormFields for table edit row (multi-line) ────────────────────────────────
 
@@ -326,6 +327,30 @@ export default function FoodsPage() {
               </div>
             </div>
 
+            {/* Opened-lifecycle fields */}
+            <div className="flex items-center gap-4 flex-wrap border-t border-border pt-2">
+              <div className="flex flex-col gap-0.5">
+                <label className="text-xs text-text-sec">{t('foods.openedDays')}</label>
+                <input
+                  type="number" inputMode="numeric" min={1}
+                  value={addForm.opened_days}
+                  onChange={e => patchAdd({ opened_days: e.target.value })}
+                  placeholder="days"
+                  className="w-24 bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                />
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <label className="text-xs text-text-sec">{t('foods.discardThreshold')}</label>
+                <input
+                  type="number" inputMode="numeric" min={1} max={100}
+                  value={addForm.discard_threshold_pct}
+                  onChange={e => patchAdd({ discard_threshold_pct: e.target.value })}
+                  placeholder="10"
+                  className="w-20 bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                />
+              </div>
+            </div>
+
             {/* Pack sizes */}
             <div className="flex items-center gap-2 flex-wrap border-t border-border pt-2">
               <label className="text-xs text-text-sec shrink-0">{t('foods.packs')}:</label>
@@ -400,6 +425,8 @@ export default function FoodsPage() {
                   <th className="px-3 py-3 text-right">{t('th.piece')}</th>
                   <th className="px-2 py-3 text-center">{t('th.liquid')}</th>
                   {detailMode && <th className="px-3 py-3 text-left">{t('th.barcode')}</th>}
+                  {detailMode && <th className="px-3 py-3 text-right">{t('foods.openedDays')}</th>}
+                  {detailMode && <th className="px-3 py-3 text-right">{t('foods.discardThreshold')}</th>}
                   <th className="px-2 py-3 w-20"></th>
                 </tr>
               </thead>
@@ -413,15 +440,42 @@ export default function FoodsPage() {
                       <td colSpan={detailMode ? 9 : 8} className="px-3 py-2">
                         <FormFields form={editForm} patch={patchEdit} />
                         {detailMode && (
-                          <div className="flex flex-col gap-0.5 mt-2">
-                            <label className="text-xs text-text-sec">{t('th.barcode')}</label>
-                            <input
-                              type="text"
-                              value={editForm.barcode}
-                              onChange={e => patchEdit({ barcode: e.target.value })}
-                              placeholder="e.g. 8001234567890"
-                              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-48"
-                            />
+                          <div className="flex flex-wrap gap-3 mt-2">
+                            <div className="flex flex-col gap-0.5">
+                              <label className="text-xs text-text-sec">{t('th.barcode')}</label>
+                              <input
+                                type="text"
+                                value={editForm.barcode}
+                                onChange={e => patchEdit({ barcode: e.target.value })}
+                                placeholder="e.g. 8001234567890"
+                                className="bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-48"
+                              />
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                              <label className="text-xs text-text-sec">{t('foods.openedDays')}</label>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={1}
+                                value={editForm.opened_days}
+                                onChange={e => patchEdit({ opened_days: e.target.value })}
+                                placeholder="days"
+                                className="bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-24 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                              />
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                              <label className="text-xs text-text-sec">{t('foods.discardThreshold')}</label>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={1}
+                                max={100}
+                                value={editForm.discard_threshold_pct}
+                                onChange={e => patchEdit({ discard_threshold_pct: e.target.value })}
+                                placeholder="10"
+                                className="bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-20 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                              />
+                            </div>
                           </div>
                         )}
                         {/* Pack sizes — live add/remove */}
@@ -464,6 +518,8 @@ export default function FoodsPage() {
                       <td className="px-3 py-2.5 text-right text-text-sec tabular-nums">{food.piece_grams!=null?`${food.piece_grams}g`:'—'}</td>
                       <td className="px-2 py-2.5 text-center">{food.is_liquid===1?'💧':''}</td>
                       {detailMode && <td className="px-3 py-2.5 text-text-sec tabular-nums text-xs">{food.barcode ?? '—'}</td>}
+                      {detailMode && <td className="px-3 py-2.5 text-right text-text-sec tabular-nums text-xs">{food.opened_days != null ? `${food.opened_days}d` : '—'}</td>}
+                      {detailMode && <td className="px-3 py-2.5 text-right text-text-sec tabular-nums text-xs">{food.discard_threshold_pct != null ? `${food.discard_threshold_pct}%` : '—'}</td>}
                       <td className="px-2 py-2.5">
                         <div className="flex gap-1 justify-end">
                           <button type="button" onClick={()=>startEdit(food)} className="text-text-sec hover:text-text px-1 cursor-pointer"><span style={{ display: 'inline-block', transform: 'scaleX(-1) rotate(15deg)' }}>✎</span></button>

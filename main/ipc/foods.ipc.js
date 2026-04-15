@@ -19,10 +19,10 @@ function registerFoodsIpc() {
     getDb().prepare('SELECT * FROM foods WHERE favorite = 1 ORDER BY name').all()
   );
 
-  ipcMain.handle('foods:add', (_, { name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode }) => {
+  ipcMain.handle('foods:add', (_, { name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode, opened_days, discard_threshold_pct }) => {
     const result = getDb().prepare(
-      'INSERT INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece_grams || null, is_liquid ? 1 : 0, barcode || null);
+      'INSERT INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode, opened_days, discard_threshold_pct) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece_grams || null, is_liquid ? 1 : 0, barcode || null, opened_days ?? null, discard_threshold_pct ?? 10);
     return { id: result.lastInsertRowid };
   });
 
@@ -34,10 +34,10 @@ function registerFoodsIpc() {
     return { ok: true };
   });
 
-  ipcMain.handle('foods:update', (_, { id, name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode }) => {
+  ipcMain.handle('foods:update', (_, { id, name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode, opened_days, discard_threshold_pct }) => {
     getDb().prepare(
-      'UPDATE foods SET name=?, calories=?, protein=?, carbs=?, fat=?, fiber=?, piece_grams=?, is_liquid=?, barcode=? WHERE id=?'
-    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece_grams || null, is_liquid ? 1 : 0, barcode || null, id);
+      'UPDATE foods SET name=?, calories=?, protein=?, carbs=?, fat=?, fiber=?, piece_grams=?, is_liquid=?, barcode=?, opened_days=?, discard_threshold_pct=? WHERE id=?'
+    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece_grams || null, is_liquid ? 1 : 0, barcode || null, opened_days ?? null, discard_threshold_pct ?? 10, id);
     return { ok: true };
   });
 

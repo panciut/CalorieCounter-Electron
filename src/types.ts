@@ -21,6 +21,8 @@ export interface Food {
   favorite?: number; // 0 or 1
   barcode?: string | null;
   packages?: FoodPackage[]; // attached by foods:getAll
+  opened_days?: number | null;
+  discard_threshold_pct?: number;
 }
 
 export interface FrequentFood extends Food {
@@ -253,7 +255,16 @@ export interface PantryItem {
   updated_at: string;
   package_id: number | null;
   package_grams: number | null; // denormalized from food_packages join
+  opened_at: string | null;
+  opened_days: number | null;
+  starting_grams: number | null;
 }
+
+export type DeductionEvent =
+  | { kind: 'opened'; batch_id: number; food_id: number; food_name: string; default_days: number | null }
+  | { kind: 'residual_or_new'; food_id: number; food_name: string; overflow_g: number; next_batch_id: number | null }
+  | { kind: 'near_empty'; batch_id: number; food_id: number; food_name: string; remaining_g: number; starting_g: number }
+  | { kind: 'finished'; batch_id: number; food_id: number; food_name: string };
 
 export interface PantryAggregate {
   food_id: number;

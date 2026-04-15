@@ -1,6 +1,6 @@
 const { ipcMain } = require('electron');
 const { getDb } = require('../db');
-const { isPantryEnabled, deductFoodFEFO, checkStock } = require('../lib/pantryFefo');
+const { isPantryEnabled, deductFoodFEFO, deductSealedFEFO, checkStock } = require('../lib/pantryFefo');
 
 function registerPantryIpc() {
   // Return all batches (one row per batch), sorted: earliest expiry first, null expiry last, then food name.
@@ -9,7 +9,8 @@ function registerPantryIpc() {
     getDb().prepare(`
       SELECT p.id, p.food_id, f.name AS food_name, f.piece_grams,
              p.quantity_g, p.expiry_date, p.updated_at,
-             p.package_id, fp.grams AS package_grams
+             p.package_id, fp.grams AS package_grams,
+             p.opened_at, p.opened_days, p.starting_grams
       FROM pantry p
       JOIN foods f ON f.id = p.food_id
       LEFT JOIN food_packages fp ON fp.id = p.package_id
@@ -20,9 +21,9 @@ function registerPantryIpc() {
   // Add a new batch (no UNIQUE conflict — always inserts)
   ipcMain.handle('pantry:addBatch', (_, { food_id, quantity_g, expiry_date, package_id }) => {
     getDb().prepare(`
-      INSERT INTO pantry (food_id, quantity_g, expiry_date, package_id, updated_at)
-      VALUES (?, ?, ?, ?, datetime('now'))
-    `).run(food_id, quantity_g, expiry_date || null, package_id ?? null);
+      INSERT INTO pantry (food_id, quantity_g, expiry_date, package_id, starting_grams, updated_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'))
+    `).run(food_id, quantity_g, expiry_date || null, package_id ?? null, quantity_g);
     return { ok: true };
   });
 
@@ -126,15 +127,38 @@ function registerPantryIpc() {
     `).all(recipe_id);
 
     const shortages = [];
+    const allEvents = [];
     db.transaction(() => {
       for (const ing of ingredients) {
         const result = deductFoodFEFO(db, ing.food_id, ing.grams * scale);
         if (result.shortage > 0) {
           shortages.push({ food_name: ing.food_name, shortage: Math.round(result.shortage * 10) / 10 });
         }
+        allEvents.push(...result.events);
       }
     })();
-    return { ok: true, shortages };
+    return { ok: true, shortages, events: allEvents };
+  });
+
+  // Set opened_days on a specific batch (called after the user confirms in the opened-pack modal)
+  ipcMain.handle('pantry:setOpenedDays', (_, { batch_id, days }) => {
+    getDb().prepare("UPDATE pantry SET opened_days = ?, updated_at = datetime('now') WHERE id = ?")
+      .run(days, batch_id);
+    return { ok: true };
+  });
+
+  // Resolve a "residual or new pack" prompt.
+  // mode='residual' → no-op (shortage is written off).
+  // mode='new_open' → deduct overflow_g from sealed batches and return new events.
+  ipcMain.handle('pantry:resolveResidual', (_, { food_id, overflow_g, mode }) => {
+    if (mode === 'residual') return { ok: true, events: [] };
+    const db = getDb();
+    let events = [];
+    db.transaction(() => {
+      const result = deductSealedFEFO(db, food_id, overflow_g);
+      events = result.events;
+    })();
+    return { ok: true, events };
   });
 }
 

@@ -212,6 +212,11 @@ function initDb() {
     "ALTER TABLE supplements ADD COLUMN created_at TEXT NOT NULL DEFAULT '2000-01-01'",
     "ALTER TABLE foods ADD COLUMN barcode TEXT",
     "ALTER TABLE pantry ADD COLUMN package_id INTEGER",
+    "ALTER TABLE foods ADD COLUMN opened_days INTEGER",
+    "ALTER TABLE foods ADD COLUMN discard_threshold_pct REAL NOT NULL DEFAULT 10",
+    "ALTER TABLE pantry ADD COLUMN opened_at TEXT",
+    "ALTER TABLE pantry ADD COLUMN opened_days INTEGER",
+    "ALTER TABLE pantry ADD COLUMN starting_grams REAL",
   ];
   for (const stmt of migrations) {
     try { database.exec(stmt); } catch (_) {}
@@ -260,6 +265,11 @@ function initDb() {
       })();
     }
   } catch (e) { console.error('pantry schema migration failed:', e); }
+
+  // Backfill starting_grams for existing batches that predate the column
+  try {
+    database.exec("UPDATE pantry SET starting_grams = quantity_g WHERE starting_grams IS NULL");
+  } catch (_) {}
 
   // Default settings
   const insertSetting = database.prepare(

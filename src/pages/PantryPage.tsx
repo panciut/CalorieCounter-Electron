@@ -39,6 +39,25 @@ function expiryLabel(iso: string | null, warn: number, urgent: number): string {
   return formatDMY(iso);
 }
 
+function openedLabel(batch: PantryItem): string | null {
+  if (!batch.opened_at || !batch.opened_days) return null;
+  const dueMs = new Date(batch.opened_at).getTime() + batch.opened_days * 86400_000;
+  const daysLeft = Math.ceil((dueMs - Date.now()) / 86400_000);
+  if (daysLeft < 0)   return `Opened, ${-daysLeft}d past`;
+  if (daysLeft === 0) return 'Opened, today';
+  return `Opened, ${daysLeft}d left`;
+}
+
+function openedPillClass(batch: PantryItem): string {
+  if (!batch.opened_at || !batch.opened_days) return 'text-text-sec';
+  const dueMs = new Date(batch.opened_at).getTime() + batch.opened_days * 86400_000;
+  const daysLeft = Math.ceil((dueMs - Date.now()) / 86400_000);
+  if (daysLeft < 0)  return 'text-red font-semibold';
+  if (daysLeft <= 1) return 'text-red';
+  if (daysLeft <= 3) return 'text-yellow';
+  return 'text-text-sec';
+}
+
 /** On focus of an empty date field, seed it with today so the user only needs to change the day. */
 function seedExpiry(current: string): string {
   return current || today();
@@ -559,7 +578,7 @@ export default function PantryPage() {
                                 </>
                               ) : (
                                 <>
-                                  <div className="flex-1 flex items-center gap-3">
+                                  <div className="flex-1 flex items-center gap-3 flex-wrap">
                                     <span className="text-sm font-semibold tabular-nums text-text">
                                       {formatQty(batch.quantity_g, batch.piece_grams, batch.package_grams)}
                                     </span>
@@ -567,6 +586,11 @@ export default function PantryPage() {
                                       <span className={`text-xs tabular-nums ${bExpiryColor}`}>{bExpiryLabel}</span>
                                     ) : (
                                       <span className="text-xs text-text-sec/40">no date</span>
+                                    )}
+                                    {openedLabel(batch) && (
+                                      <span className={`text-xs tabular-nums ${openedPillClass(batch)}`}>
+                                        {openedLabel(batch)}
+                                      </span>
                                     )}
                                   </div>
                                   <button

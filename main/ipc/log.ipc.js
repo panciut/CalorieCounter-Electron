@@ -64,11 +64,13 @@ function registerLogIpc() {
         }
       }
       let shortage = 0;
+      let events = [];
       if (isPantryEnabled(db)) {
         const r = deductFoodFEFO(db, row.food_id, row.grams);
         shortage = r.shortage;
+        events = r.events;
       }
-      return { ok: true, shortage, shortage_food: row.food_name };
+      return { ok: true, shortage, shortage_food: row.food_name, events };
     })();
   });
 
@@ -85,6 +87,7 @@ function registerLogIpc() {
       const insertWater = db.prepare('INSERT INTO water_log (date, ml, source, log_id) VALUES (?, ?, ?, ?)');
       const waterExists = db.prepare('SELECT id FROM water_log WHERE log_id = ?');
       const shortages = [];
+      const allEvents = [];
       for (const r of rows) {
         if (r.is_liquid && !waterExists.get(r.id)) {
           insertWater.run(r.date, r.grams, r.food_name, r.id);
@@ -92,9 +95,10 @@ function registerLogIpc() {
         if (isPantryEnabled(db)) {
           const res = deductFoodFEFO(db, r.food_id, r.grams);
           if (res.shortage > 0) shortages.push({ food_name: r.food_name, shortage: Math.round(res.shortage * 10) / 10 });
+          allEvents.push(...res.events);
         }
       }
-      return { ok: true, shortages };
+      return { ok: true, shortages, events: allEvents };
     })();
   });
 
@@ -102,7 +106,7 @@ function registerLogIpc() {
     const db = getDb();
     const d = date || today();
     const s = status || 'logged';
-    let logId, shortage = 0, shortage_food = null;
+    let logId, shortage = 0, shortage_food = null, events = [];
     db.transaction(() => {
       const result = db.prepare(
         'INSERT INTO log (date, food_id, grams, meal, status) VALUES (?, ?, ?, ?, ?)'
@@ -118,10 +122,11 @@ function registerLogIpc() {
           const r = deductFoodFEFO(db, food_id, grams);
           shortage = r.shortage;
           shortage_food = food ? food.name : null;
+          events = r.events;
         }
       }
     })();
-    return { id: logId, shortage, shortage_food };
+    return { id: logId, shortage, shortage_food, events };
   });
 
   ipcMain.handle('log:addQuick', (_, { food, grams, meal, date }) => {
