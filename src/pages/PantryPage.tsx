@@ -80,15 +80,21 @@ type PantryUnit = 'g' | 'pcs' | `pkg-${number}`;
 
 function formatQty(quantity_g: number, piece_grams: number | null, package_grams: number | null, count = 1): string {
   const totalG = Math.round(quantity_g * count);
-  // Pieces take priority whenever piece_grams is set (Shape B)
+  // Shape B — pieces inside a container pack: show pcs and grams, each as remaining/total when partial
   if (piece_grams && piece_grams > 0) {
     const pcs = Math.round(totalG / piece_grams);
+    if (package_grams && package_grams > 0 && count === 1) {
+      const pkgG = Math.round(package_grams);
+      const pkgPcs = Math.round(pkgG / piece_grams);
+      if (Math.abs(totalG - pkgG) < 1) return `${pcs} pcs · ${pkgG}g`;
+      return `${pcs}/${pkgPcs} pcs · ${totalG}/${pkgG}g`;
+    }
     return `${pcs} pcs (${totalG}g)`;
   }
+  // Shape A — sealed pack, no pieces
   if (package_grams && package_grams > 0) {
     const pkgG = Math.round(package_grams);
     if (count > 1) return `${count} × ${pkgG}g (${totalG}g)`;
-    // Single pack: show actual remaining; annotate with pack size when partially consumed
     if (Math.abs(totalG - pkgG) < 1) return `${pkgG}g`;
     return `${totalG}g / ${pkgG}g`;
   }
@@ -252,13 +258,12 @@ export default function PantryPage() {
   }
 
   function startEditBatch(batch: PantryItem) {
-    // Infer the best initial unit: pack > pieces > grams
+    // Shape B (piece_grams set, non-bulk) starts in pcs; everything else in grams.
+    const food = foods.find(f => f.id === batch.food_id);
+    const isBulk = food?.is_bulk === 1;
     let batchUnit: PantryUnit = 'g';
     let qtyStr = String(Math.round(batch.quantity_g));
-    if (batch.package_id && batch.package_grams && batch.package_grams > 0) {
-      batchUnit = `pkg-${batch.package_id}`;
-      qtyStr = String(Math.round((batch.quantity_g / batch.package_grams) * 10) / 10);
-    } else if (batch.piece_grams && batch.piece_grams > 0) {
+    if (!isBulk && batch.piece_grams && batch.piece_grams > 0) {
       batchUnit = 'pcs';
       qtyStr = String(Math.round((batch.quantity_g / batch.piece_grams) * 10) / 10);
     }
@@ -275,7 +280,7 @@ export default function PantryPage() {
       id: editingBatch.id,
       quantity_g: grams || 0,
       expiry_date: editingBatch.expiry || null,
-      package_id: unitToPackageId(editingBatch.unit),
+      package_id: batch.package_id,
     });
     setEditingBatch(null);
     loadPantry();
@@ -576,27 +581,19 @@ export default function PantryPage() {
                                 {isEditing ? (
                                   <>
                                     <div className="flex items-center gap-1.5 flex-wrap flex-1">
-                                      {(batch.piece_grams || batch.package_grams) && (() => {
+                                      {batch.piece_grams && (() => {
                                         const bFood = foods.find(f => f.id === batch.food_id);
+                                        if (bFood?.is_bulk === 1) return null;
                                         return (
                                           <div className="flex rounded border border-border overflow-hidden text-xs">
                                             <button
                                               onClick={() => setEditingBatch(b => b ? { ...b, unit: 'g', qty: String(Math.round(batch.quantity_g)) } : b)}
                                               className={`px-2 py-0.5 cursor-pointer ${editingBatch.unit === 'g' ? 'bg-accent/15 text-accent' : 'text-text-sec'}`}
                                             >g</button>
-                                            {batch.piece_grams && (
-                                              <button
-                                                onClick={() => setEditingBatch(b => b ? { ...b, unit: 'pcs', qty: String(Math.round((batch.quantity_g / batch.piece_grams!) * 10) / 10) } : b)}
-                                                className={`px-2 py-0.5 cursor-pointer ${editingBatch.unit === 'pcs' ? 'bg-accent/15 text-accent' : 'text-text-sec'}`}
-                                              >pcs</button>
-                                            )}
-                                            {bFood?.packages?.map(pkg => (
-                                              <button
-                                                key={pkg.id}
-                                                onClick={() => setEditingBatch(b => b ? { ...b, unit: `pkg-${pkg.id}`, qty: String(Math.round((batch.quantity_g / pkg.grams) * 10) / 10) } : b)}
-                                                className={`px-2 py-0.5 cursor-pointer tabular-nums ${editingBatch.unit === `pkg-${pkg.id}` ? 'bg-accent/15 text-accent' : 'text-text-sec'}`}
-                                              >{pkg.grams}g</button>
-                                            ))}
+                                            <button
+                                              onClick={() => setEditingBatch(b => b ? { ...b, unit: 'pcs', qty: String(Math.round((batch.quantity_g / batch.piece_grams!) * 10) / 10) } : b)}
+                                              className={`px-2 py-0.5 cursor-pointer ${editingBatch.unit === 'pcs' ? 'bg-accent/15 text-accent' : 'text-text-sec'}`}
+                                            >pcs</button>
                                           </div>
                                         );
                                       })()}
@@ -655,7 +652,17 @@ export default function PantryPage() {
                                       }}
                                     >
                                       <span className="text-sm font-semibold tabular-nums text-text">
-                                        {formatQty(batch.quantity_g, batch.piece_grams, batch.package_grams, displayCount)}
+                                        {(() => {
+                                          // Fallback: if the batch has no pack association but the food defines
+                                          // exactly one pack, use its grams for display (e.g. legacy bulk rows).
+                                          let pkgG = batch.package_grams;
+                                          if (pkgG == null) {
+                                            const bFood = foodMap.get(batch.food_id);
+                                            const pkgs = bFood?.packages ?? [];
+                                            if (pkgs.length === 1) pkgG = pkgs[0].grams;
+                                          }
+                                          return formatQty(batch.quantity_g, batch.piece_grams, pkgG, displayCount);
+                                        })()}
                                       </span>
                                       {batch.expiry_date ? (
                                         <span className={`text-xs tabular-nums ${rowExpiryColor}`}>{rowExpiryLabel}</span>

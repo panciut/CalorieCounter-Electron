@@ -316,6 +316,72 @@ function initDb() {
     }
   } catch (e) { console.error('piece_pack migration failed:', e); }
 
+  // One-time migration v2: backfill pantry.package_id for rows that predate
+  // current pack-aware add flow, and split multi-pack rows into one row per pack.
+  // For a row with NULL package_id:
+  //   - if quantity_g ≤ smallest pack whose grams ≥ quantity_g → link to that pack
+  //   - else if quantity_g divides evenly into a pack → split into N rows of that pack
+  //   - else: skip (ambiguous)
+  // For a row with non-NULL package_id but quantity_g > pack.grams → split.
+  try {
+    const migrated = database.prepare("SELECT value FROM settings WHERE key = 'schema.pantry_package_backfill_v1'").get();
+    if (!migrated) {
+      const getRows = database.prepare(`
+        SELECT id, food_id, quantity_g, package_id, expiry_date, opened_at, opened_days, starting_grams
+        FROM pantry
+      `);
+      const getPackages = database.prepare("SELECT id, grams FROM food_packages WHERE food_id = ? ORDER BY grams");
+      const updateRow = database.prepare("UPDATE pantry SET package_id = ?, quantity_g = ?, starting_grams = ? WHERE id = ?");
+      const insertRow = database.prepare(`
+        INSERT INTO pantry (food_id, quantity_g, expiry_date, package_id, opened_at, opened_days, starting_grams, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+      `);
+      const EPS = 0.02;
+
+      database.transaction(() => {
+        const rows = getRows.all();
+        for (const r of rows) {
+          const packs = getPackages.all(r.food_id);
+          if (packs.length === 0) continue;
+
+          const currentPack = r.package_id ? packs.find(p => p.id === r.package_id) : null;
+          if (currentPack && r.quantity_g <= currentPack.grams * (1 + EPS)) continue;
+
+          let refPack = currentPack;
+          if (!refPack) {
+            const fits = packs.find(p => r.quantity_g <= p.grams * (1 + EPS));
+            if (fits) {
+              refPack = fits;
+            } else {
+              const divisible = packs.filter(p => {
+                const ratio = r.quantity_g / p.grams;
+                return Math.abs(ratio - Math.round(ratio)) < EPS && Math.round(ratio) >= 1;
+              });
+              if (divisible.length === 0) continue;
+              refPack = divisible[0];
+            }
+          }
+
+          const n = Math.round(r.quantity_g / refPack.grams);
+          if (n <= 0) continue;
+
+          if (n === 1) {
+            const newStarting = r.starting_grams != null ? r.starting_grams : refPack.grams;
+            updateRow.run(refPack.id, r.quantity_g, newStarting, r.id);
+            console.log(`[pantry backfill] row ${r.id}: linked to pack ${refPack.id} (${refPack.grams}g)`);
+          } else {
+            updateRow.run(refPack.id, refPack.grams, refPack.grams, r.id);
+            for (let i = 1; i < n; i++) {
+              insertRow.run(r.food_id, refPack.grams, r.expiry_date, refPack.id, r.opened_at, r.opened_days, refPack.grams);
+            }
+            console.log(`[pantry backfill] row ${r.id}: split into ${n} × ${refPack.grams}g (pack ${refPack.id})`);
+          }
+        }
+      })();
+      database.prepare("INSERT INTO settings (key, value) VALUES ('schema.pantry_package_backfill_v1', '1')").run();
+    }
+  } catch (e) { console.error('pantry package backfill failed:', e); }
+
   // Default settings
   const insertSetting = database.prepare(
     'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)'
