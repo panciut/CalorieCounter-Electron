@@ -273,17 +273,27 @@ export default function FoodsPage() {
             </div>
 
             {/* Name row */}
-            <div className="flex flex-col gap-0.5">
-              <label className="text-xs text-text-sec">{t('common.name')}</label>
-              <input
-                type="text"
-                value={addForm.name}
-                onChange={e => patchAdd({ name: e.target.value })}
-                onKeyDown={e => e.key === 'Enter' && handleAdd()}
-                placeholder={t('foods.namePlaceholder')}
-                className={INPUT_CLASS}
-              />
-            </div>
+            {(() => {
+              const dupMatch = addForm.name.trim()
+                ? foods.find(f => f.name.toLowerCase() === addForm.name.trim().toLowerCase())
+                : null;
+              return (
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-xs text-text-sec">{t('common.name')}</label>
+                  <input
+                    type="text"
+                    value={addForm.name}
+                    onChange={e => patchAdd({ name: e.target.value })}
+                    onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                    placeholder={t('foods.namePlaceholder')}
+                    className={INPUT_CLASS}
+                  />
+                  {dupMatch && (
+                    <span className="text-xs text-yellow">⚠ "{dupMatch.name}" already exists</span>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Macros + actions row */}
             <div className="flex items-end gap-2">

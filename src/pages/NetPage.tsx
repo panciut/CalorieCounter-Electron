@@ -36,7 +36,9 @@ export default function NetPage() {
     };
   });
 
-  const withData  = filled.filter(d => d.calories_in > 0);
+  const todayStr  = new Date().toISOString().slice(0, 10);
+  const chart     = filled.filter(d => d.date < todayStr);
+  const withData  = chart.filter(d => d.calories_in > 0);
   const avgIn     = withData.length ? Math.round(withData.reduce((s, d) => s + d.calories_in,  0) / withData.length) : 0;
   const avgOut    = withData.length ? Math.round(withData.reduce((s, d) => s + d.calories_out, 0) / withData.length) : 0;
   const avgNet    = withData.length ? Math.round(withData.reduce((s, d) => s + d.net,          0) / withData.length) : 0;
@@ -89,7 +91,7 @@ export default function NetPage() {
       {/* Chart */}
       <div className="bg-card border border-border rounded-xl p-4">
         <ResponsiveContainer width="100%" height={260}>
-          <LineChart data={filled} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+          <LineChart data={chart} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
             <CartesianGrid vertical={false} stroke="var(--border)" />
             <XAxis
               dataKey="label"
@@ -130,7 +132,7 @@ export default function NetPage() {
             </tr>
           </thead>
           <tbody>
-            {[...filled].reverse().map(d => (
+            {[...chart].reverse().map(d => (
               <tr key={d.date} className="border-t border-border/50 hover:bg-bg/50 transition-colors">
                 <td className="px-4 py-2.5 text-text-sec text-xs">{d.label}</td>
                 <td className="px-4 py-2.5 text-right tabular-nums text-text">
