@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../api';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -283,6 +283,88 @@ export default function DataPage() {
           onCancel={() => setConfirmRestore(false)}
         />
       )}
+
+      <ActionLog />
     </div>
+  );
+}
+
+// ── Action log viewer ─────────────────────────────────────────────────────────
+
+const KIND_LABEL: Record<string, string> = {
+  'log:add':       '+ logged',
+  'log:delete':    '− deleted',
+  'pantry:add':    '+ stocked',
+  'pantry:discard':'× discarded',
+};
+
+const KIND_COLOR: Record<string, string> = {
+  'log:add':       'text-accent',
+  'log:delete':    'text-text-sec',
+  'pantry:add':    'text-green-500',
+  'pantry:discard':'text-red',
+};
+
+function ActionLog() {
+  const [rows, setRows] = useState<{ id: number; kind: string; food_name: string | null; grams: number | null; details: string | null; ts: string }[]>([]);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (open) api.actionLog.getRecent(300).then(setRows);
+  }, [open]);
+
+  return (
+    <section className="space-y-3">
+      <h2 className="text-xs font-semibold text-text-sec uppercase tracking-wider">Action log</h2>
+      <div className={card}>
+        <div className="flex items-center justify-between">
+          <p className={sectionTitle}>Recent actions</p>
+          <button onClick={() => setOpen(v => !v)} className={btn()}>
+            {open ? 'Hide' : 'Show log'}
+          </button>
+        </div>
+        {open && (
+          <div className="overflow-auto max-h-96 rounded-lg border border-border">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="bg-card border-b border-border text-text-sec">
+                  <th className="px-3 py-2 text-left">Time</th>
+                  <th className="px-3 py-2 text-left">Action</th>
+                  <th className="px-3 py-2 text-left">Food</th>
+                  <th className="px-3 py-2 text-right">Grams</th>
+                  <th className="px-3 py-2 text-left">Details</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(r => {
+                  const det = r.details ? (() => { try { return JSON.parse(r.details); } catch { return {}; } })() : {};
+                  return (
+                    <tr key={r.id} className="border-t border-border/40 hover:bg-card/30">
+                      <td className="px-3 py-1.5 tabular-nums text-text-sec whitespace-nowrap">
+                        {r.ts.replace('T', ' ').slice(0, 16)}
+                      </td>
+                      <td className={`px-3 py-1.5 font-medium whitespace-nowrap ${KIND_COLOR[r.kind] ?? 'text-text-sec'}`}>
+                        {KIND_LABEL[r.kind] ?? r.kind}
+                      </td>
+                      <td className="px-3 py-1.5 text-text">{r.food_name ?? '—'}</td>
+                      <td className="px-3 py-1.5 text-right tabular-nums text-text-sec">
+                        {r.grams != null ? `${Math.round(r.grams)}g` : '—'}
+                      </td>
+                      <td className="px-3 py-1.5 text-text-sec">
+                        {det.meal ? det.meal : det.expiry_date ? `exp ${det.expiry_date}` : ''}
+                        {det.date ? ` · ${det.date}` : ''}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {rows.length === 0 && (
+                  <tr><td colSpan={5} className="px-3 py-6 text-center text-text-sec">No actions logged yet</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

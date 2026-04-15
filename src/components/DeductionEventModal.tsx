@@ -192,6 +192,13 @@ function FinishedModal({
   const { t } = useT();
   const notNowRef = useRef<HTMLButtonElement>(null);
   useDeferredFocus(notNowRef);
+  const [remaining, setRemaining] = useState<number | null>(null);
+
+  useEffect(() => {
+    api.pantry.getAll().then(items => {
+      setRemaining(items.filter(i => i.food_id === event.food_id).length);
+    });
+  }, [event.food_id]);
 
   async function handleAdd() {
     await api.shopping.add({ food_id: event.food_id });
@@ -204,7 +211,13 @@ function FinishedModal({
       <p className="text-text text-sm font-semibold">
         {t('pantry.finishedTitle').replace('{name}', event.food_name)}
       </p>
-      <p className="text-text-sec text-sm">{t('pantry.finishedMsg')}</p>
+      <p className="text-text-sec text-sm">
+        {remaining != null
+          ? (remaining > 0
+              ? t('pantry.finishedMsgRemaining').replace('{n}', String(remaining))
+              : t('pantry.finishedMsgNone'))
+          : t('pantry.finishedMsg')}
+      </p>
       <div className="flex gap-2 justify-end">
         <button
           ref={notNowRef}

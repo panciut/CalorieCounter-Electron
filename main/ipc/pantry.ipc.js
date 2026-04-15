@@ -1,6 +1,7 @@
 const { ipcMain } = require('electron');
 const { getDb } = require('../db');
 const { isPantryEnabled, deductFoodFEFO, deductSealedFEFO, checkStock } = require('../lib/pantryFefo');
+const { logAction } = require('../lib/actionLog');
 
 function registerPantryIpc() {
   // Return all batches (one row per batch), sorted: earliest expiry first, null expiry last, then food name.
@@ -20,10 +21,13 @@ function registerPantryIpc() {
 
   // Add a new batch (no UNIQUE conflict — always inserts)
   ipcMain.handle('pantry:addBatch', (_, { food_id, quantity_g, expiry_date, package_id }) => {
-    getDb().prepare(`
+    const db = getDb();
+    db.prepare(`
       INSERT INTO pantry (food_id, quantity_g, expiry_date, package_id, starting_grams, updated_at)
       VALUES (?, ?, ?, ?, ?, datetime('now'))
     `).run(food_id, quantity_g, expiry_date || null, package_id ?? null, quantity_g);
+    const food = db.prepare('SELECT name FROM foods WHERE id = ?').get(food_id);
+    logAction(db, 'pantry:add', { food_name: food?.name, grams: quantity_g, details: { expiry_date: expiry_date || null } });
     return { ok: true };
   });
 
@@ -37,7 +41,10 @@ function registerPantryIpc() {
 
   // Delete a single batch (used for both "remove" and "discard")
   ipcMain.handle('pantry:delete', (_, { id }) => {
-    getDb().prepare('DELETE FROM pantry WHERE id = ?').run(id);
+    const db = getDb();
+    const row = db.prepare('SELECT p.quantity_g, f.name AS food_name FROM pantry p JOIN foods f ON f.id = p.food_id WHERE p.id = ?').get(id);
+    db.prepare('DELETE FROM pantry WHERE id = ?').run(id);
+    if (row) logAction(db, 'pantry:discard', { food_name: row.food_name, grams: row.quantity_g });
     return { ok: true };
   });
 
@@ -169,6 +176,15 @@ function registerPantryIpc() {
     })();
     return { ok: true, events };
   });
+
+  ipcMain.handle('actionlog:getRecent', (_, { limit = 200 } = {}) =>
+    getDb().prepare(`
+      SELECT id, kind, food_name, grams, details, ts
+      FROM action_log
+      ORDER BY id DESC
+      LIMIT ?
+    `).all(limit)
+  );
 }
 
 module.exports = registerPantryIpc;

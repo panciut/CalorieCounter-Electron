@@ -185,6 +185,13 @@ export const api = {
       invoke<{ ok: boolean; events: DeductionEvent[] }>('pantry:resolveResidual', { food_id, overflow_g, mode }),
   },
 
+  actionLog: {
+    getRecent: (limit?: number) =>
+      invoke<{ id: number; kind: string; food_name: string | null; grams: number | null; details: string | null; ts: string }[]>(
+        'actionlog:getRecent', { limit }
+      ),
+  },
+
   shopping: {
     getAll:       () => invoke<ShoppingItem[]>('shopping:getAll'),
     add:          (data: { food_id: number; quantity_g?: number }) => invoke<{ id: number }>('shopping:add', data),

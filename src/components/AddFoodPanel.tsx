@@ -22,19 +22,19 @@ type PresetKey = keyof typeof PRESETS;
 
 interface FoodFormState {
   name: string; calories: string; protein: string; carbs: string;
-  fat: string; fiber: string; piece_grams: string; is_liquid: boolean; barcode: string;
+  fat: string; fiber: string; piece_grams: string; is_liquid: boolean; is_bulk: boolean; barcode: string;
   opened_days: string; price_per_100g: string;
 }
 
 function emptyForm(): FoodFormState {
-  return { name: '', calories: '', protein: '', carbs: '', fat: '', fiber: '', piece_grams: '', is_liquid: false, barcode: '', opened_days: '7', price_per_100g: '' };
+  return { name: '', calories: '', protein: '', carbs: '', fat: '', fiber: '', piece_grams: '', is_liquid: false, is_bulk: true, barcode: '', opened_days: '7', price_per_100g: '' };
 }
 
 function barcodeToForm(r: BarcodeResult, barcode: string): FoodFormState {
   return {
     name: r.name, calories: String(r.calories), protein: String(r.protein),
     carbs: String(r.carbs), fat: String(r.fat), fiber: String(r.fiber),
-    piece_grams: '', is_liquid: r.is_liquid === 1, barcode, opened_days: '7', price_per_100g: '',
+    piece_grams: '', is_liquid: r.is_liquid === 1, is_bulk: false, barcode, opened_days: '7', price_per_100g: '',
   };
 }
 
@@ -46,8 +46,9 @@ function formToData(f: FoodFormState): Omit<Food, 'id'> {
     carbs: parseFloat(f.carbs) || 0,
     fat: parseFloat(f.fat) || 0,
     fiber: parseFloat(f.fiber) || 0,
-    piece_grams: f.piece_grams !== '' ? parseFloat(f.piece_grams) : null,
+    piece_grams: f.is_bulk ? null : (f.piece_grams !== '' ? parseFloat(f.piece_grams) : null),
     is_liquid: f.is_liquid ? 1 : 0,
+    is_bulk: f.is_bulk ? 1 : 0,
     barcode: f.barcode.trim() || null,
     opened_days: f.opened_days !== '' ? parseInt(f.opened_days, 10) : null,
     price_per_100g: f.price_per_100g !== '' ? parseFloat(f.price_per_100g) : null,
@@ -246,6 +247,10 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
               <label className="text-xs text-text-sec">💧</label>
               <input type="checkbox" checked={form.is_liquid} onChange={e => patch({ is_liquid: e.target.checked })} className="cursor-pointer accent-accent w-4 h-4" />
             </div>
+            <div className="flex flex-col gap-0.5 items-center shrink-0 pb-1.5" title={t('foods.bulkHelp')}>
+              <label className="text-xs text-text-sec">{t('foods.bulk')}</label>
+              <input type="checkbox" checked={form.is_bulk} onChange={e => patch({ is_bulk: e.target.checked, piece_grams: e.target.checked ? '' : form.piece_grams })} className="cursor-pointer accent-accent w-4 h-4" />
+            </div>
             <div className="shrink-0 pb-0.5 ml-auto">
               <button
                 type="button" onClick={handleAdd}
@@ -255,6 +260,7 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
               </button>
             </div>
           </div>
+          <p className="text-[10px] text-text-sec -mt-1">{t('foods.pieceHelp')}</p>
 
           {/* Opened shelf life + price */}
           <div className="flex items-center gap-3 flex-wrap border-t border-border pt-2">
@@ -279,7 +285,10 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
           </div>
 
           {/* Pack sizes */}
-          <div className="flex items-center gap-2 flex-wrap border-t border-border pt-2">
+          <div className="border-t border-border pt-2">
+            <p className="text-[10px] text-text-sec mb-1">{t('foods.packsHelp')}</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap -mt-2">
             <label className="text-xs text-text-sec shrink-0">{t('foods.packs')}:</label>
             {packs.map((p, i) => (
               <div key={i} className="flex items-center gap-1">

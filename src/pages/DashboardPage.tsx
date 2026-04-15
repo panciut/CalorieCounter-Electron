@@ -160,6 +160,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const [searchKey, setSearchKey]           = useState(0);
   const [amount, setAmount]                 = useState('');
   const [usePieces, setUsePieces]           = useState(false);
+  const [selectedPackId, setSelectedPackId] = useState<number | null>(null);
   const [meal, setMeal]                     = useState<Meal>('Snack');
 
   // UI state
@@ -241,17 +242,24 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       setAmount('');
     } else {
       const food = item as Food;
+      const isBulk = food.is_bulk === 1;
+      const hasPieces = !!food.piece_grams;
+      const hasPackages = (food.packages?.length ?? 0) > 0;
+      const defaultPieces = !isBulk && (hasPieces || hasPackages);
       setSelectedFood(food);
       setSelectedRecipe(null);
-      setUsePieces(!!(food.piece_grams));
-      setAmount(food.piece_grams ? '1' : '');
+      setUsePieces(defaultPieces);
+      setSelectedPackId(defaultPieces && !hasPieces && hasPackages ? food.packages![0].id : null);
+      setAmount(defaultPieces ? '1' : '');
     }
   }
 
-  function handleClear() { setSelectedFood(null); setSelectedRecipe(null); setAmount(''); setSearchKey(k => k + 1); }
+  function handleClear() { setSelectedFood(null); setSelectedRecipe(null); setAmount(''); setSelectedPackId(null); setSearchKey(k => k + 1); }
 
+  const selectedPack = selectedFood?.packages?.find(p => p.id === selectedPackId) ?? null;
+  const pieceSize: number | null = selectedFood?.piece_grams ?? selectedPack?.grams ?? null;
   const effectiveGrams = selectedFood
-    ? (usePieces && selectedFood.piece_grams ? Math.round((evalExpr(amount) ?? 0) * selectedFood.piece_grams * 100)/100 : (evalExpr(amount) ?? 0))
+    ? (usePieces && pieceSize != null ? Math.round((evalExpr(amount) ?? 0) * pieceSize * 100)/100 : (evalExpr(amount) ?? 0))
     : 0;
 
   const logStatus = planMode ? 'planned' : 'logged';
@@ -266,7 +274,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       if (stock.shortage > 0) showToast(`Pantry short by ${Math.round(stock.shortage)}g of ${selectedFood.name}`, 'warning');
     }
     if (result.events?.length) pushDeduction(result.events);
-    setSelectedFood(null); setAmount(''); setSearchKey(k => k + 1); load();
+    setSelectedFood(null); setAmount(''); setSelectedPackId(null); setSearchKey(k => k + 1); load();
   }
 
   async function handleLogRecipe(status: 'logged' | 'planned') {
@@ -683,15 +691,42 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                 value={amount}
                 onChange={e=>setAmount(e.target.value)}
                 onBlur={() => setAmount(v => resolveExpr(v))}
-                placeholder={usePieces ? `${t('common.pieces')} (${selectedFood.piece_grams}g)` : t('common.grams')}
+                placeholder={
+                  usePieces
+                    ? (selectedFood.piece_grams
+                        ? `${t('common.pieces')} (${selectedFood.piece_grams}g)`
+                        : `${t('dash.packsPlaceholder')}${pieceSize != null ? ` (${pieceSize}g)` : ''}`)
+                    : t('common.grams')
+                }
                 className={`w-32 ${inputCls}`}
               />
-              {selectedFood.piece_grams && (
+              {(selectedFood.piece_grams || (selectedFood.packages?.length ?? 0) > 0) && (
                 <button type="button" onClick={()=>{ setUsePieces(v=>!v); setAmount(''); }} className="text-xs text-accent underline cursor-pointer">
-                  {usePieces ? t('dash.switchToGrams') : t('dash.switchToPieces')}
+                  {usePieces
+                    ? t('dash.switchToGrams')
+                    : (selectedFood.piece_grams ? t('dash.switchToPieces') : t('dash.switchToPacks'))}
                 </button>
               )}
             </div>
+            {usePieces && !selectedFood.piece_grams && (selectedFood.packages?.length ?? 0) > 1 && (
+              <div className="flex items-center gap-2 flex-wrap text-xs">
+                <span className="text-text-sec">{t('dash.packPicker')}:</span>
+                {selectedFood.packages!.map(pkg => (
+                  <button
+                    key={pkg.id}
+                    type="button"
+                    onClick={() => setSelectedPackId(pkg.id)}
+                    className={`px-2 py-1 rounded border cursor-pointer ${
+                      selectedPackId === pkg.id
+                        ? 'border-accent text-accent bg-accent/10'
+                        : 'border-border text-text-sec hover:text-text'
+                    }`}
+                  >
+                    {Math.round(pkg.grams)}g
+                  </button>
+                ))}
+              </div>
+            )}
             <MealPills selected={meal} onChange={setMeal} />
             <div className="flex gap-2 flex-wrap">
               {(planMode ? ['planned', 'logged'] : ['logged', 'planned'] as const).map((status, i) => (

@@ -222,7 +222,16 @@ function initDb() {
     "ALTER TABLE actual_recipes ADD COLUMN tools TEXT",
     "ALTER TABLE actual_recipes ADD COLUMN procedure TEXT",
     "ALTER TABLE foods ADD COLUMN price_per_100g REAL",
+    "ALTER TABLE foods ADD COLUMN is_bulk INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE food_packages ADD COLUMN price REAL",
+    `CREATE TABLE IF NOT EXISTS action_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      kind TEXT NOT NULL,
+      food_name TEXT,
+      grams REAL,
+      details TEXT,
+      ts TEXT DEFAULT (datetime('now'))
+    )`,
   ];
   for (const stmt of migrations) {
     try { database.exec(stmt); } catch (_) {}
@@ -276,6 +285,36 @@ function initDb() {
   try {
     database.exec("UPDATE pantry SET starting_grams = quantity_g WHERE starting_grams IS NULL");
   } catch (_) {}
+
+  // One-time migration v1: convert Shape A foods (piece_grams with no matching
+  // package) into proper food_packages rows, clearing piece_grams. Leaves
+  // Shape B foods alone (piece_grams AND a larger package both set).
+  try {
+    const migrated = database.prepare("SELECT value FROM settings WHERE key = 'schema.piece_pack_migrated_v1'").get();
+    if (!migrated) {
+      const foods = database.prepare("SELECT id, name, piece_grams FROM foods WHERE piece_grams IS NOT NULL").all();
+      const getPackages = database.prepare("SELECT id, grams FROM food_packages WHERE food_id = ?");
+      const insertPackage = database.prepare("INSERT INTO food_packages (food_id, grams) VALUES (?, ?)");
+      const clearPieceGrams = database.prepare("UPDATE foods SET piece_grams = NULL WHERE id = ?");
+      database.transaction(() => {
+        for (const f of foods) {
+          const packs = getPackages.all(f.id);
+          const hasLarger = packs.some(p => p.grams > f.piece_grams + 0.01);
+          const hasMatching = packs.some(p => Math.abs(p.grams - f.piece_grams) < 0.01);
+          if (hasLarger) continue; // Shape B: keep piece_grams
+          if (packs.length === 0) {
+            insertPackage.run(f.id, f.piece_grams);
+            clearPieceGrams.run(f.id);
+            console.log(`[migration v1] ${f.name}: piece_grams ${f.piece_grams}g → new package`);
+          } else if (hasMatching) {
+            clearPieceGrams.run(f.id);
+            console.log(`[migration v1] ${f.name}: piece_grams cleared (duplicate of existing pack)`);
+          }
+        }
+      })();
+      database.prepare("INSERT INTO settings (key, value) VALUES ('schema.piece_pack_migrated_v1', '1')").run();
+    }
+  } catch (e) { console.error('piece_pack migration failed:', e); }
 
   // Default settings
   const insertSetting = database.prepare(

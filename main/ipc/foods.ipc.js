@@ -19,10 +19,12 @@ function registerFoodsIpc() {
     getDb().prepare('SELECT * FROM foods WHERE favorite = 1 ORDER BY name').all()
   );
 
-  ipcMain.handle('foods:add', (_, { name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode, opened_days, discard_threshold_pct, price_per_100g }) => {
+  ipcMain.handle('foods:add', (_, { name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, is_bulk, barcode, opened_days, discard_threshold_pct, price_per_100g }) => {
+    const bulk = is_bulk ? 1 : 0;
+    const piece = bulk ? null : (piece_grams || null);
     const result = getDb().prepare(
-      'INSERT INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode, opened_days, discard_threshold_pct, price_per_100g) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece_grams || null, is_liquid ? 1 : 0, barcode || null, opened_days ?? null, discard_threshold_pct ?? 10, price_per_100g ?? null);
+      'INSERT INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, is_bulk, barcode, opened_days, discard_threshold_pct, price_per_100g) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece, is_liquid ? 1 : 0, bulk, barcode || null, opened_days ?? null, discard_threshold_pct ?? 10, price_per_100g ?? null);
     return { id: result.lastInsertRowid };
   });
 
@@ -34,10 +36,12 @@ function registerFoodsIpc() {
     return { ok: true };
   });
 
-  ipcMain.handle('foods:update', (_, { id, name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode, opened_days, discard_threshold_pct, price_per_100g }) => {
+  ipcMain.handle('foods:update', (_, { id, name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, is_bulk, barcode, opened_days, discard_threshold_pct, price_per_100g }) => {
+    const bulk = is_bulk ? 1 : 0;
+    const piece = bulk ? null : (piece_grams || null);
     getDb().prepare(
-      'UPDATE foods SET name=?, calories=?, protein=?, carbs=?, fat=?, fiber=?, piece_grams=?, is_liquid=?, barcode=?, opened_days=?, discard_threshold_pct=?, price_per_100g=? WHERE id=?'
-    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece_grams || null, is_liquid ? 1 : 0, barcode || null, opened_days ?? null, discard_threshold_pct ?? 10, price_per_100g ?? null, id);
+      'UPDATE foods SET name=?, calories=?, protein=?, carbs=?, fat=?, fiber=?, piece_grams=?, is_liquid=?, is_bulk=?, barcode=?, opened_days=?, discard_threshold_pct=?, price_per_100g=? WHERE id=?'
+    ).run(name, calories, protein || 0, carbs || 0, fat || 0, fiber || 0, piece, is_liquid ? 1 : 0, bulk, barcode || null, opened_days ?? null, discard_threshold_pct ?? 10, price_per_100g ?? null, id);
     return { ok: true };
   });
 

@@ -78,17 +78,36 @@ function resolveExpiry(iso: string): string {
 
 type PantryUnit = 'g' | 'pcs' | `pkg-${number}`;
 
-function formatQty(quantity_g: number, piece_grams: number | null, package_grams: number | null): string {
-  const g = Math.round(quantity_g);
-  if (package_grams && package_grams > 0) {
-    const count = Math.round((quantity_g / package_grams) * 10) / 10;
-    return `${count} × ${Math.round(package_grams)}g (${g}g)`;
-  }
+function formatQty(quantity_g: number, piece_grams: number | null, package_grams: number | null, count = 1): string {
+  const totalG = Math.round(quantity_g * count);
+  // Pieces take priority whenever piece_grams is set (Shape B)
   if (piece_grams && piece_grams > 0) {
-    const pcs = Math.round((quantity_g / piece_grams) * 10) / 10;
-    return `${pcs} pcs (${g}g)`;
+    const pcs = Math.round(totalG / piece_grams);
+    return `${pcs} pcs (${totalG}g)`;
   }
-  return `${g}g`;
+  if (package_grams && package_grams > 0) {
+    const pkgG = Math.round(package_grams);
+    return count > 1 ? `${count} × ${pkgG}g (${totalG}g)` : `${pkgG}g`;
+  }
+  return `${totalG}g`;
+}
+
+// Group consecutive sealed batches with the same package + expiry into one display row
+interface BatchGroup { batches: PantryItem[]; }
+
+function groupBatches(batches: PantryItem[]): BatchGroup[] {
+  const groups: BatchGroup[] = [];
+  for (const batch of batches) {
+    const isSealed = !batch.opened_at;
+    const last = groups[groups.length - 1];
+    const rep = last?.batches[0];
+    const canMerge = last && isSealed && rep && !rep.opened_at &&
+      rep.package_id != null && rep.package_id === batch.package_id &&
+      rep.expiry_date === batch.expiry_date;
+    if (canMerge) last.batches.push(batch);
+    else groups.push({ batches: [batch] });
+  }
+  return groups;
 }
 
 function defaultUnit(food: Food): PantryUnit {
@@ -127,7 +146,9 @@ export default function PantryPage() {
   const [unit, setUnit]                 = useState<PantryUnit>('g');
   const [pantryOpen, setPantryOpen]     = useState(true);
   const [discardId, setDiscardId]       = useState<number | null>(null);
+  const [discardAllIds, setDiscardAllIds] = useState<number[] | null>(null);
   const [collapsedFoods, setCollapsedFoods] = useState<Set<number>>(new Set());
+  const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set()); // key = first batch id
   const [editingBatch, setEditingBatch] = useState<{ id: number; qty: string; expiry: string; unit: PantryUnit } | null>(null);
   const [pantrySearch, setPantrySearch] = useState('');
   const qtyRef = useRef<HTMLInputElement>(null);
@@ -212,12 +233,17 @@ export default function PantryPage() {
 
   async function handleAddBatch() {
     if (!selFood || !qty || addGrams <= 0) return;
-    await api.pantry.addBatch({
-      food_id: selFood.id,
-      quantity_g: addGrams,
-      expiry_date: expiry || null,
-      package_id: unitToPackageId(unit),
-    });
+    const pkgId = unitToPackageId(unit);
+    if (pkgId !== null) {
+      // Package unit: create one row per pack so FEFO can track them independently
+      const pkgGrams = selFood.packages?.find(p => p.id === pkgId)?.grams ?? addGrams;
+      const count = Math.round(addGrams / pkgGrams);
+      for (let i = 0; i < count; i++) {
+        await api.pantry.addBatch({ food_id: selFood.id, quantity_g: pkgGrams, expiry_date: expiry || null, package_id: pkgId });
+      }
+    } else {
+      await api.pantry.addBatch({ food_id: selFood.id, quantity_g: addGrams, expiry_date: expiry || null, package_id: null });
+    }
     setSelFood(null); setQty(''); setUnit('g'); setExpiry('');
     loadPantry();
   }
@@ -256,6 +282,13 @@ export default function PantryPage() {
     if (discardId === null) return;
     await api.pantry.delete(discardId);
     setDiscardId(null);
+    loadPantry();
+  }
+
+  async function handleConfirmDiscardAll() {
+    if (!discardAllIds) return;
+    for (const id of discardAllIds) await api.pantry.delete(id);
+    setDiscardAllIds(null);
     loadPantry();
   }
 
@@ -512,100 +545,160 @@ export default function PantryPage() {
                     {/* Batch rows */}
                     {!collapsed && (
                       <div className="divide-y divide-border/30">
-                        {agg.batches.map((batch, bIdx) => {
-                          const isEditing = editingBatch?.id === batch.id;
-                          const bExpiryLabel = expiryLabel(batch.expiry_date, warn, urgent);
-                          const bExpiryColor = expiryPillClass(batch.expiry_date, warn, urgent);
-                          return (
-                            <div key={batch.id} className={[
-                              'flex items-center gap-3 pl-8 pr-4 py-2 transition-colors',
-                              bIdx % 2 === 0 ? 'bg-bg hover:bg-bg/80' : 'bg-bg/60 hover:bg-bg/80',
-                            ].join(' ')}>
-                              {isEditing ? (
-                                <>
-                                  <div className="flex items-center gap-1.5 flex-wrap flex-1">
-                                    {/* Unit toggle for editing */}
-                                    {(batch.piece_grams || batch.package_grams) && (() => {
-                                      const bFood = foods.find(f => f.id === batch.food_id);
-                                      return (
-                                        <div className="flex rounded border border-border overflow-hidden text-xs">
-                                          <button
-                                            onClick={() => setEditingBatch(b => b ? { ...b, unit: 'g', qty: String(Math.round(batch.quantity_g)) } : b)}
-                                            className={`px-2 py-0.5 cursor-pointer ${editingBatch.unit === 'g' ? 'bg-accent/15 text-accent' : 'text-text-sec'}`}
-                                          >g</button>
-                                          {batch.piece_grams && (
+                        {groupBatches(agg.batches).map((group, gIdx) => {
+                          const rep = group.batches[0];
+                          const count = group.batches.length;
+                          const groupKey = rep.id;
+                          const isExpanded = expandedGroups.has(groupKey);
+                          const bExpiryLabel = expiryLabel(rep.expiry_date, warn, urgent);
+                          const bExpiryColor = expiryPillClass(rep.expiry_date, warn, urgent);
+
+                          // Rows to actually render: merged header, or individual batches when expanded
+                          const rowsToRender: { batch: PantryItem; showIndividual: boolean }[] =
+                            count > 1 && !isExpanded
+                              ? [{ batch: rep, showIndividual: false }]
+                              : group.batches.map(b => ({ batch: b, showIndividual: true }));
+
+                          return rowsToRender.map(({ batch, showIndividual }, rIdx) => {
+                            const isEditing = editingBatch?.id === batch.id;
+                            const rowExpiryLabel = showIndividual ? expiryLabel(batch.expiry_date, warn, urgent) : bExpiryLabel;
+                            const rowExpiryColor = showIndividual ? expiryPillClass(batch.expiry_date, warn, urgent) : bExpiryColor;
+                            const displayCount = showIndividual ? 1 : count;
+                            const rowIdx = gIdx * 10 + rIdx;
+                            return (
+                              <div key={`${batch.id}-${showIndividual}`} className={[
+                                'flex items-center gap-3 pl-8 pr-4 py-2 transition-colors',
+                                rowIdx % 2 === 0 ? 'bg-bg hover:bg-bg/80' : 'bg-bg/60 hover:bg-bg/80',
+                              ].join(' ')}>
+                                {isEditing ? (
+                                  <>
+                                    <div className="flex items-center gap-1.5 flex-wrap flex-1">
+                                      {(batch.piece_grams || batch.package_grams) && (() => {
+                                        const bFood = foods.find(f => f.id === batch.food_id);
+                                        return (
+                                          <div className="flex rounded border border-border overflow-hidden text-xs">
                                             <button
-                                              onClick={() => setEditingBatch(b => b ? { ...b, unit: 'pcs', qty: String(Math.round((batch.quantity_g / batch.piece_grams!) * 10) / 10) } : b)}
-                                              className={`px-2 py-0.5 cursor-pointer ${editingBatch.unit === 'pcs' ? 'bg-accent/15 text-accent' : 'text-text-sec'}`}
-                                            >pcs</button>
-                                          )}
-                                          {bFood?.packages?.map(pkg => (
-                                            <button
-                                              key={pkg.id}
-                                              onClick={() => setEditingBatch(b => b ? { ...b, unit: `pkg-${pkg.id}`, qty: String(Math.round((batch.quantity_g / pkg.grams) * 10) / 10) } : b)}
-                                              className={`px-2 py-0.5 cursor-pointer tabular-nums ${editingBatch.unit === `pkg-${pkg.id}` ? 'bg-accent/15 text-accent' : 'text-text-sec'}`}
-                                            >{pkg.grams}g</button>
-                                          ))}
-                                        </div>
-                                      );
-                                    })()}
-                                    <input
-                                      type="text" inputMode="decimal"
-                                      value={editingBatch.qty}
-                                      onChange={e => setEditingBatch(b => b ? { ...b, qty: e.target.value } : b)}
-                                      onBlur={() => setEditingBatch(b => b ? { ...b, qty: resolveExpr(b.qty) } : b)}
-                                      autoFocus
-                                      onKeyDown={e => {
-                                        if (e.key === 'Enter')  { setEditingBatch(b => b ? { ...b, qty: resolveExpr(b.qty) } : b); handleSaveBatch(batch); }
-                                        if (e.key === 'Escape') setEditingBatch(null);
+                                              onClick={() => setEditingBatch(b => b ? { ...b, unit: 'g', qty: String(Math.round(batch.quantity_g)) } : b)}
+                                              className={`px-2 py-0.5 cursor-pointer ${editingBatch.unit === 'g' ? 'bg-accent/15 text-accent' : 'text-text-sec'}`}
+                                            >g</button>
+                                            {batch.piece_grams && (
+                                              <button
+                                                onClick={() => setEditingBatch(b => b ? { ...b, unit: 'pcs', qty: String(Math.round((batch.quantity_g / batch.piece_grams!) * 10) / 10) } : b)}
+                                                className={`px-2 py-0.5 cursor-pointer ${editingBatch.unit === 'pcs' ? 'bg-accent/15 text-accent' : 'text-text-sec'}`}
+                                              >pcs</button>
+                                            )}
+                                            {bFood?.packages?.map(pkg => (
+                                              <button
+                                                key={pkg.id}
+                                                onClick={() => setEditingBatch(b => b ? { ...b, unit: `pkg-${pkg.id}`, qty: String(Math.round((batch.quantity_g / pkg.grams) * 10) / 10) } : b)}
+                                                className={`px-2 py-0.5 cursor-pointer tabular-nums ${editingBatch.unit === `pkg-${pkg.id}` ? 'bg-accent/15 text-accent' : 'text-text-sec'}`}
+                                              >{pkg.grams}g</button>
+                                            ))}
+                                          </div>
+                                        );
+                                      })()}
+                                      <input
+                                        type="text" inputMode="decimal"
+                                        value={editingBatch.qty}
+                                        onChange={e => setEditingBatch(b => b ? { ...b, qty: e.target.value } : b)}
+                                        onBlur={() => setEditingBatch(b => b ? { ...b, qty: resolveExpr(b.qty) } : b)}
+                                        autoFocus
+                                        onKeyDown={e => {
+                                          if (e.key === 'Enter')  { setEditingBatch(b => b ? { ...b, qty: resolveExpr(b.qty) } : b); handleSaveBatch(batch); }
+                                          if (e.key === 'Escape') setEditingBatch(null);
+                                        }}
+                                        className="w-20 bg-bg border border-border rounded-lg px-2 py-1 text-sm text-text text-right focus:outline-none focus:border-accent"
+                                      />
+                                      <input
+                                        type="date"
+                                        value={editingBatch.expiry}
+                                        onFocus={() => setEditingBatch(b => b ? { ...b, expiry: seedExpiry(b.expiry) } : b)}
+                                        onChange={e => setEditingBatch(b => b ? { ...b, expiry: e.target.value } : b)}
+                                        onBlur={e => setEditingBatch(b => b ? { ...b, expiry: resolveExpiry(e.target.value) } : b)}
+                                        className="bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent cursor-pointer"
+                                      />
+                                      {editingBatch.expiry && (
+                                        <button onClick={() => setEditingBatch(b => b ? { ...b, expiry: '' } : b)} className="text-xs text-text-sec hover:text-text cursor-pointer">✕</button>
+                                      )}
+                                    </div>
+                                    <button onClick={() => handleSaveBatch(batch)} className="text-xs text-accent font-medium cursor-pointer hover:opacity-75 px-1">Save</button>
+                                    <button onClick={() => setEditingBatch(null)} className="text-xs text-text-sec cursor-pointer hover:text-text px-1">✕</button>
+                                  </>
+                                ) : (
+                                  <>
+                                    {/* Expand/collapse toggle — only on the merged header row */}
+                                    {count > 1 && !showIndividual && (
+                                      <button
+                                        onClick={() => setExpandedGroups(s => { const n = new Set(s); n.has(groupKey) ? n.delete(groupKey) : n.add(groupKey); return n; })}
+                                        className="text-xs text-text-sec/50 hover:text-text-sec cursor-pointer w-3 shrink-0"
+                                      >{isExpanded ? '▾' : '▸'}</button>
+                                    )}
+                                    {/* Collapse button on each individual row in an expanded group */}
+                                    {showIndividual && count > 1 && rIdx === 0 && (
+                                      <button
+                                        onClick={() => setExpandedGroups(s => { const n = new Set(s); n.delete(groupKey); return n; })}
+                                        className="text-xs text-text-sec/50 hover:text-text-sec cursor-pointer w-3 shrink-0"
+                                      >▾</button>
+                                    )}
+                                    {showIndividual && count > 1 && rIdx > 0 && (
+                                      <span className="w-3 shrink-0" />
+                                    )}
+                                    <div
+                                      className="flex-1 flex items-center gap-3 flex-wrap cursor-pointer"
+                                      onClick={() => {
+                                        if (count > 1 && !showIndividual) {
+                                          setExpandedGroups(s => { const n = new Set(s); n.has(groupKey) ? n.delete(groupKey) : n.add(groupKey); return n; });
+                                        }
                                       }}
-                                      className="w-20 bg-bg border border-border rounded-lg px-2 py-1 text-sm text-text text-right focus:outline-none focus:border-accent"
-                                    />
-                                    <input
-                                      type="date"
-                                      value={editingBatch.expiry}
-                                      onFocus={() => setEditingBatch(b => b ? { ...b, expiry: seedExpiry(b.expiry) } : b)}
-                                      onChange={e => setEditingBatch(b => b ? { ...b, expiry: e.target.value } : b)}
-                                      onBlur={e => setEditingBatch(b => b ? { ...b, expiry: resolveExpiry(e.target.value) } : b)}
-                                      className="bg-bg border border-border rounded-lg px-2 py-1 text-xs text-text outline-none focus:border-accent cursor-pointer"
-                                    />
-                                    {editingBatch.expiry && (
-                                      <button onClick={() => setEditingBatch(b => b ? { ...b, expiry: '' } : b)} className="text-xs text-text-sec hover:text-text cursor-pointer">✕</button>
-                                    )}
-                                  </div>
-                                  <button onClick={() => handleSaveBatch(batch)} className="text-xs text-accent font-medium cursor-pointer hover:opacity-75 px-1">Save</button>
-                                  <button onClick={() => setEditingBatch(null)} className="text-xs text-text-sec cursor-pointer hover:text-text px-1">✕</button>
-                                </>
-                              ) : (
-                                <>
-                                  <div className="flex-1 flex items-center gap-3 flex-wrap">
-                                    <span className="text-sm font-semibold tabular-nums text-text">
-                                      {formatQty(batch.quantity_g, batch.piece_grams, batch.package_grams)}
-                                    </span>
-                                    {batch.expiry_date ? (
-                                      <span className={`text-xs tabular-nums ${bExpiryColor}`}>{bExpiryLabel}</span>
-                                    ) : (
-                                      <span className="text-xs text-text-sec/40">no date</span>
-                                    )}
-                                    {openedLabel(batch) && (
-                                      <span className={`text-xs tabular-nums ${openedPillClass(batch)}`}>
-                                        {openedLabel(batch)}
+                                    >
+                                      <span className="text-sm font-semibold tabular-nums text-text">
+                                        {formatQty(batch.quantity_g, batch.piece_grams, batch.package_grams, displayCount)}
                                       </span>
+                                      {batch.expiry_date ? (
+                                        <span className={`text-xs tabular-nums ${rowExpiryColor}`}>{rowExpiryLabel}</span>
+                                      ) : (
+                                        <span className="text-xs text-text-sec/40">no date</span>
+                                      )}
+                                      {openedLabel(batch) && (
+                                        <span className={`text-xs tabular-nums ${openedPillClass(batch)}`}>
+                                          {openedLabel(batch)}
+                                        </span>
+                                      )}
+                                    </div>
+                                    {!showIndividual && count > 1 ? (
+                                      // Merged group actions
+                                      <>
+                                        <button
+                                          onClick={() => {
+                                            // Open edit for all batches sequentially — for now expand and let user edit each
+                                            setExpandedGroups(s => { const n = new Set(s); n.add(groupKey); return n; });
+                                          }}
+                                          className="text-xs text-text-sec hover:text-accent cursor-pointer transition-colors px-1"
+                                        >Edit all</button>
+                                        <button
+                                          onClick={() => setDiscardAllIds(group.batches.map(b => b.id))}
+                                          className="text-xs text-text-sec hover:text-red cursor-pointer transition-colors px-1"
+                                          title={`Discard all ${count} packs`}
+                                        >Discard all</button>
+                                      </>
+                                    ) : (
+                                      // Single or expanded individual row actions
+                                      <>
+                                        <button
+                                          onClick={() => startEditBatch(batch)}
+                                          className="text-xs text-text-sec hover:text-accent cursor-pointer transition-colors px-1"
+                                        >Edit</button>
+                                        <button
+                                          onClick={() => setDiscardId(batch.id)}
+                                          className="text-xs text-text-sec hover:text-red cursor-pointer transition-colors px-1"
+                                        >Discard</button>
+                                      </>
                                     )}
-                                  </div>
-                                  <button
-                                    onClick={() => startEditBatch(batch)}
-                                    className="text-xs text-text-sec hover:text-accent cursor-pointer transition-colors px-1"
-                                  >Edit</button>
-                                  <button
-                                    onClick={() => setDiscardId(batch.id)}
-                                    className="text-xs text-text-sec hover:text-red cursor-pointer transition-colors px-1"
-                                    title="Discard this batch"
-                                  >Discard</button>
-                                </>
-                              )}
-                            </div>
-                          );
+                                  </>
+                                )}
+                              </div>
+                            );
+                          });
                         })}
                       </div>
                     )}
@@ -696,6 +789,15 @@ export default function PantryPage() {
           dangerous
           onConfirm={handleConfirmDiscard}
           onCancel={() => setDiscardId(null)}
+        />
+      )}
+      {discardAllIds !== null && (
+        <ConfirmDialog
+          message={`Discard all ${discardAllIds.length} packs? This cannot be undone.`}
+          confirmLabel="Discard all"
+          dangerous
+          onConfirm={handleConfirmDiscardAll}
+          onCancel={() => setDiscardAllIds(null)}
         />
       )}
     </div>

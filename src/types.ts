@@ -1,5 +1,19 @@
 // ── Core data types ──────────────────────────────────────────────────────────
 
+// Food shapes (semantic rules for piece_grams vs food_packages):
+//   Shape A — the piece IS a sealed unit (egg, tuna can, cola can, mozzarella ball).
+//     Each unit is physically independent. Model with ONE food_packages row per
+//     size; piece_grams stays NULL. Adding N to pantry creates N separate batches.
+//   Shape B — pieces share a container (2g Pringle in a 200g can; 25g bread slice
+//     in a 500g loaf). Opening the container exposes all pieces at once. Model
+//     with piece_grams = serving size AND a food_packages row for the container
+//     (grams > piece_grams).
+//   Shape C — just weight (oil, flour, rice). Neither piece_grams nor (necessarily)
+//     packages. Bulk packages are fine but there are no discrete pieces.
+//
+// Migration v1 (main/db.js) enforces this by promoting any piece_grams-only food
+// into a food_packages row.
+
 export type Meal = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
 
 export interface FoodPackage {
@@ -25,6 +39,7 @@ export interface Food {
   opened_days?: number | null;
   discard_threshold_pct?: number;
   price_per_100g?: number | null;
+  is_bulk?: number; // 0 or 1 — Shape C (flour/rice/oil): default to grams when logging
 }
 
 export interface FrequentFood extends Food {

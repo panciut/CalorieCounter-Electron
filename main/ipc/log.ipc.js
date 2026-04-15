@@ -2,6 +2,7 @@ const { ipcMain } = require('electron');
 const { getDb } = require('../db');
 const { pushUndo } = require('./undo.ipc');
 const { isPantryEnabled, deductFoodFEFO } = require('../lib/pantryFefo');
+const { logAction } = require('../lib/actionLog');
 
 // Use local date to avoid UTC timezone bug
 const today = () => {
@@ -124,6 +125,7 @@ function registerLogIpc() {
           shortage_food = food ? food.name : null;
           events = r.events;
         }
+        logAction(db, 'log:add', { food_name: food?.name, grams, details: { date: d, meal: meal || 'Snack' } });
       }
     })();
     return { id: logId, shortage, shortage_food, events };
@@ -165,8 +167,11 @@ function registerLogIpc() {
 
   ipcMain.handle('log:delete', (_, { id }) => {
     const db = getDb();
-    const row = db.prepare('SELECT date, food_id, grams, meal FROM log WHERE id = ?').get(id);
-    if (row) pushUndo('log:delete', { date: row.date, food_id: row.food_id, grams: row.grams, meal: row.meal });
+    const row = db.prepare('SELECT date, food_id, grams, meal, f.name AS food_name FROM log l JOIN foods f ON f.id = l.food_id WHERE l.id = ?').get(id);
+    if (row) {
+      pushUndo('log:delete', { date: row.date, food_id: row.food_id, grams: row.grams, meal: row.meal });
+      logAction(db, 'log:delete', { food_name: row.food_name, grams: row.grams, details: { date: row.date, meal: row.meal } });
+    }
     db.prepare('DELETE FROM log WHERE id = ?').run(id);
     db.prepare('DELETE FROM water_log WHERE log_id = ?').run(id);
     return { ok: true };
