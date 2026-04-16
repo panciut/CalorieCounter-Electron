@@ -38,6 +38,7 @@ function getSettingStr(db, key, fallback) {
 
 function generatePantryExpiryNotifications(db) {
   if (getSettingStr(db, 'pantry_enabled', '1') !== '1') return [];
+  if (getSettingStr(db, 'notif_pantry_expiry', '1') !== '1') return [];
   const warn = getSettingInt(db, 'pantry_warn_days', 3);
   const urgent = getSettingInt(db, 'pantry_urgent_days', 1);
 
@@ -99,6 +100,7 @@ function hasAnyData(db) {
 }
 
 function generateMissingLogNotifications(db) {
+  if (getSettingStr(db, 'notif_missing_log', '1') !== '1') return [];
   if (!hasAnyData(db)) return [];
   const y = yesterdayISO();
   const count = db.prepare(
@@ -116,6 +118,7 @@ function generateMissingLogNotifications(db) {
 }
 
 function generateMissingActiveEnergyNotifications(db) {
+  if (getSettingStr(db, 'notif_missing_energy', '1') !== '1') return [];
   if (!hasAnyData(db)) return [];
   const y = yesterdayISO();
   const row = db.prepare('SELECT active_kcal FROM daily_energy WHERE date = ?').get(y);
@@ -130,11 +133,80 @@ function generateMissingActiveEnergyNotifications(db) {
   }];
 }
 
+function generateLowPantryNotifications(db) {
+  if (getSettingStr(db, 'pantry_enabled', '1') !== '1') return [];
+  if (getSettingStr(db, 'notif_low_pantry', '1') !== '1') return [];
+
+  // Group pantry batches by food — only consider foods with exactly one batch remaining
+  const rows = db.prepare(`
+    SELECT p.food_id, f.name, f.piece_grams,
+           COUNT(*) AS batch_count,
+           MIN(p.quantity_g) AS quantity_g,
+           MIN(p.starting_grams) AS starting_grams
+    FROM pantry p
+    JOIN foods f ON f.id = p.food_id
+    WHERE p.quantity_g > 0
+    GROUP BY p.food_id
+    HAVING batch_count = 1
+  `).all();
+
+  const out = [];
+  for (const r of rows) {
+    let isLow = false;
+
+    if (r.piece_grams) {
+      // Discrete items: low if less than one serving remains
+      isLow = r.quantity_g < r.piece_grams;
+    } else if (r.starting_grams) {
+      // Bulk / no piece_grams: low if less than 20% of the original pack remains
+      isLow = r.quantity_g < r.starting_grams * 0.2;
+    }
+
+    if (isLow) {
+      out.push({
+        key: `low_pantry:food=${r.food_id}`,
+        type: 'low_pantry',
+        severity: 'info',
+        payload: {
+          food_name: r.name,
+          remaining_g: Math.round(r.quantity_g),
+        },
+        action: { page: 'pantry' },
+        created_at: new Date().toISOString(),
+      });
+    }
+  }
+  return out;
+}
+
+function generateMissingWeightNotifications(db) {
+  if (getSettingStr(db, 'notif_weight', '1') !== '1') return [];
+  const warnDays = getSettingInt(db, 'notif_weight_warn_days', 3);
+  const urgentDays = getSettingInt(db, 'notif_weight_urgent_days', 7);
+
+  const row = db.prepare('SELECT MAX(date) AS last_date FROM weight_log').get();
+  if (!row || !row.last_date) return []; // never logged weight — no nag
+
+  const daysSince = -daysUntilISO(row.last_date); // daysUntilISO returns negative for past dates
+  if (daysSince < warnDays) return [];
+
+  return [{
+    key: `missing_weight:${todayISO()}`,
+    type: 'missing_weight',
+    severity: daysSince >= urgentDays ? 'urgent' : 'warn',
+    payload: { days_since: daysSince },
+    action: { page: 'weight' },
+    created_at: new Date().toISOString(),
+  }];
+}
+
 function generateAll(db) {
   const out = [];
   try { out.push(...generatePantryExpiryNotifications(db)); } catch (e) { console.error('pantry_expiry gen failed:', e); }
+  try { out.push(...generateLowPantryNotifications(db)); } catch (e) { console.error('low_pantry gen failed:', e); }
   try { out.push(...generateMissingLogNotifications(db)); } catch (e) { console.error('missing_log gen failed:', e); }
   try { out.push(...generateMissingActiveEnergyNotifications(db)); } catch (e) { console.error('missing_active_energy gen failed:', e); }
+  try { out.push(...generateMissingWeightNotifications(db)); } catch (e) { console.error('missing_weight gen failed:', e); }
   return out;
 }
 

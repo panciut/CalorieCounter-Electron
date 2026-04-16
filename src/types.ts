@@ -172,6 +172,14 @@ export interface Settings {
   pantry_warn_days: number;  // default 3
   pantry_urgent_days: number; // default 1
   currency_symbol: string;   // default '€'
+  // notification toggles (0 or 1)
+  notif_pantry_expiry: number;
+  notif_low_pantry: number;
+  notif_missing_log: number;
+  notif_missing_energy: number;
+  notif_weight: number;
+  notif_weight_warn_days: number;   // default 3
+  notif_weight_urgent_days: number; // default 7
 }
 
 export interface WeightEntry {
@@ -399,7 +407,9 @@ export type NotificationType =
   | 'pantry_expiry'
   | 'pantry_opened'
   | 'missing_log'
-  | 'missing_active_energy';
+  | 'missing_active_energy'
+  | 'low_pantry'
+  | 'missing_weight';
 
 export type NotificationSeverity = 'info' | 'warn' | 'urgent';
 

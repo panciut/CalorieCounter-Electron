@@ -17,6 +17,9 @@ const DEFAULT_SETTINGS: Settings = {
   language: 'en', theme: 'dark',
   pantry_enabled: 1, pantry_warn_days: 3, pantry_urgent_days: 1,
   currency_symbol: '€',
+  notif_pantry_expiry: 1, notif_low_pantry: 1,
+  notif_missing_log: 1, notif_missing_energy: 1,
+  notif_weight: 1, notif_weight_warn_days: 3, notif_weight_urgent_days: 7,
 };
 
 // ── Context ───────────────────────────────────────────────────────────────────

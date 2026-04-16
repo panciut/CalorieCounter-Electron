@@ -38,6 +38,15 @@ export function renderNotificationTitle(
       return t('notifications.missingLog.title');
     case 'missing_active_energy':
       return t('notifications.missingActiveEnergy.title');
+    case 'low_pantry': {
+      const name = String(n.payload.food_name ?? '');
+      const remaining = Number(n.payload.remaining_g ?? 0);
+      return t('notifications.lowPantry.title', { name, remaining });
+    }
+    case 'missing_weight': {
+      const days = Number(n.payload.days_since ?? 0);
+      return t('notifications.missingWeight.title', { days });
+    }
   }
 }
 
@@ -50,6 +59,10 @@ export function renderNotificationBody(
       return t('notifications.missingLog.body');
     case 'missing_active_energy':
       return t('notifications.missingActiveEnergy.body');
+    case 'low_pantry':
+      return t('notifications.lowPantry.body');
+    case 'missing_weight':
+      return t('notifications.missingWeight.body');
     default:
       return '';
   }

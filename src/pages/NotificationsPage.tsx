@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api';
 import { useT } from '../i18n/useT';
 import { useNavigate } from '../hooks/useNavigate';
+import { useSettings } from '../hooks/useSettings';
 import { useNotifications } from '../hooks/useNotifications';
 import {
   renderNotificationTitle,
@@ -15,8 +16,8 @@ import type {
   NotificationType,
 } from '../types';
 
-type Tab = 'active' | 'history';
-type CategoryFilter = 'all' | 'pantry' | 'logging' | 'energy';
+type Tab = 'active' | 'history' | 'settings';
+type CategoryFilter = 'all' | 'pantry' | 'logging' | 'energy' | 'body';
 type SeverityFilter = 'all' | NotificationSeverity;
 
 const SEVERITY_DOT: Record<NotificationSeverity, string> = {
@@ -26,14 +27,44 @@ const SEVERITY_DOT: Record<NotificationSeverity, string> = {
 };
 
 function categoryOf(type: NotificationType): Exclude<CategoryFilter, 'all'> {
-  if (type === 'pantry_expiry' || type === 'pantry_opened') return 'pantry';
+  if (type === 'pantry_expiry' || type === 'pantry_opened' || type === 'low_pantry') return 'pantry';
   if (type === 'missing_log') return 'logging';
+  if (type === 'missing_weight') return 'body';
   return 'energy';
+}
+
+function ToggleRow({ label, desc, checked, onChange }: {
+  label: string; desc: string; checked: boolean; onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between px-4 py-3 gap-4">
+      <div className="min-w-0">
+        <div className="text-sm font-medium text-text">{label}</div>
+        <div className="text-xs text-text-sec">{desc}</div>
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(!checked)}
+        className={[
+          'relative w-10 h-5 rounded-full shrink-0 transition-colors cursor-pointer',
+          checked ? 'bg-accent' : 'bg-border',
+        ].join(' ')}
+      >
+        <span
+          className={[
+            'absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform',
+            checked ? 'left-[22px]' : 'left-0.5',
+          ].join(' ')}
+        />
+      </button>
+    </div>
+  );
 }
 
 export default function NotificationsPage() {
   const { t } = useT();
   const { navigate } = useNavigate();
+  const { settings, updateSettings } = useSettings();
   const { notifications, refresh, dismiss, snooze, dismissAll, undoDismiss } = useNotifications();
   const [tab, setTab] = useState<Tab>('active');
   const [category, setCategory] = useState<CategoryFilter>('all');
@@ -72,6 +103,7 @@ export default function NotificationsPage() {
     { key: 'pantry', label: t('notifications.filter.pantry') },
     { key: 'logging', label: t('notifications.filter.logging') },
     { key: 'energy', label: t('notifications.filter.energy') },
+    { key: 'body', label: t('notifications.filter.body') },
   ];
 
   const SEVERITIES: { key: SeverityFilter; label: string }[] = [
@@ -111,19 +143,24 @@ export default function NotificationsPage() {
 
         {/* Tabs */}
         <div className="flex gap-1 border-b border-border mb-4">
-          {(['active', 'history'] as Tab[]).map(v => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setTab(v)}
-              className={[
-                'px-5 py-2.5 text-sm font-medium transition-colors cursor-pointer border-b-2 -mb-px',
-                tab === v ? 'border-accent text-accent' : 'border-transparent text-text-sec hover:text-text',
-              ].join(' ')}
-            >
-              {v === 'active' ? t('notifications.tabActive') : t('notifications.tabHistory')}
-            </button>
-          ))}
+          {(['active', 'history', 'settings'] as Tab[]).map(v => {
+            const label = v === 'active' ? t('notifications.tabActive')
+              : v === 'history' ? t('notifications.tabHistory')
+              : t('notifications.tabSettings');
+            return (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setTab(v)}
+                className={[
+                  'px-5 py-2.5 text-sm font-medium transition-colors cursor-pointer border-b-2 -mb-px',
+                  tab === v ? 'border-accent text-accent' : 'border-transparent text-text-sec hover:text-text',
+                ].join(' ')}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
 
         {/* ── ACTIVE TAB ──────────────────────────────────────────── */}
@@ -253,6 +290,74 @@ export default function NotificationsPage() {
               </table>
             </div>
           )
+        )}
+
+        {/* ── SETTINGS TAB ────────────────────────────────────────── */}
+        {tab === 'settings' && (
+          <div className="bg-card border border-border rounded-lg overflow-hidden divide-y divide-border">
+            <ToggleRow
+              label={t('notifications.cfg.pantryExpiry')}
+              desc={t('notifications.cfg.pantryExpiryDesc')}
+              checked={settings.notif_pantry_expiry === 1}
+              onChange={v => updateSettings({ notif_pantry_expiry: v ? 1 : 0 })}
+            />
+            <ToggleRow
+              label={t('notifications.cfg.lowPantry')}
+              desc={t('notifications.cfg.lowPantryDesc')}
+              checked={settings.notif_low_pantry === 1}
+              onChange={v => updateSettings({ notif_low_pantry: v ? 1 : 0 })}
+            />
+            <ToggleRow
+              label={t('notifications.cfg.missingLog')}
+              desc={t('notifications.cfg.missingLogDesc')}
+              checked={settings.notif_missing_log === 1}
+              onChange={v => updateSettings({ notif_missing_log: v ? 1 : 0 })}
+            />
+            <ToggleRow
+              label={t('notifications.cfg.missingEnergy')}
+              desc={t('notifications.cfg.missingEnergyDesc')}
+              checked={settings.notif_missing_energy === 1}
+              onChange={v => updateSettings({ notif_missing_energy: v ? 1 : 0 })}
+            />
+            <ToggleRow
+              label={t('notifications.cfg.weight')}
+              desc={t('notifications.cfg.weightDesc')}
+              checked={settings.notif_weight === 1}
+              onChange={v => updateSettings({ notif_weight: v ? 1 : 0 })}
+            />
+            {settings.notif_weight === 1 && (
+              <div className="px-4 py-3 flex items-center gap-4">
+                <label className="text-sm text-text-sec flex items-center gap-2">
+                  {t('notifications.cfg.weightWarnDays')}
+                  <input
+                    type="number"
+                    min={1}
+                    max={30}
+                    className="w-16 bg-bg border border-border rounded-lg px-2 py-1 text-sm text-text text-center focus:outline-none focus:border-accent"
+                    value={settings.notif_weight_warn_days}
+                    onChange={e => {
+                      const v = parseInt(e.target.value, 10);
+                      if (v > 0) updateSettings({ notif_weight_warn_days: v });
+                    }}
+                  />
+                </label>
+                <label className="text-sm text-text-sec flex items-center gap-2">
+                  {t('notifications.cfg.weightUrgentDays')}
+                  <input
+                    type="number"
+                    min={1}
+                    max={30}
+                    className="w-16 bg-bg border border-border rounded-lg px-2 py-1 text-sm text-text text-center focus:outline-none focus:border-accent"
+                    value={settings.notif_weight_urgent_days}
+                    onChange={e => {
+                      const v = parseInt(e.target.value, 10);
+                      if (v > 0) updateSettings({ notif_weight_urgent_days: v });
+                    }}
+                  />
+                </label>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </div>
