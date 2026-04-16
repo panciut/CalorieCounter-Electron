@@ -111,6 +111,87 @@ export interface ExerciseType {
   name: string;
   met_value: number;
   category: string;
+  muscle_groups: string;
+  equipment: string;
+  instructions: string | null;
+  is_custom: number;
+}
+
+export const MUSCLE_GROUPS = [
+  'chest', 'back', 'shoulders', 'biceps', 'triceps', 'forearms',
+  'quadriceps', 'hamstrings', 'glutes', 'calves', 'abs', 'obliques',
+  'full_body',
+] as const;
+
+export const EQUIPMENT_OPTIONS = [
+  'barbell', 'dumbbell', 'kettlebell', 'cable', 'machine',
+  'pull_up_bar', 'bench', 'mat', 'resistance_band', 'bike',
+  'jump_rope', 'rowing_machine', 'none',
+] as const;
+
+export const EXERCISE_CATEGORIES = ['cardio', 'strength', 'flexibility', 'other'] as const;
+
+export interface Equipment {
+  id: number;
+  name: string;
+  is_custom: number;
+}
+
+export interface WorkoutPlan {
+  id: number;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+  exercise_count: number;
+  exercises?: WorkoutPlanExercise[];
+}
+
+export interface WorkoutPlanExercise {
+  id: number;
+  plan_id: number;
+  exercise_type_id: number;
+  exercise_name: string;
+  exercise_category: string;
+  sort_order: number;
+  target_sets: number | null;
+  target_reps: number | null;
+  target_duration_min: number | null;
+  target_weight_kg: number | null;
+  rest_sec: number | null;
+  is_optional: number;
+  superset_group: number | null;
+  notes: string | null;
+}
+
+export interface WorkoutPlanExerciseInput {
+  exercise_type_id: number;
+  sort_order: number;
+  target_sets?: number;
+  target_reps?: number;
+  target_duration_min?: number;
+  target_weight_kg?: number;
+  rest_sec?: number;
+  is_optional?: boolean;
+  superset_group?: number;
+  notes?: string;
+}
+
+export type WorkoutStatus = 'planned' | 'done' | 'skipped' | 'rest';
+
+export interface WorkoutScheduleEntry {
+  id: number;
+  date: string;
+  plan_id: number | null;
+  plan_name: string | null;
+  status: WorkoutStatus;
+  notes: string | null;
+}
+
+export interface WorkoutScheduleDay {
+  date: string;
+  entries: WorkoutScheduleEntry[];
+  exercises_logged: number;
 }
 
 export interface ActualRecipe {
@@ -218,13 +299,33 @@ export interface Streak {
 export interface Supplement {
   id: number;
   name: string;
+}
+
+export interface SupplementPlan {
+  id: number;
+  effective_from: string;
+}
+
+export interface SupplementPlanItem {
+  id: number;
+  plan_id: number;
+  supplement_id: number;
+  name: string;
   qty: number;
   unit: string;
   notes: string;
-  created_at: string;
 }
 
-export interface SupplementDay extends Supplement {
+export interface SupplementPlanWithItems {
+  plan: SupplementPlan;
+  items: SupplementPlanItem[];
+}
+
+export interface SupplementDay {
+  id: number;
+  name: string;
+  qty: number;
+  unit: string;
   taken: number;
 }
 
@@ -233,11 +334,10 @@ export interface SupplementAdherence {
   name: string;
   qty: number;
   unit: string;
-  created_at: string;
   daysExpected: number;
   daysTaken: number;
   adherencePct: number;
-  logs: { date: string; count: number }[];
+  logs: { date: string; count: number; effectiveQty: number }[];
 }
 
 export interface Measurement {

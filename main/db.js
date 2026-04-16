@@ -197,6 +197,46 @@ function initDb() {
       dismissed_at TEXT NOT NULL DEFAULT (datetime('now')),
       expires_at TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS equipment (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL UNIQUE,
+      is_custom INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS workout_plans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT,
+      created_at TEXT NOT NULL DEFAULT (date('now')),
+      updated_at TEXT NOT NULL DEFAULT (date('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS workout_plan_exercises (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      plan_id INTEGER NOT NULL,
+      exercise_type_id INTEGER NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      target_sets INTEGER,
+      target_reps INTEGER,
+      target_duration_min REAL,
+      target_weight_kg REAL,
+      rest_sec INTEGER,
+      is_optional INTEGER NOT NULL DEFAULT 0,
+      superset_group INTEGER,
+      notes TEXT,
+      FOREIGN KEY (plan_id) REFERENCES workout_plans(id) ON DELETE CASCADE,
+      FOREIGN KEY (exercise_type_id) REFERENCES exercise_types(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS workout_schedule (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      plan_id INTEGER,
+      status TEXT NOT NULL DEFAULT 'planned',
+      notes TEXT,
+      FOREIGN KEY (plan_id) REFERENCES workout_plans(id) ON DELETE SET NULL
+    );
   `);
 
   // Migrations: add columns that may not exist in imported databases
@@ -238,10 +278,62 @@ function initDb() {
       details TEXT,
       ts TEXT DEFAULT (datetime('now'))
     )`,
+    "ALTER TABLE exercise_types ADD COLUMN muscle_groups TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE exercise_types ADD COLUMN equipment TEXT NOT NULL DEFAULT ''",
+    "ALTER TABLE exercise_types ADD COLUMN instructions TEXT",
+    "ALTER TABLE exercise_types ADD COLUMN is_custom INTEGER NOT NULL DEFAULT 0",
+    "ALTER TABLE exercises ADD COLUMN schedule_id INTEGER",
+    "ALTER TABLE supplements ADD COLUMN deleted_at TEXT",
+    `CREATE TABLE IF NOT EXISTS supplement_dosages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      supplement_id INTEGER NOT NULL,
+      qty INTEGER NOT NULL DEFAULT 1,
+      unit TEXT NOT NULL DEFAULT '',
+      effective_from TEXT NOT NULL,
+      FOREIGN KEY (supplement_id) REFERENCES supplements(id) ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS supplement_plans (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      effective_from TEXT NOT NULL UNIQUE,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`,
+    `CREATE TABLE IF NOT EXISTS supplement_plan_items (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      plan_id INTEGER NOT NULL,
+      supplement_id INTEGER NOT NULL,
+      qty INTEGER NOT NULL DEFAULT 1,
+      unit TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      FOREIGN KEY (plan_id) REFERENCES supplement_plans(id) ON DELETE CASCADE,
+      FOREIGN KEY (supplement_id) REFERENCES supplements(id)
+    )`,
   ];
   for (const stmt of migrations) {
     try { database.exec(stmt); } catch (_) {}
   }
+
+  // Migrate existing supplements into the plan system (one-time, guarded)
+  try {
+    const alreadyMigrated = database.prepare('SELECT COUNT(*) AS n FROM supplement_plans').get().n > 0;
+    if (!alreadyMigrated) {
+      const existing = database.prepare(
+        "SELECT id, qty, COALESCE(unit,'') AS unit, COALESCE(notes,'') AS notes, COALESCE(created_at,'2000-01-01') AS created_at FROM supplements WHERE deleted_at IS NULL"
+      ).all();
+      if (existing.length > 0) {
+        const effectiveFrom = existing.reduce((min, s) => s.created_at < min ? s.created_at : min, existing[0].created_at);
+        const planResult = database.prepare(
+          'INSERT INTO supplement_plans (effective_from) VALUES (?)'
+        ).run(effectiveFrom);
+        const planId = planResult.lastInsertRowid;
+        const insertItem = database.prepare(
+          'INSERT INTO supplement_plan_items (plan_id, supplement_id, qty, unit, notes) VALUES (?, ?, ?, ?, ?)'
+        );
+        for (const s of existing) {
+          insertItem.run(planId, s.id, s.qty, s.unit, s.notes);
+        }
+      }
+    }
+  } catch (_) {}
 
   // food_packages table (one-to-many with foods)
   try {
@@ -431,23 +523,104 @@ function initDb() {
     insertSetting.run(key, val);
   }
 
-  // Seed default exercise types
+  // Seed default exercise types (name, met_value, category, muscle_groups, equipment)
   const insertExType = database.prepare(
-    'INSERT OR IGNORE INTO exercise_types (name, met_value, category) VALUES (?, ?, ?)'
+    'INSERT OR IGNORE INTO exercise_types (name, met_value, category, muscle_groups, equipment, is_custom) VALUES (?, ?, ?, ?, ?, 0)'
   );
-  for (const [name, met, cat] of [
-    ['Running',        9.8, 'cardio'],
-    ['Cycling',        7.5, 'cardio'],
-    ['Swimming',       8.0, 'cardio'],
-    ['Walking',        3.5, 'cardio'],
-    ['HIIT',           8.0, 'cardio'],
-    ['Weight Training',6.0, 'strength'],
-    ['Calisthenics',   8.0, 'strength'],
-    ['Yoga',           3.0, 'flexibility'],
-    ['Stretching',     2.5, 'flexibility'],
-    ['Other',          5.0, 'other'],
+  for (const [name, met, cat, muscles, equip] of [
+    // Cardio
+    ['Running',              9.8,  'cardio',      'quadriceps,hamstrings,calves,glutes',        ''],
+    ['Cycling',              7.5,  'cardio',      'quadriceps,hamstrings,glutes,calves',         'bike'],
+    ['Swimming',             8.0,  'cardio',      'full_body',                                   ''],
+    ['Walking',              3.5,  'cardio',      'quadriceps,calves,glutes',                    ''],
+    ['HIIT',                 8.0,  'cardio',      'full_body',                                   ''],
+    ['Jump Rope',           11.0,  'cardio',      'calves,quadriceps,shoulders',                 'jump_rope'],
+    ['Rowing',               7.0,  'cardio',      'back,biceps,quadriceps,glutes',               'rowing_machine'],
+    ['Elliptical',           5.0,  'cardio',      'quadriceps,hamstrings,glutes',                'machine'],
+    ['Stair Climbing',       8.0,  'cardio',      'quadriceps,glutes,calves',                    'machine'],
+    ['Boxing',               9.0,  'cardio',      'shoulders,biceps,triceps,abs',                ''],
+    // Strength — Chest
+    ['Bench Press',          6.0,  'strength',    'chest,triceps,shoulders',                     'barbell,bench'],
+    ['Incline Bench Press',  6.0,  'strength',    'chest,triceps,shoulders',                     'barbell,bench'],
+    ['Dumbbell Flyes',       4.0,  'strength',    'chest,shoulders',                             'dumbbell,bench'],
+    ['Push-ups',             5.0,  'strength',    'chest,triceps,shoulders',                     ''],
+    ['Cable Crossover',      4.0,  'strength',    'chest,shoulders',                             'cable'],
+    // Strength — Back
+    ['Deadlift',             6.0,  'strength',    'back,glutes,hamstrings,forearms',             'barbell'],
+    ['Barbell Row',          6.0,  'strength',    'back,biceps,forearms',                        'barbell'],
+    ['Lat Pulldown',         5.0,  'strength',    'back,biceps',                                 'machine,cable'],
+    ['Pull-ups',             8.0,  'strength',    'back,biceps',                                 'pull_up_bar'],
+    ['Seated Cable Row',     5.0,  'strength',    'back,biceps',                                 'cable'],
+    ['Dumbbell Row',         5.0,  'strength',    'back,biceps',                                 'dumbbell'],
+    // Strength — Shoulders
+    ['Overhead Press',       6.0,  'strength',    'shoulders,triceps',                           'barbell'],
+    ['Dumbbell Press',       5.0,  'strength',    'shoulders,triceps',                           'dumbbell'],
+    ['Lateral Raises',       3.0,  'strength',    'shoulders',                                   'dumbbell'],
+    ['Face Pulls',           3.0,  'strength',    'shoulders,back',                              'cable'],
+    ['Front Raises',         3.0,  'strength',    'shoulders',                                   'dumbbell'],
+    // Strength — Arms
+    ['Barbell Curl',         4.0,  'strength',    'biceps,forearms',                             'barbell'],
+    ['Dumbbell Curl',        4.0,  'strength',    'biceps,forearms',                             'dumbbell'],
+    ['Hammer Curl',          4.0,  'strength',    'biceps,forearms',                             'dumbbell'],
+    ['Tricep Pushdown',      4.0,  'strength',    'triceps',                                     'cable'],
+    ['Skull Crushers',       4.0,  'strength',    'triceps',                                     'barbell,bench'],
+    ['Tricep Dips',          5.0,  'strength',    'triceps,chest,shoulders',                     ''],
+    // Strength — Legs
+    ['Squat',                6.0,  'strength',    'quadriceps,glutes,hamstrings',                'barbell'],
+    ['Leg Press',            5.0,  'strength',    'quadriceps,glutes,hamstrings',                'machine'],
+    ['Lunges',               5.0,  'strength',    'quadriceps,glutes,hamstrings',                ''],
+    ['Leg Curl',             4.0,  'strength',    'hamstrings',                                  'machine'],
+    ['Leg Extension',        4.0,  'strength',    'quadriceps',                                  'machine'],
+    ['Calf Raises',          3.5,  'strength',    'calves',                                      'machine'],
+    ['Romanian Deadlift',    6.0,  'strength',    'hamstrings,glutes,back',                      'barbell'],
+    // Strength — Core
+    ['Plank',                4.0,  'strength',    'abs,obliques',                                ''],
+    ['Crunches',             3.5,  'strength',    'abs',                                         ''],
+    ['Hanging Leg Raises',   4.0,  'strength',    'abs,obliques',                                'pull_up_bar'],
+    ['Russian Twists',       3.5,  'strength',    'obliques,abs',                                ''],
+    ['Mountain Climbers',    8.0,  'strength',    'abs,full_body',                               ''],
+    // Strength — legacy (keep for backwards compat)
+    ['Weight Training',      6.0,  'strength',    'full_body',                                   'barbell,dumbbell'],
+    ['Calisthenics',         8.0,  'strength',    'full_body',                                   'pull_up_bar'],
+    // Flexibility
+    ['Yoga',                 3.0,  'flexibility', 'full_body',                                   'mat'],
+    ['Stretching',           2.5,  'flexibility', 'full_body',                                   'mat'],
+    ['Foam Rolling',         2.0,  'flexibility', 'full_body',                                   'mat'],
+    ['Pilates',              3.5,  'flexibility', 'abs,back,full_body',                          'mat'],
+    // Other
+    ['Other',                5.0,  'other',       '',                                            ''],
+    ['Sport',                7.0,  'other',       'full_body',                                   ''],
   ]) {
-    insertExType.run(name, met, cat);
+    insertExType.run(name, met, cat, muscles, equip);
+  }
+
+  // Backfill muscle_groups/equipment on existing rows that pre-date this migration
+  const backfillEx = database.prepare(
+    "UPDATE exercise_types SET muscle_groups=?, equipment=? WHERE name=? AND muscle_groups=''"
+  );
+  for (const [name, muscles, equip] of [
+    ['Running',         'quadriceps,hamstrings,calves,glutes',  ''],
+    ['Cycling',         'quadriceps,hamstrings,glutes,calves',  'bike'],
+    ['Swimming',        'full_body',                             ''],
+    ['Walking',         'quadriceps,calves,glutes',              ''],
+    ['HIIT',            'full_body',                             ''],
+    ['Weight Training', 'full_body',                             'barbell,dumbbell'],
+    ['Calisthenics',    'full_body',                             'pull_up_bar'],
+    ['Yoga',            'full_body',                             'mat'],
+    ['Stretching',      'full_body',                             'mat'],
+    ['Other',           '',                                      ''],
+  ]) {
+    backfillEx.run(muscles, equip, name);
+  }
+
+  // Seed equipment items
+  const insertEquip = database.prepare('INSERT OR IGNORE INTO equipment (name, is_custom) VALUES (?, 0)');
+  for (const name of [
+    'Barbell', 'Dumbbell', 'Kettlebell', 'Cable', 'Machine',
+    'Pull-up bar', 'Bench', 'Mat', 'Resistance band', 'Bike',
+    'Jump rope', 'Rowing machine',
+  ]) {
+    insertEquip.run(name);
   }
 }
 

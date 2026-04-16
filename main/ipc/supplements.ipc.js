@@ -1,48 +1,108 @@
 const { ipcMain } = require('electron');
 const { getDb } = require('../db');
 
+// Helper: find the plan effective on a given date
+function getPlanForDate(db, date) {
+  return db.prepare(
+    'SELECT * FROM supplement_plans WHERE effective_from <= ? ORDER BY effective_from DESC LIMIT 1'
+  ).get(date);
+}
+
+// Helper: get items for a plan joined with supplement names
+function getPlanItems(db, planId) {
+  return db.prepare(`
+    SELECT spi.id, spi.plan_id, spi.supplement_id, s.name,
+           spi.qty, spi.unit, spi.notes
+    FROM supplement_plan_items spi
+    JOIN supplements s ON s.id = spi.supplement_id
+    WHERE spi.plan_id = ?
+    ORDER BY s.name
+  `).all(planId);
+}
+
 function registerSupplementsIpc() {
+
+  // ── Catalog ─────────────────────────────────────────────────────────────────
+
   ipcMain.handle('supplements:getAll', () =>
-    getDb().prepare('SELECT * FROM supplements ORDER BY name').all()
+    getDb().prepare('SELECT id, name FROM supplements ORDER BY name').all()
   );
 
-  ipcMain.handle('supplements:add', (_, { name, qty, unit, notes }) => {
-    const today = new Date().toISOString().split('T')[0];
-    const result = getDb().prepare(
-      'INSERT INTO supplements (name, qty, unit, notes, created_at) VALUES (?, ?, ?, ?, ?)'
-    ).run(name, qty || 1, unit || '', notes || '', today);
+  ipcMain.handle('supplements:add', (_, { name }) => {
+    const result = getDb().prepare('INSERT INTO supplements (name) VALUES (?)').run(name);
     return { id: result.lastInsertRowid };
   });
 
-  ipcMain.handle('supplements:update', (_, { id, name, qty, unit, notes }) => {
-    getDb().prepare(
-      'UPDATE supplements SET name = ?, qty = ?, unit = ?, notes = ? WHERE id = ?'
-    ).run(name, qty || 1, unit || '', notes || '', id);
-    return { ok: true };
-  });
-
   ipcMain.handle('supplements:delete', (_, { id }) => {
-    getDb().prepare('DELETE FROM supplements WHERE id = ?').run(id);
+    const db = getDb();
+    const inPlan = db.prepare('SELECT COUNT(*) AS n FROM supplement_plan_items WHERE supplement_id = ?').get(id).n;
+    const inLog  = db.prepare('SELECT COUNT(*) AS n FROM supplement_log WHERE supplement_id = ?').get(id).n;
+    if (inPlan > 0 || inLog > 0) return { ok: false, reason: 'in_use' };
+    db.prepare('DELETE FROM supplements WHERE id = ?').run(id);
     return { ok: true };
   });
 
-  // Get supplements with today's count — only supplements created on or before this date
-  ipcMain.handle('supplements:getDay', (_, { date }) => {
-    return getDb().prepare(`
-      SELECT s.id, s.name, s.qty, s.unit,
-        COALESCE(sl.count, 0) AS taken
-      FROM supplements s
-      LEFT JOIN supplement_log sl ON sl.supplement_id = s.id AND sl.date = ?
-      WHERE s.created_at <= ?
-      ORDER BY s.name
-    `).all(date, date);
+  // ── Plan ────────────────────────────────────────────────────────────────────
+
+  ipcMain.handle('supplementPlan:getCurrent', () => {
+    const db = getDb();
+    const plan = db.prepare(
+      'SELECT * FROM supplement_plans ORDER BY effective_from DESC LIMIT 1'
+    ).get();
+    if (!plan) return null;
+    return { plan, items: getPlanItems(db, plan.id) };
   });
 
-  // Increment taken count (wraps back to 0 after reaching qty)
+  ipcMain.handle('supplementPlan:save', (_, { items }) => {
+    const db = getDb();
+    const today = new Date().toISOString().split('T')[0];
+
+    const savePlan = db.transaction(() => {
+      // Check for existing plan today — update in place if present
+      let plan = db.prepare('SELECT * FROM supplement_plans WHERE effective_from = ?').get(today);
+      if (plan) {
+        db.prepare('DELETE FROM supplement_plan_items WHERE plan_id = ?').run(plan.id);
+      } else {
+        const result = db.prepare('INSERT INTO supplement_plans (effective_from) VALUES (?)').run(today);
+        plan = { id: result.lastInsertRowid, effective_from: today };
+      }
+      const insertItem = db.prepare(
+        'INSERT INTO supplement_plan_items (plan_id, supplement_id, qty, unit, notes) VALUES (?, ?, ?, ?, ?)'
+      );
+      for (const item of items) {
+        insertItem.run(plan.id, item.supplement_id, item.qty || 1, item.unit || '', item.notes || '');
+      }
+      return plan.id;
+    });
+
+    const planId = savePlan();
+    return { ok: true, plan_id: planId };
+  });
+
+  // ── Day / Dashboard ─────────────────────────────────────────────────────────
+
+  ipcMain.handle('supplements:getDay', (_, { date }) => {
+    const db = getDb();
+    const plan = getPlanForDate(db, date);
+    if (!plan) return [];
+    return db.prepare(`
+      SELECT spi.supplement_id AS id, s.name, spi.qty, spi.unit,
+             COALESCE(sl.count, 0) AS taken
+      FROM supplement_plan_items spi
+      JOIN supplements s ON s.id = spi.supplement_id
+      LEFT JOIN supplement_log sl ON sl.supplement_id = spi.supplement_id AND sl.date = ?
+      WHERE spi.plan_id = ?
+      ORDER BY s.name
+    `).all(date, plan.id);
+  });
+
   ipcMain.handle('supplements:take', (_, { supplement_id, date }) => {
     const db = getDb();
-    const suppl = db.prepare('SELECT qty FROM supplements WHERE id = ?').get(supplement_id);
-    if (!suppl) return { taken: 0 };
+    const plan = getPlanForDate(db, date);
+    const item = plan
+      ? db.prepare('SELECT qty FROM supplement_plan_items WHERE plan_id = ? AND supplement_id = ?').get(plan.id, supplement_id)
+      : null;
+    const effectiveQty = item?.qty ?? 1;
 
     const existing = db.prepare(
       'SELECT count FROM supplement_log WHERE supplement_id = ? AND date = ?'
@@ -51,11 +111,9 @@ function registerSupplementsIpc() {
     let newCount;
     if (!existing) {
       newCount = 1;
-      db.prepare(
-        'INSERT INTO supplement_log (supplement_id, date, count) VALUES (?, ?, ?)'
-      ).run(supplement_id, date, newCount);
+      db.prepare('INSERT INTO supplement_log (supplement_id, date, count) VALUES (?, ?, ?)').run(supplement_id, date, newCount);
     } else {
-      newCount = existing.count >= suppl.qty ? 0 : existing.count + 1;
+      newCount = existing.count >= effectiveQty ? 0 : existing.count + 1;
       if (newCount === 0) {
         db.prepare('DELETE FROM supplement_log WHERE supplement_id = ? AND date = ?').run(supplement_id, date);
       } else {
@@ -65,7 +123,8 @@ function registerSupplementsIpc() {
     return { taken: newCount };
   });
 
-  // Adherence summary for the History tab
+  // ── Adherence ───────────────────────────────────────────────────────────────
+
   ipcMain.handle('supplements:getAdherence', (_, { days }) => {
     const db = getDb();
     const today = new Date().toISOString().split('T')[0];
@@ -73,45 +132,101 @@ function registerSupplementsIpc() {
     startDate.setDate(startDate.getDate() - (days - 1));
     const start = startDate.toISOString().split('T')[0];
 
-    // All supplements that existed at some point during the range
-    const supplements = db.prepare(
-      "SELECT id, name, qty, unit, created_at FROM supplements WHERE created_at <= ? ORDER BY name"
+    // All plan versions that could cover the range
+    const plans = db.prepare(
+      'SELECT * FROM supplement_plans WHERE effective_from <= ? ORDER BY effective_from ASC'
     ).all(today);
+    if (plans.length === 0) return [];
+
+    // Items for each plan
+    const planItemsMap = new Map();
+    for (const plan of plans) {
+      planItemsMap.set(plan.id, getPlanItems(db, plan.id));
+    }
 
     // All log entries in range
     const logs = db.prepare(
-      "SELECT supplement_id, date, count FROM supplement_log WHERE date >= ? AND date <= ? ORDER BY date DESC"
+      'SELECT supplement_id, date, count FROM supplement_log WHERE date >= ? AND date <= ? ORDER BY date'
     ).all(start, today);
-
     const logMap = new Map();
     for (const log of logs) {
-      if (!logMap.has(log.supplement_id)) logMap.set(log.supplement_id, []);
-      logMap.get(log.supplement_id).push(log);
+      const key = `${log.supplement_id}|${log.date}`;
+      logMap.set(key, log.count);
+    }
+
+    // Find plan effective on a given date (plans sorted ASC, find last one <= date)
+    function planForDate(date) {
+      let result = null;
+      for (const p of plans) {
+        if (p.effective_from <= date) result = p;
+        else break;
+      }
+      return result;
+    }
+
+    // Collect all supplement ids that appear in any plan covering the range
+    const allSupplementIds = new Set();
+    for (const plan of plans) {
+      for (const item of planItemsMap.get(plan.id)) {
+        allSupplementIds.add(item.supplement_id);
+      }
+    }
+
+    // For each supplement, compute adherence across the range
+    const supplementNames = new Map();
+    for (const plan of plans) {
+      for (const item of planItemsMap.get(plan.id)) {
+        supplementNames.set(item.supplement_id, item.name);
+      }
     }
 
     const msPerDay = 86400000;
-    return supplements.map(s => {
-      // Effective start = whichever is later: range start or supplement creation date
-      const effectiveStart = s.created_at > start ? s.created_at : start;
-      const startMs = new Date(effectiveStart).getTime();
-      const endMs = new Date(today).getTime();
-      const daysExpected = Math.floor((endMs - startMs) / msPerDay) + 1;
+    const results = [];
 
-      const sLogs = (logMap.get(s.id) || []).filter(l => l.date >= effectiveStart);
-      const daysTaken = sLogs.filter(l => l.count >= s.qty).length;
+    for (const supplementId of allSupplementIds) {
+      let daysExpected = 0;
+      let daysTaken = 0;
+      const annotatedLogs = [];
 
-      return {
-        id: s.id,
-        name: s.name,
-        qty: s.qty,
-        unit: s.unit,
-        created_at: s.created_at,
+      // Walk each day in range
+      const rangeStart = new Date(start);
+      const rangeEnd = new Date(today);
+      for (let d = new Date(rangeStart); d <= rangeEnd; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toISOString().split('T')[0];
+        const plan = planForDate(dateStr);
+        if (!plan) continue;
+        const planItems = planItemsMap.get(plan.id);
+        const item = planItems.find(i => i.supplement_id === supplementId);
+        if (!item) continue; // not in plan on this day
+
+        daysExpected++;
+        const count = logMap.get(`${supplementId}|${dateStr}`) ?? 0;
+        if (count >= item.qty) daysTaken++;
+        if (count > 0) {
+          annotatedLogs.push({ date: dateStr, count, effectiveQty: item.qty });
+        }
+      }
+
+      // Find most recent qty/unit for display
+      let currentQty = 1, currentUnit = '';
+      for (const plan of [...plans].reverse()) {
+        const item = planItemsMap.get(plan.id).find(i => i.supplement_id === supplementId);
+        if (item) { currentQty = item.qty; currentUnit = item.unit; break; }
+      }
+
+      results.push({
+        id: supplementId,
+        name: supplementNames.get(supplementId) ?? '',
+        qty: currentQty,
+        unit: currentUnit,
         daysExpected,
         daysTaken,
         adherencePct: daysExpected > 0 ? Math.round((daysTaken / daysExpected) * 100) : 0,
-        logs: sLogs.slice(0, 90),
-      };
-    });
+        logs: annotatedLogs.reverse().slice(0, 90),
+      });
+    }
+
+    return results.sort((a, b) => a.name.localeCompare(b.name));
   });
 }
 

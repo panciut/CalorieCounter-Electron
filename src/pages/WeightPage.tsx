@@ -96,19 +96,24 @@ export default function WeightPage() {
 
   const inputCls = "rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 
-  const tabBtn = (t: Tab) => [
-    'text-sm px-4 py-1.5 rounded-lg font-medium cursor-pointer transition-colors border',
-    tab === t ? 'border-accent bg-accent/10 text-accent' : 'border-border text-text-sec hover:text-text',
-  ].join(' ');
-
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text">Body</h1>
-        <div className="flex gap-2">
-          <button className={tabBtn('weight')} onClick={() => setTab('weight')}>Weight</button>
-          <button className={tabBtn('body')}   onClick={() => setTab('body')}>Composition</button>
-        </div>
+      <h1 className="text-xl font-bold text-text">Body</h1>
+
+      <div className="flex gap-1 border-b border-border -mt-2">
+        {(['weight', 'body'] as Tab[]).map(id => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={`px-5 py-2.5 text-sm font-medium transition-colors cursor-pointer border-b-2 -mb-px whitespace-nowrap ${
+              tab === id
+                ? 'border-accent text-accent'
+                : 'border-transparent text-text-sec hover:text-text'
+            }`}
+          >
+            {id === 'weight' ? 'Weight' : 'Composition'}
+          </button>
+        ))}
       </div>
 
       {/* ── WEIGHT TAB ─────────────────────────────────────────────────────── */}

@@ -3,91 +3,145 @@ import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { api } from '../api';
-import type { Supplement, SupplementAdherence } from '../types';
+import type { Supplement, SupplementPlanItem, SupplementPlanWithItems } from '../types';
 
-type Tab = 'manage' | 'history';
-type HistoryRange = 7 | 30 | 90;
+type Tab = 'catalog' | 'plan';
 
-// ── Edit form (module-level to avoid remount) ──────────────────────────────────
-interface EditFormProps {
-  supplement: Supplement;
-  onSave: (data: { name: string; qty: number; unit: string; notes: string }) => void;
+// ── Plan editor (module-level) ─────────────────────────────────────────────────
+interface PlanRow {
+  supplement_id: number;
+  name: string;
+  qty: string;
+  unit: string;
+  notes: string;
+}
+
+interface PlanEditorProps {
+  catalog: Supplement[];
+  initialItems: SupplementPlanItem[];
+  onSave: (items: { supplement_id: number; qty: number; unit: string; notes: string }[]) => void;
   onCancel: () => void;
-  t: (key: string) => string;
+  t: ReturnType<typeof useT>['t'];
 }
 
-function EditForm({ supplement, onSave, onCancel, t }: EditFormProps) {
-  const [name, setName]   = useState(supplement.name);
-  const [qty, setQty]     = useState(supplement.qty);
-  const [unit, setUnit]   = useState(supplement.unit || '');
-  const [notes, setNotes] = useState(supplement.notes || '');
-
-  const inputCls = "bg-bg border border-border rounded-lg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent";
-
-  return (
-    <div className="flex flex-col gap-2 py-2 px-1">
-      <div className="flex gap-2 flex-wrap">
-        <input
-          type="text"
-          autoFocus
-          className={`flex-1 min-w-[140px] ${inputCls}`}
-          placeholder={t('suppl.name')}
-          value={name}
-          onChange={e => setName(e.target.value)}
-        />
-        <input
-          type="text" inputMode="decimal"
-          className={`w-16 ${inputCls}`}
-          placeholder={t('suppl.qty')}
-          value={qty}
-          onChange={e => setQty(Number(e.target.value))}
-        />
-        <input
-          type="text"
-          className={`w-28 ${inputCls}`}
-          placeholder={t('suppl.unitPlaceholder')}
-          value={unit}
-          onChange={e => setUnit(e.target.value)}
-        />
-      </div>
-      <input
-        type="text"
-        className={`w-full ${inputCls}`}
-        placeholder={t('suppl.notes')}
-        value={notes}
-        onChange={e => setNotes(e.target.value)}
-      />
-      <div className="flex gap-2">
-        <button
-          className="px-3 py-1.5 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 cursor-pointer"
-          onClick={() => onSave({ name: name.trim(), qty: qty || 1, unit: unit.trim(), notes: notes.trim() })}
-          disabled={!name.trim()}
-        >
-          {t('common.save')}
-        </button>
-        <button
-          className="px-3 py-1.5 rounded-lg border border-border text-sm text-text-sec hover:text-text cursor-pointer"
-          onClick={onCancel}
-        >
-          {t('common.cancel')}
-        </button>
-      </div>
-    </div>
+function PlanEditor({ catalog, initialItems, onSave, onCancel, t }: PlanEditorProps) {
+  const [rows, setRows] = useState<PlanRow[]>(
+    initialItems.map(i => ({
+      supplement_id: i.supplement_id,
+      name: i.name,
+      qty: String(i.qty),
+      unit: i.unit,
+      notes: i.notes,
+    }))
   );
-}
+  const [addId, setAddId] = useState<number | ''>('');
 
-// ── Adherence bar ──────────────────────────────────────────────────────────────
-function AdherenceBar({ pct }: { pct: number }) {
-  const color = pct >= 80 ? 'var(--green, #4ade80)' : pct >= 50 ? 'var(--yellow, #facc15)' : 'var(--red, #f87171)';
+  const usedIds = new Set(rows.map(r => r.supplement_id));
+  const available = catalog.filter(s => !usedIds.has(s.id));
+
+  function addRow() {
+    const id = Number(addId);
+    if (!id) return;
+    const s = catalog.find(c => c.id === id);
+    if (!s) return;
+    setRows(prev => [...prev, { supplement_id: id, name: s.name, qty: '1', unit: '', notes: '' }]);
+    setAddId('');
+  }
+
+  function removeRow(supplementId: number) {
+    setRows(prev => prev.filter(r => r.supplement_id !== supplementId));
+  }
+
+  function patch(supplementId: number, partial: Partial<PlanRow>) {
+    setRows(prev => prev.map(r => r.supplement_id === supplementId ? { ...r, ...partial } : r));
+  }
+
+  function handleSave() {
+    onSave(rows.map(r => ({
+      supplement_id: r.supplement_id,
+      qty: parseInt(r.qty) || 1,
+      unit: r.unit.trim(),
+      notes: r.notes.trim(),
+    })));
+  }
+
+  const inputCls = 'rounded-lg border border-border bg-bg px-2 py-1 text-xs text-text focus:outline-none focus:border-accent';
+
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 rounded-full bg-border overflow-hidden">
-        <div
-          className="h-full rounded-full transition-all"
-          style={{ width: `${pct}%`, backgroundColor: color }}
-        />
+    <div className="flex flex-col gap-4">
+      {/* Row list */}
+      {rows.length === 0 && (
+        <p className="text-sm text-text-sec py-2 text-center">{t('suppl.noPlan')}</p>
+      )}
+      {rows.length > 0 && (
+        <div className="flex flex-col divide-y divide-border/40">
+          {rows.map(row => (
+            <div key={row.supplement_id} className="py-3 flex items-center gap-3 flex-wrap">
+              <span className="text-sm font-medium text-text min-w-24 flex-1">{row.name}</span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <input
+                  type="text" inputMode="decimal"
+                  value={row.qty}
+                  onChange={e => patch(row.supplement_id, { qty: e.target.value })}
+                  placeholder="1"
+                  className={`${inputCls} w-12 text-center`}
+                />
+                <input
+                  type="text"
+                  value={row.unit}
+                  onChange={e => patch(row.supplement_id, { unit: e.target.value })}
+                  placeholder={t('suppl.unitPlaceholder')}
+                  className={`${inputCls} w-24`}
+                />
+                <input
+                  type="text"
+                  value={row.notes}
+                  onChange={e => patch(row.supplement_id, { notes: e.target.value })}
+                  placeholder={t('suppl.notes')}
+                  className={`${inputCls} w-36`}
+                />
+                <button
+                  onClick={() => removeRow(row.supplement_id)}
+                  className="text-text-sec hover:text-red cursor-pointer text-sm px-1"
+                >✕</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add supplement */}
+      {available.length > 0 && (
+        <div className="flex gap-2 items-center">
+          <select
+            value={addId}
+            onChange={e => setAddId(Number(e.target.value) || '')}
+            className="flex-1 bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text focus:outline-none focus:border-accent"
+          >
+            <option value="">{t('suppl.addToPlan')}</option>
+            {available.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+          <button
+            onClick={addRow}
+            disabled={!addId}
+            className="px-3 py-2 rounded-lg bg-accent/10 text-accent text-sm font-medium hover:bg-accent/20 cursor-pointer disabled:opacity-40 transition-colors"
+          >+</button>
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="flex gap-2 justify-end border-t border-border pt-3">
+        <button
+          onClick={onCancel}
+          className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer"
+        >{t('common.cancel')}</button>
+        <button
+          onClick={handleSave}
+          className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer"
+        >{t('common.save')}</button>
       </div>
-      <span className="text-xs tabular-nums text-text-sec w-9 text-right">{pct}%</span>
     </div>
   );
 }
@@ -97,141 +151,110 @@ export default function SupplementsPage() {
   const { t } = useT();
   const { showToast } = useToast();
 
-  const [tab, setTab]             = useState<Tab>('manage');
-  const [supplements, setSupplements] = useState<Supplement[]>([]);
-  const [editId, setEditId]       = useState<number | null>(null);
+  const [tab, setTab]               = useState<Tab>('plan');
+  const [catalog, setCatalog]       = useState<Supplement[]>([]);
+  const [currentPlan, setCurrentPlan] = useState<SupplementPlanWithItems | null | undefined>(undefined);
+  const [editingPlan, setEditingPlan] = useState(false);
+
+  // Catalog state
+  const [newName, setNewName]           = useState('');
   const [deleteTarget, setDeleteTarget] = useState<Supplement | null>(null);
-  const [addOpen, setAddOpen]     = useState(true);
 
-  // History tab
-  const [range, setRange]         = useState<HistoryRange>(30);
-  const [adherence, setAdherence] = useState<SupplementAdherence[]>([]);
-  const [histLoading, setHistLoading] = useState(false);
-
-  async function load() {
-    const data = await api.supplements.getAll();
-    setSupplements(data);
+  async function loadCatalog() {
+    setCatalog(await api.supplements.getAll());
   }
 
-  useEffect(() => { load(); }, []);
+  async function loadPlan() {
+    setCurrentPlan(await api.supplementPlan.getCurrent());
+  }
 
   useEffect(() => {
-    if (tab !== 'history') return;
-    setHistLoading(true);
-    api.supplements.getAdherence(range).then(data => {
-      setAdherence(data);
-      setHistLoading(false);
-    });
-  }, [tab, range]);
+    loadCatalog();
+    loadPlan();
+  }, []);
 
-  async function handleAdd(data: { name: string; qty: number; unit: string; notes: string }) {
-    if (!data.name) return;
-    await api.supplements.add(data);
-    await load();
+  async function handleAddCatalog() {
+    const name = newName.trim();
+    if (!name) return;
+    await api.supplements.add({ name });
+    setNewName('');
     showToast(t('common.saved'));
-  }
-
-  async function handleUpdate(data: { name: string; qty: number; unit: string; notes: string }) {
-    if (editId === null || !data.name) return;
-    await api.supplements.update({ id: editId, ...data });
-    setEditId(null);
-    await load();
-    showToast(t('common.saved'));
+    loadCatalog();
   }
 
   async function confirmDelete() {
     if (!deleteTarget) return;
-    await api.supplements.delete(deleteTarget.id);
+    const result = await api.supplements.delete(deleteTarget.id);
     setDeleteTarget(null);
-    await load();
+    if (!result.ok) {
+      showToast(t('suppl.cannotDelete'), 'error');
+      return;
+    }
+    showToast('Deleted');
+    loadCatalog();
+    loadPlan();
   }
 
-  const tabBtn = (v: Tab) => [
-    'px-5 py-2.5 text-sm font-medium transition-colors cursor-pointer border-b-2 -mb-px',
-    tab === v ? 'border-accent text-accent' : 'border-transparent text-text-sec hover:text-text',
-  ].join(' ');
-
-  const blankSuppl: Supplement = { id: 0, name: '', qty: 1, unit: '', notes: '', created_at: '' };
+  async function handleSavePlan(items: { supplement_id: number; qty: number; unit: string; notes: string }[]) {
+    await api.supplementPlan.save({ items });
+    setEditingPlan(false);
+    showToast(t('common.saved'));
+    loadPlan();
+  }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-5">
-      <h1 className="text-2xl font-bold text-text">{t('suppl.title')}</h1>
+    <div className="p-6 max-w-4xl mx-auto flex flex-col gap-0 h-full min-h-0">
+      <h1 className="text-xl font-bold text-text mb-4">{t('suppl.title')}</h1>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-border">
-        <button className={tabBtn('manage')}  onClick={() => setTab('manage')}>{t('suppl.manage')}</button>
-        <button className={tabBtn('history')} onClick={() => setTab('history')}>{t('suppl.history')}</button>
+      {/* Tab bar */}
+      <div className="flex gap-1 border-b border-border shrink-0 mb-6">
+        {(['plan', 'catalog'] as Tab[]).map(id => (
+          <button
+            key={id}
+            onClick={() => setTab(id)}
+            className={`px-5 py-2.5 text-sm font-medium transition-colors cursor-pointer border-b-2 -mb-px whitespace-nowrap ${
+              tab === id ? 'border-accent text-accent' : 'border-transparent text-text-sec hover:text-text'
+            }`}
+          >
+            {id === 'catalog' ? t('suppl.catalog') : t('suppl.plan')}
+          </button>
+        ))}
       </div>
 
-      {/* ── MANAGE TAB ─────────────────────────────────────────────────── */}
-      {tab === 'manage' && (
-          <div className="flex flex-col gap-4">
+      <div className="flex-1 min-h-0 overflow-y-auto">
 
-            {/* Collapsible add form */}
-            <div className="border border-border rounded-xl overflow-hidden">
+        {/* ── CATALOG TAB ────────────────────────────────────────────────── */}
+        {tab === 'catalog' && (
+          <div className="flex flex-col gap-4">
+            {/* Add input */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newName}
+                onChange={e => setNewName(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleAddCatalog()}
+                placeholder={t('suppl.namePlaceholder')}
+                className="flex-1 bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent"
+              />
               <button
-                onClick={() => setAddOpen(v => !v)}
-                className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-text hover:bg-card-hover/40 cursor-pointer transition-colors"
-              >
-                <span>{t('suppl.addTitle')}</span>
-                <span className="text-text-sec text-xs">{addOpen ? '▲' : '▼'}</span>
-              </button>
-              {addOpen && (
-                <div className="px-4 pb-4 pt-1 border-t border-border bg-card-hover/20">
-                  <EditForm
-                    supplement={blankSuppl}
-                    onSave={handleAdd}
-                    onCancel={() => setAddOpen(false)}
-                    t={t}
-                  />
-                </div>
-              )}
+                onClick={handleAddCatalog}
+                disabled={!newName.trim()}
+                className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 cursor-pointer disabled:opacity-40"
+              >{t('suppl.addTitle')}</button>
             </div>
 
-            {/* Supplement list */}
-            {supplements.length === 0 ? (
+            {/* List */}
+            {catalog.length === 0 ? (
               <p className="text-text-sec text-sm py-4 text-center">{t('suppl.noSupplements')}</p>
             ) : (
               <div className="flex flex-col divide-y divide-border/50">
-                {supplements.map(s => (
-                  <div key={s.id} className="py-3">
-                    {editId === s.id ? (
-                      <EditForm
-                        supplement={s}
-                        onSave={handleUpdate}
-                        onCancel={() => setEditId(null)}
-                        t={t}
-                      />
-                    ) : (
-                      <div className="flex items-start gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-baseline gap-2 flex-wrap">
-                            <span className="font-medium text-text">{s.name}</span>
-                            <span className="text-xs text-text-sec">
-                              {s.qty}{s.unit ? ` ${s.unit}` : ''} / day
-                            </span>
-                          </div>
-                          {s.notes && (
-                            <p className="text-xs text-text-sec mt-0.5 truncate">{s.notes}</p>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            onClick={() => { setEditId(s.id); setAddOpen(false); }}
-                            className="text-text-sec hover:text-text px-1.5 py-1 cursor-pointer transition-colors text-sm"
-                            title={t('common.edit')}
-                          >
-                            <span style={{ display: 'inline-block', transform: 'scaleX(-1) rotate(15deg)' }}>✎</span>
-                          </button>
-                          <button
-                            onClick={() => setDeleteTarget(s)}
-                            className="text-text-sec hover:text-red px-1.5 py-1 cursor-pointer transition-colors text-sm"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                {catalog.map(s => (
+                  <div key={s.id} className="py-2.5 flex items-center justify-between gap-3">
+                    <span className="text-sm text-text">{s.name}</span>
+                    <button
+                      onClick={() => setDeleteTarget(s)}
+                      className="text-text-sec hover:text-red cursor-pointer text-sm px-1.5 py-0.5 transition-colors"
+                    >✕</button>
                   </div>
                 ))}
               </div>
@@ -239,73 +262,74 @@ export default function SupplementsPage() {
           </div>
         )}
 
-      {/* ── HISTORY TAB ────────────────────────────────────────────────── */}
-      {tab === 'history' && (
-          <div className="flex flex-col gap-5">
-            {/* Range selector */}
-            <div className="flex gap-1">
-              {([7, 30, 90] as HistoryRange[]).map(d => (
-                <button
-                  key={d}
-                  onClick={() => setRange(d)}
-                  className={[
-                    'px-3 py-1 rounded-full text-xs font-medium border cursor-pointer transition-colors',
-                    range === d
-                      ? 'bg-accent text-white border-accent'
-                      : 'border-border text-text-sec hover:border-accent/50 hover:text-text',
-                  ].join(' ')}
-                >
-                  {d}d
-                </button>
-              ))}
-            </div>
-
-            {histLoading ? (
+        {/* ── PLAN TAB ───────────────────────────────────────────────────── */}
+        {tab === 'plan' && (
+          <div className="flex flex-col gap-4">
+            {editingPlan ? (
+              <>
+                <div className="text-sm font-semibold text-text">{t('suppl.editPlan')}</div>
+                <PlanEditor
+                  catalog={catalog}
+                  initialItems={currentPlan?.items ?? []}
+                  onSave={handleSavePlan}
+                  onCancel={() => setEditingPlan(false)}
+                  t={t}
+                />
+              </>
+            ) : currentPlan === undefined ? (
               <p className="text-text-sec text-sm py-4 text-center">…</p>
-            ) : adherence.length === 0 ? (
-              <p className="text-text-sec text-sm py-4 text-center">{t('suppl.noHistory')}</p>
-            ) : (
-              <div className="flex flex-col gap-4">
-                {adherence.map(s => (
-                  <div key={s.id} className="flex flex-col gap-1.5">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <div className="flex items-baseline gap-2">
-                        <span className="font-medium text-text text-sm">{s.name}</span>
-                        {s.unit && <span className="text-xs text-text-sec">{s.qty} {s.unit}/day</span>}
-                        {!s.unit && <span className="text-xs text-text-sec">{s.qty}/day</span>}
-                      </div>
-                      <span className="text-xs text-text-sec tabular-nums">{s.daysTaken} / {s.daysExpected} {t('suppl.daysTaken').toLowerCase()}</span>
-                    </div>
-                    <AdherenceBar pct={s.adherencePct} />
-                    {/* Mini log dots — last 30 entries max, newest right */}
-                    {s.logs.length > 0 && (
-                      <div className="flex gap-0.5 flex-wrap mt-0.5">
-                        {[...s.logs].reverse().slice(0, 60).map((log, i) => {
-                          const full = log.count >= s.qty;
-                          const partial = log.count > 0 && !full;
-                          return (
-                            <div
-                              key={i}
-                              title={`${log.date}: ${log.count}/${s.qty}`}
-                              className="w-2 h-2 rounded-sm"
-                              style={{
-                                backgroundColor: full
-                                  ? 'var(--accent)'
-                                  : partial
-                                    ? 'color-mix(in srgb, var(--accent) 40%, transparent)'
-                                    : 'var(--border)',
-                              }}
-                            />
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                ))}
+            ) : currentPlan === null ? (
+              <div className="flex flex-col items-center gap-3 py-8">
+                <p className="text-text-sec text-sm">{t('suppl.noPlan')}</p>
+                <button
+                  onClick={() => setEditingPlan(true)}
+                  className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 cursor-pointer"
+                >{t('suppl.createPlan')}</button>
               </div>
+            ) : (
+              <>
+                {/* Plan header */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-text">{t('suppl.planTitle')}</div>
+                    <div className="text-xs text-text-sec mt-0.5">
+                      {t('suppl.planSince')} {currentPlan.plan.effective_from}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setEditingPlan(true)}
+                    className="text-sm px-3 py-1.5 rounded-lg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors"
+                  >{t('suppl.editPlan')}</button>
+                </div>
+
+                {/* Plan items */}
+                {currentPlan.items.length === 0 ? (
+                  <p className="text-text-sec text-sm py-4 text-center">{t('suppl.noPlan')}</p>
+                ) : (
+                  <div className="flex flex-col divide-y divide-border/40">
+                    {/* Header row */}
+                    <div className="py-1.5 grid grid-cols-[1fr_auto_auto_auto] gap-3 text-xs font-medium text-text-sec uppercase tracking-wider">
+                      <span>{t('suppl.name')}</span>
+                      <span className="w-16 text-center">{t('suppl.qty')}</span>
+                      <span className="w-20">{t('suppl.unit')}</span>
+                      <span className="w-32">{t('suppl.notes')}</span>
+                    </div>
+                    {currentPlan.items.map(item => (
+                      <div key={item.supplement_id} className="py-3 grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center">
+                        <span className="text-sm font-medium text-text">{item.name}</span>
+                        <span className="w-16 text-center text-sm text-text tabular-nums">{item.qty}</span>
+                        <span className="w-20 text-sm text-text-sec">{item.unit || '—'}</span>
+                        <span className="w-32 text-sm text-text-sec truncate">{item.notes || '—'}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
+
+      </div>
 
       {deleteTarget && (
         <ConfirmDialog

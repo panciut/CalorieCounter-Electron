@@ -24,7 +24,9 @@ function registerExportIpc() {
     const waterLog   = db.prepare('SELECT * FROM water_log ORDER BY date DESC').all();
     const exercises  = db.prepare('SELECT * FROM exercises ORDER BY date DESC').all();
     const notes      = db.prepare('SELECT * FROM daily_notes ORDER BY date DESC').all();
-    const supplements = db.prepare('SELECT * FROM supplements').all();
+    const supplements     = db.prepare('SELECT * FROM supplements').all();
+    const supplementPlans = db.prepare('SELECT * FROM supplement_plans ORDER BY effective_from').all();
+    const supplementPlanItems = db.prepare('SELECT * FROM supplement_plan_items').all();
 
     const ext = format === 'json' ? 'json' : 'csv';
     const result = await dialog.showSaveDialog({
@@ -34,7 +36,7 @@ function registerExportIpc() {
     if (result.canceled || !result.filePath) return { ok: false };
 
     if (format === 'json') {
-      const data = { foods, log, weight_log: weightLog, water_log: waterLog, exercises, daily_notes: notes, supplements };
+      const data = { foods, log, weight_log: weightLog, water_log: waterLog, exercises, daily_notes: notes, supplements, supplement_plans: supplementPlans, supplement_plan_items: supplementPlanItems };
       fs.writeFileSync(result.filePath, JSON.stringify(data, null, 2), 'utf-8');
     } else {
       let csv = '';

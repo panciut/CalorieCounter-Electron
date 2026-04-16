@@ -65,11 +65,49 @@ function registerExercisesIpc() {
     getDb().prepare('SELECT * FROM exercise_types ORDER BY category, name').all()
   );
 
-  ipcMain.handle('exercises:addType', (_, { name, met_value, category }) => {
+  ipcMain.handle('exercises:addType', (_, { name, met_value, category, muscle_groups, equipment, instructions }) => {
     const { lastInsertRowid } = getDb().prepare(
-      'INSERT INTO exercise_types (name, met_value, category) VALUES (?, ?, ?)'
-    ).run(name, met_value || 5.0, category || 'other');
+      'INSERT INTO exercise_types (name, met_value, category, muscle_groups, equipment, instructions, is_custom) VALUES (?, ?, ?, ?, ?, ?, 1)'
+    ).run(name, met_value || 5.0, category || 'other', muscle_groups || '', equipment || '', instructions || null);
     return { id: lastInsertRowid };
+  });
+
+  ipcMain.handle('exercises:updateType', (_, { id, name, met_value, category, muscle_groups, equipment, instructions }) => {
+    getDb().prepare(
+      'UPDATE exercise_types SET name=?, met_value=?, category=?, muscle_groups=?, equipment=?, instructions=? WHERE id=?'
+    ).run(name, met_value || 5.0, category || 'other', muscle_groups || '', equipment || '', instructions || null, id);
+    return { ok: true };
+  });
+
+  ipcMain.handle('exercises:deleteType', (_, { id }) => {
+    const db = getDb();
+    const type = db.prepare('SELECT name, is_custom FROM exercise_types WHERE id=?').get(id);
+    if (!type) return { ok: false, reason: 'not_found' };
+    const inUse = db.prepare('SELECT COUNT(*) as n FROM exercises WHERE type=?').get(type.name);
+    if (inUse.n > 0) return { ok: false, reason: 'in_use' };
+    db.prepare('DELETE FROM exercise_types WHERE id=?').run(id);
+    return { ok: true };
+  });
+
+  // Equipment management
+  ipcMain.handle('exercises:getEquipment', () =>
+    getDb().prepare('SELECT * FROM equipment ORDER BY is_custom, name').all()
+  );
+
+  ipcMain.handle('exercises:addEquipment', (_, { name }) => {
+    const { lastInsertRowid } = getDb().prepare(
+      'INSERT INTO equipment (name, is_custom) VALUES (?, 1)'
+    ).run(name);
+    return { id: lastInsertRowid };
+  });
+
+  ipcMain.handle('exercises:deleteEquipment', (_, { id }) => {
+    const db = getDb();
+    const item = db.prepare('SELECT is_custom FROM equipment WHERE id=?').get(id);
+    if (!item) return { ok: false, reason: 'not_found' };
+    if (!item.is_custom) return { ok: false, reason: 'builtin' };
+    db.prepare('DELETE FROM equipment WHERE id=?').run(id);
+    return { ok: true };
   });
 
   // Estimate calories burned using MET formula: kcal = MET * weight_kg * (duration_min / 60)

@@ -1,7 +1,9 @@
 import type {
   Food, FoodPackage, FrequentFood, LogEntry, Meal, Recipe, ActualRecipe, Exercise, ExerciseType, Settings,
   WeightEntry, WaterDay, WaterEntry, DailyNote, Streak,
-  Supplement, SupplementDay, SupplementAdherence, Measurement,
+  Supplement, SupplementDay, SupplementAdherence,
+  SupplementPlanWithItems,
+  Measurement,
   WeeklySummary, WeekDayDetail, BarcodeResult,
   PantryItem, PantryAggregate, ShoppingItem, PantryIngredientCheck,
   CalorieTrendPoint, MacroTrendPoint, ExerciseTrendPoint,
@@ -83,8 +85,33 @@ export const api = {
                   invoke<{ ok: boolean }>('exercises:update', data),
     delete:     (id: number) => invoke<{ ok: boolean }>('exercises:delete', { id }),
     getTypes:   () => invoke<ExerciseType[]>('exercises:getTypes'),
-    addType:    (data: { name: string; met_value: number; category: string }) => invoke<{ id: number }>('exercises:addType', data),
-    estimate:   (data: { type: string; duration_min: number; weight_kg: number }) => invoke<{ calories: number }>('exercises:estimate', data),
+    addType:    (data: { name: string; met_value: number; category: string; muscle_groups?: string; equipment?: string; instructions?: string }) => invoke<{ id: number }>('exercises:addType', data),
+    updateType: (data: { id: number; name: string; met_value: number; category: string; muscle_groups: string; equipment: string; instructions?: string }) => invoke<{ ok: boolean }>('exercises:updateType', data),
+    deleteType:      (id: number) => invoke<{ ok: boolean; reason?: string }>('exercises:deleteType', { id }),
+    estimate:        (data: { type: string; duration_min: number; weight_kg: number }) => invoke<{ calories: number }>('exercises:estimate', data),
+    getEquipment:    () => invoke<import('./types').Equipment[]>('exercises:getEquipment'),
+    addEquipment:    (data: { name: string }) => invoke<{ id: number }>('exercises:addEquipment', data),
+    deleteEquipment: (id: number) => invoke<{ ok: boolean; reason?: string }>('exercises:deleteEquipment', { id }),
+  },
+
+  workoutPlans: {
+    getAll:    () => invoke<import('./types').WorkoutPlan[]>('workoutPlans:getAll'),
+    get:       (id: number) => invoke<import('./types').WorkoutPlan>('workoutPlans:get', { id }),
+    create:    (data: { name: string; description?: string; exercises: import('./types').WorkoutPlanExerciseInput[] }) => invoke<{ id: number }>('workoutPlans:create', data),
+    update:    (data: { id: number; name: string; description?: string; exercises: import('./types').WorkoutPlanExerciseInput[] }) => invoke<{ ok: boolean }>('workoutPlans:update', data),
+    delete:    (id: number) => invoke<{ ok: boolean }>('workoutPlans:delete', { id }),
+    duplicate: (id: number) => invoke<{ id: number }>('workoutPlans:duplicate', { id }),
+  },
+
+  workoutSchedule: {
+    getWeek:   (weekStart: string) => invoke<import('./types').WorkoutScheduleDay[]>('workoutSchedule:getWeek', { weekStart }),
+    getDay:    (date: string) => invoke<import('./types').WorkoutScheduleEntry[]>('workoutSchedule:getDay', { date }),
+    assign:    (data: { date: string; plan_id: number }) => invoke<{ id: number; ok: boolean }>('workoutSchedule:assign', data),
+    setRest:   (date: string) => invoke<{ id: number; ok: boolean }>('workoutSchedule:setRest', { date }),
+    clear:     (id: number) => invoke<{ ok: boolean }>('workoutSchedule:clear', { id }),
+    setStatus: (data: { id: number; status: string }) => invoke<{ ok: boolean }>('workoutSchedule:setStatus', data),
+    move:      (data: { id: number; toDate: string }) => invoke<{ ok: boolean }>('workoutSchedule:move', data),
+    swap:      (data: { idA: number; idB: number }) => invoke<{ ok: boolean }>('workoutSchedule:swap', data),
   },
 
   actualRecipes: {
@@ -128,12 +155,17 @@ export const api = {
 
   supplements: {
     getAll:       () => invoke<Supplement[]>('supplements:getAll'),
-    add:          (data: { name: string; qty: number; unit?: string; notes?: string }) => invoke<{ id: number }>('supplements:add', data),
-    update:       (data: { id: number; name: string; qty: number; unit?: string; notes?: string }) => invoke<{ ok: boolean }>('supplements:update', data),
-    delete:       (id: number) => invoke<{ ok: boolean }>('supplements:delete', { id }),
+    add:          (data: { name: string }) => invoke<{ id: number }>('supplements:add', data),
+    delete:       (id: number) => invoke<{ ok: boolean; reason?: string }>('supplements:delete', { id }),
     getDay:       (date: string) => invoke<SupplementDay[]>('supplements:getDay', { date }),
-    take:         (data: { supplement_id: number; date: string }) => invoke<{ ok: boolean }>('supplements:take', data),
+    take:         (data: { supplement_id: number; date: string }) => invoke<{ taken: number }>('supplements:take', data),
     getAdherence: (days: number) => invoke<SupplementAdherence[]>('supplements:getAdherence', { days }),
+  },
+
+  supplementPlan: {
+    getCurrent: () => invoke<SupplementPlanWithItems | null>('supplementPlan:getCurrent'),
+    save:       (data: { items: { supplement_id: number; qty: number; unit: string; notes: string }[] }) =>
+                  invoke<{ ok: boolean; plan_id?: number }>('supplementPlan:save', data),
   },
 
   settings: {
