@@ -67,9 +67,15 @@ function registerPantryIpc() {
   ipcMain.handle('pantry:addBatch', (_, { food_id, quantity_g, expiry_date, package_id, pantry_id }) => {
     const db = getDb();
     const pid = pantry_id ?? getDefaultPantryId(db);
+    // A batch with no package selected is loose/already open.
+    // A batch with a package but less than the full pack size is also already open.
+    const pkgGrams = package_id
+      ? db.prepare('SELECT grams FROM food_packages WHERE id = ?').get(package_id)?.grams ?? null
+      : null;
+    const isOpen = package_id === null || package_id === undefined || (pkgGrams !== null && quantity_g < pkgGrams);
     db.prepare(`
-      INSERT INTO pantry (food_id, quantity_g, expiry_date, package_id, starting_grams, pantry_id, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+      INSERT INTO pantry (food_id, quantity_g, expiry_date, package_id, starting_grams, opened_at, pantry_id, updated_at)
+      VALUES (?, ?, ?, ?, ?, ${isOpen ? "datetime('now')" : 'NULL'}, ?, datetime('now'))
     `).run(food_id, quantity_g, expiry_date || null, package_id ?? null, quantity_g, pid);
     const food = db.prepare('SELECT name FROM foods WHERE id = ?').get(food_id);
     logAction(db, 'pantry:add', { food_name: food?.name, grams: quantity_g, details: { expiry_date: expiry_date || null } });

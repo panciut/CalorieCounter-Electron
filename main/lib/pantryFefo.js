@@ -84,7 +84,12 @@ function deductFoodFEFO(db, food_id, grams_needed, pantry_id) {
   }
 
   // ── Residual check ────────────────────────────────────────────────────────
-  const limit = residualLimit(lastDrainedStarting ?? (sealedBatches[0]?.starting_grams || sealedBatches[0]?.quantity_g));
+  // Only prompt when at least one open batch was drained to zero (lastDrainedStarting set).
+  // If there were no open batches at all, skip straight to pass 2 — the user is just
+  // opening a sealed pack normally; there is nothing "residual" about it.
+  const limit = lastDrainedStarting !== null
+    ? residualLimit(lastDrainedStarting)
+    : 0;
   if (remaining <= limit) {
     events.push({
       kind: 'residual_or_new',

@@ -299,6 +299,7 @@ export interface Streak {
 export interface Supplement {
   id: number;
   name: string;
+  description?: string | null;
 }
 
 export interface SupplementPlan {

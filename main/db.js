@@ -284,6 +284,7 @@ function initDb() {
     "ALTER TABLE exercise_types ADD COLUMN is_custom INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE exercises ADD COLUMN schedule_id INTEGER",
     "ALTER TABLE supplements ADD COLUMN deleted_at TEXT",
+    "ALTER TABLE supplements ADD COLUMN description TEXT",
     `CREATE TABLE IF NOT EXISTS supplement_dosages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       supplement_id INTEGER NOT NULL,

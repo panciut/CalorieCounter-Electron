@@ -155,7 +155,8 @@ export const api = {
 
   supplements: {
     getAll:       () => invoke<Supplement[]>('supplements:getAll'),
-    add:          (data: { name: string }) => invoke<{ id: number }>('supplements:add', data),
+    add:          (data: { name: string; description?: string }) => invoke<{ id: number }>('supplements:add', data),
+    update:       (data: { id: number; name: string; description?: string }) => invoke<{ ok: boolean }>('supplements:update', data),
     delete:       (id: number) => invoke<{ ok: boolean; reason?: string }>('supplements:delete', { id }),
     getDay:       (date: string) => invoke<SupplementDay[]>('supplements:getDay', { date }),
     take:         (data: { supplement_id: number; date: string }) => invoke<{ taken: number }>('supplements:take', data),

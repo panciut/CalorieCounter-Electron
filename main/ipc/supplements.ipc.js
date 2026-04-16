@@ -25,12 +25,17 @@ function registerSupplementsIpc() {
   // ── Catalog ─────────────────────────────────────────────────────────────────
 
   ipcMain.handle('supplements:getAll', () =>
-    getDb().prepare('SELECT id, name FROM supplements ORDER BY name').all()
+    getDb().prepare('SELECT id, name, description FROM supplements ORDER BY name').all()
   );
 
-  ipcMain.handle('supplements:add', (_, { name }) => {
-    const result = getDb().prepare('INSERT INTO supplements (name) VALUES (?)').run(name);
+  ipcMain.handle('supplements:add', (_, { name, description }) => {
+    const result = getDb().prepare('INSERT INTO supplements (name, description) VALUES (?, ?)').run(name, description || null);
     return { id: result.lastInsertRowid };
+  });
+
+  ipcMain.handle('supplements:update', (_, { id, name, description }) => {
+    getDb().prepare('UPDATE supplements SET name = ?, description = ? WHERE id = ?').run(name, description || null, id);
+    return { ok: true };
   });
 
   ipcMain.handle('supplements:delete', (_, { id }) => {

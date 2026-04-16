@@ -146,6 +146,98 @@ function PlanEditor({ catalog, initialItems, onSave, onCancel, t }: PlanEditorPr
   );
 }
 
+// ── Supplement detail modal (module-level) ────────────────────────────────────
+interface SupplementDetailModalProps {
+  supplement: Supplement;
+  onSave: (id: number, name: string, description: string) => void;
+  onDelete: (s: Supplement) => void;
+  onClose: () => void;
+  t: ReturnType<typeof useT>['t'];
+}
+
+function SupplementDetailModal({ supplement, onSave, onDelete, onClose, t }: SupplementDetailModalProps) {
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(supplement.name);
+  const [editDesc, setEditDesc] = useState(supplement.description ?? '');
+
+  const inputCls = 'w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent';
+
+  function handleSave() {
+    if (!editName.trim()) return;
+    onSave(supplement.id, editName.trim(), editDesc.trim());
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-card rounded-2xl shadow-xl w-full max-w-md flex flex-col" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <h2 className="text-base font-semibold text-text">
+            {editing ? t('suppl.editSupplement') : supplement.name}
+          </h2>
+          <button onClick={onClose} className="text-text-sec hover:text-text cursor-pointer text-lg px-1">✕</button>
+        </div>
+
+        <div className="p-5 flex flex-col gap-4">
+          {editing ? (
+            <>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-text-sec uppercase tracking-wide">{t('suppl.name')}</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  autoFocus
+                  className={inputCls}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-text-sec uppercase tracking-wide">{t('suppl.description')}</label>
+                <textarea
+                  value={editDesc}
+                  onChange={e => setEditDesc(e.target.value)}
+                  rows={3}
+                  placeholder={t('suppl.descPlaceholder')}
+                  className={`${inputCls} resize-none`}
+                />
+              </div>
+              <div className="flex gap-2 justify-end pt-1">
+                <button
+                  onClick={() => { setEditing(false); setEditName(supplement.name); setEditDesc(supplement.description ?? ''); }}
+                  className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer"
+                >{t('common.cancel')}</button>
+                <button
+                  onClick={handleSave}
+                  disabled={!editName.trim()}
+                  className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer disabled:opacity-40"
+                >{t('common.save')}</button>
+              </div>
+            </>
+          ) : (
+            <>
+              {supplement.description ? (
+                <p className="text-sm text-text-sec leading-relaxed">{supplement.description}</p>
+              ) : (
+                <p className="text-sm text-text-sec/50 italic">{t('suppl.descPlaceholder')}</p>
+              )}
+              <div className="flex gap-2 justify-between pt-1">
+                <button
+                  onClick={() => onDelete(supplement)}
+                  className="px-3 py-2 rounded-xl text-sm text-red border border-red/30 hover:bg-red/10 cursor-pointer transition-colors"
+                >{t('common.delete')}</button>
+                <button
+                  onClick={() => setEditing(true)}
+                  className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer"
+                >{t('suppl.editSupplement')}</button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function SupplementsPage() {
   const { t } = useT();
@@ -158,7 +250,9 @@ export default function SupplementsPage() {
 
   // Catalog state
   const [newName, setNewName]           = useState('');
+  const [newDesc, setNewDesc]           = useState('');
   const [deleteTarget, setDeleteTarget] = useState<Supplement | null>(null);
+  const [detailTarget, setDetailTarget] = useState<Supplement | null>(null);
 
   async function loadCatalog() {
     setCatalog(await api.supplements.getAll());
@@ -176,9 +270,17 @@ export default function SupplementsPage() {
   async function handleAddCatalog() {
     const name = newName.trim();
     if (!name) return;
-    await api.supplements.add({ name });
+    await api.supplements.add({ name, description: newDesc.trim() || undefined });
     setNewName('');
+    setNewDesc('');
     showToast(t('common.saved'));
+    loadCatalog();
+  }
+
+  async function handleUpdateSupplement(id: number, name: string, description: string) {
+    await api.supplements.update({ id, name, description: description || undefined });
+    showToast(t('common.saved'));
+    setDetailTarget(null);
     loadCatalog();
   }
 
@@ -226,21 +328,30 @@ export default function SupplementsPage() {
         {/* ── CATALOG TAB ────────────────────────────────────────────────── */}
         {tab === 'catalog' && (
           <div className="flex flex-col gap-4">
-            {/* Add input */}
-            <div className="flex gap-2">
+            {/* Add form */}
+            <div className="flex flex-col gap-2 border border-border rounded-xl p-4 bg-card">
               <input
                 type="text"
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleAddCatalog()}
                 placeholder={t('suppl.namePlaceholder')}
-                className="flex-1 bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent"
+                className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent"
               />
-              <button
-                onClick={handleAddCatalog}
-                disabled={!newName.trim()}
-                className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 cursor-pointer disabled:opacity-40"
-              >{t('suppl.addTitle')}</button>
+              <textarea
+                value={newDesc}
+                onChange={e => setNewDesc(e.target.value)}
+                rows={2}
+                placeholder={t('suppl.descPlaceholder')}
+                className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent resize-none"
+              />
+              <div className="flex justify-end">
+                <button
+                  onClick={handleAddCatalog}
+                  disabled={!newName.trim()}
+                  className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 cursor-pointer disabled:opacity-40"
+                >{t('suppl.addTitle')}</button>
+              </div>
             </div>
 
             {/* List */}
@@ -249,12 +360,18 @@ export default function SupplementsPage() {
             ) : (
               <div className="flex flex-col divide-y divide-border/50">
                 {catalog.map(s => (
-                  <div key={s.id} className="py-2.5 flex items-center justify-between gap-3">
-                    <span className="text-sm text-text">{s.name}</span>
-                    <button
-                      onClick={() => setDeleteTarget(s)}
-                      className="text-text-sec hover:text-red cursor-pointer text-sm px-1.5 py-0.5 transition-colors"
-                    >✕</button>
+                  <div
+                    key={s.id}
+                    className="py-2.5 flex items-center justify-between gap-3 cursor-pointer hover:bg-card-hover rounded-lg px-2 -mx-2 transition-colors"
+                    onClick={() => setDetailTarget(s)}
+                  >
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <span className="text-sm text-text">{s.name}</span>
+                      {s.description && (
+                        <span className="text-xs text-text-sec truncate">{s.description}</span>
+                      )}
+                    </div>
+                    <span className="text-text-sec/50 text-sm shrink-0">›</span>
                   </div>
                 ))}
               </div>
@@ -338,6 +455,16 @@ export default function SupplementsPage() {
           dangerous
           onConfirm={confirmDelete}
           onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {detailTarget && !deleteTarget && (
+        <SupplementDetailModal
+          supplement={detailTarget}
+          onSave={handleUpdateSupplement}
+          onDelete={s => { setDetailTarget(null); setDeleteTarget(s); }}
+          onClose={() => setDetailTarget(null)}
+          t={t}
         />
       )}
     </div>
