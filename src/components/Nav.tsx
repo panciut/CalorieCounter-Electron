@@ -44,22 +44,22 @@ const ICONS: Record<PageName, string> = {
 interface NavItem { page: PageName; labelKey: string; }
 
 const DEFAULT_ORDER: NavItem[] = [
-  { page: 'dashboard',    labelKey: 'nav.today' },
+  { page: 'dashboard',     labelKey: 'nav.today' },
+  { page: 'foods',         labelKey: 'nav.foods' },
+  { page: 'pantry',        labelKey: 'nav.pantry' },
+  { page: 'recipes',       labelKey: 'nav.recipes' },
+  { page: 'week',          labelKey: 'nav.week' },
+  { page: 'history',       labelKey: 'nav.history' },
+  { page: 'supplements',   labelKey: 'nav.supplements' },
+  { page: 'net',           labelKey: 'nav.net' },
+  { page: 'exercise',      labelKey: 'nav.exercise' },
+  { page: 'measurements',  labelKey: 'nav.measurements' },
+  { page: 'compare',       labelKey: 'nav.compare' },
+  { page: 'weight',        labelKey: 'nav.body' },
+  { page: 'goals',         labelKey: 'nav.goals' },
   { page: 'notifications', labelKey: 'nav.notifications' },
-  { page: 'foods',        labelKey: 'nav.foods' },
-  { page: 'pantry',       labelKey: 'nav.pantry' },
-  { page: 'recipes',      labelKey: 'nav.recipes' },
-  { page: 'week',         labelKey: 'nav.week' },
-  { page: 'history',      labelKey: 'nav.history' },
-  { page: 'supplements',  labelKey: 'nav.supplements' },
-  { page: 'net',          labelKey: 'nav.net' },
-  { page: 'exercise',     labelKey: 'nav.exercise' },
-  { page: 'measurements', labelKey: 'nav.measurements' },
-  { page: 'compare',      labelKey: 'nav.compare' },
-  { page: 'weight',       labelKey: 'nav.body' },
-  { page: 'goals',        labelKey: 'nav.goals' },
-  { page: 'data',         labelKey: 'nav.data' },
-  { page: 'settings',     labelKey: 'nav.settings' },
+  { page: 'data',          labelKey: 'nav.data' },
+  { page: 'settings',      labelKey: 'nav.settings' },
 ];
 
 const STORAGE_KEY = 'nav_order';

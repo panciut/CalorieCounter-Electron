@@ -15,6 +15,7 @@ import type {
   NotificationType,
 } from '../types';
 
+type Tab = 'active' | 'history';
 type CategoryFilter = 'all' | 'pantry' | 'logging' | 'energy';
 type SeverityFilter = 'all' | NotificationSeverity;
 
@@ -34,14 +35,16 @@ export default function NotificationsPage() {
   const { t } = useT();
   const { navigate } = useNavigate();
   const { notifications, refresh, dismiss, snooze, dismissAll, undoDismiss } = useNotifications();
+  const [tab, setTab] = useState<Tab>('active');
   const [category, setCategory] = useState<CategoryFilter>('all');
   const [severity, setSeverity] = useState<SeverityFilter>('all');
-  const [recent, setRecent] = useState<DismissedNotification[]>([]);
-  const [recentOpen, setRecentOpen] = useState(false);
+  const [history, setHistory] = useState<DismissedNotification[]>([]);
 
   useEffect(() => {
-    api.notifications.recentDismissed(20).then(setRecent);
-  }, [notifications]);
+    if (tab === 'history') {
+      api.notifications.recentDismissed(100).then(setHistory);
+    }
+  }, [tab, notifications]);
 
   const filtered = useMemo(() => {
     const sorted = sortNotifications(notifications);
@@ -84,144 +87,172 @@ export default function NotificationsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold text-text">{t('notifications.title')}</h1>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={refresh}
-              className="text-xs px-3 py-1.5 rounded border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors"
-            >
-              {t('notifications.refresh')}
-            </button>
-            {filtered.length > 0 && (
+          {tab === 'active' && (
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={handleDismissAllVisible}
-                className="text-xs px-3 py-1.5 rounded border border-border text-text-sec hover:border-red hover:text-red cursor-pointer transition-colors"
+                onClick={refresh}
+                className="text-xs px-3 py-1.5 rounded border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors"
               >
-                {t('notifications.dismissAllVisible')}
+                {t('notifications.refresh')}
               </button>
-            )}
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-col gap-2 mb-4">
-          <div className="flex flex-wrap gap-1.5">
-            {CATEGORIES.map(c => (
-              <button
-                key={c.key}
-                type="button"
-                onClick={() => setCategory(c.key)}
-                className={[
-                  'text-xs px-3 py-1 rounded-full border cursor-pointer transition-colors',
-                  category === c.key
-                    ? 'border-accent bg-accent/10 text-accent'
-                    : 'border-border text-text-sec hover:border-accent/50',
-                ].join(' ')}
-              >
-                {c.label}
-              </button>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {SEVERITIES.map(s => (
-              <button
-                key={s.key}
-                type="button"
-                onClick={() => setSeverity(s.key)}
-                className={[
-                  'text-xs px-3 py-1 rounded-full border cursor-pointer transition-colors',
-                  severity === s.key
-                    ? 'border-accent bg-accent/10 text-accent'
-                    : 'border-border text-text-sec hover:border-accent/50',
-                ].join(' ')}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* List */}
-        {filtered.length === 0 ? (
-          <div className="bg-card border border-border rounded-lg p-8 text-center text-text-sec">
-            {t('notifications.empty')}
-          </div>
-        ) : (
-          <div className="bg-card border border-border rounded-lg overflow-hidden">
-            {filtered.map(n => (
-              <div
-                key={n.key}
-                className="flex items-start gap-3 px-4 py-3 border-b border-border last:border-b-0 hover:bg-card-hover transition-colors"
-              >
-                <div className={`mt-2 w-2.5 h-2.5 rounded-full shrink-0 ${SEVERITY_DOT[n.severity]}`} />
+              {filtered.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => handleRowClick(n)}
-                  className="flex-1 text-left cursor-pointer min-w-0"
+                  onClick={handleDismissAllVisible}
+                  className="text-xs px-3 py-1.5 rounded border border-border text-text-sec hover:border-red hover:text-red cursor-pointer transition-colors"
                 >
-                  <div className="text-sm font-medium text-text">{renderNotificationTitle(n, t)}</div>
-                  {renderNotificationBody(n, t) && (
-                    <div className="text-xs text-text-sec mt-0.5">{renderNotificationBody(n, t)}</div>
-                  )}
+                  {t('notifications.dismissAllVisible')}
                 </button>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => snooze(n.key, 1)}
-                    title={t('notifications.snooze1d')}
-                    className="text-xs px-2 py-1 rounded border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors"
-                  >
-                    {t('notifications.snooze1d')}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => dismiss(n.key)}
-                    title={t('notifications.dismiss')}
-                    className="text-text-sec hover:text-red cursor-pointer text-sm px-2"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+              )}
+            </div>
+          )}
+        </div>
 
-        {/* Recently dismissed */}
-        {recent.length > 0 && (
-          <div className="mt-6">
+        {/* Tabs */}
+        <div className="flex gap-1 border-b border-border mb-4">
+          {(['active', 'history'] as Tab[]).map(v => (
             <button
+              key={v}
               type="button"
-              onClick={() => setRecentOpen(v => !v)}
-              className="text-sm text-text-sec hover:text-text cursor-pointer flex items-center gap-1"
+              onClick={() => setTab(v)}
+              className={[
+                'px-5 py-2.5 text-sm font-medium transition-colors cursor-pointer border-b-2 -mb-px',
+                tab === v ? 'border-accent text-accent' : 'border-transparent text-text-sec hover:text-text',
+              ].join(' ')}
             >
-              <span>{recentOpen ? '▾' : '▸'}</span>
-              {t('notifications.recentlyDismissed')} ({recent.length})
+              {v === 'active' ? t('notifications.tabActive') : t('notifications.tabHistory')}
             </button>
-            {recentOpen && (
-              <div className="mt-2 bg-card border border-border rounded-lg overflow-hidden">
-                {recent.map(r => (
-                  <div
-                    key={r.key}
-                    className="flex items-center gap-2 px-4 py-2 border-b border-border last:border-b-0"
+          ))}
+        </div>
+
+        {/* ── ACTIVE TAB ──────────────────────────────────────────── */}
+        {tab === 'active' && (
+          <>
+            {/* Filters */}
+            <div className="flex flex-col gap-2 mb-4">
+              <div className="flex flex-wrap gap-1.5">
+                {CATEGORIES.map(c => (
+                  <button
+                    key={c.key}
+                    type="button"
+                    onClick={() => setCategory(c.key)}
+                    className={[
+                      'text-xs px-3 py-1 rounded-full border cursor-pointer transition-colors',
+                      category === c.key
+                        ? 'border-accent bg-accent/10 text-accent'
+                        : 'border-border text-text-sec hover:border-accent/50',
+                    ].join(' ')}
                   >
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs text-text-sec truncate font-mono">{r.key}</div>
-                      <div className="text-[10px] text-text-sec/70">{r.dismissed_at}</div>
-                    </div>
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {SEVERITIES.map(s => (
+                  <button
+                    key={s.key}
+                    type="button"
+                    onClick={() => setSeverity(s.key)}
+                    className={[
+                      'text-xs px-3 py-1 rounded-full border cursor-pointer transition-colors',
+                      severity === s.key
+                        ? 'border-accent bg-accent/10 text-accent'
+                        : 'border-border text-text-sec hover:border-accent/50',
+                    ].join(' ')}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* List */}
+            {filtered.length === 0 ? (
+              <div className="bg-card border border-border rounded-lg p-8 text-center text-text-sec">
+                {t('notifications.empty')}
+              </div>
+            ) : (
+              <div className="bg-card border border-border rounded-lg overflow-hidden">
+                {filtered.map(n => (
+                  <div
+                    key={n.key}
+                    className="flex items-start gap-3 px-4 py-3 border-b border-border last:border-b-0 hover:bg-card-hover transition-colors"
+                  >
+                    <div className={`mt-2 w-2.5 h-2.5 rounded-full shrink-0 ${SEVERITY_DOT[n.severity]}`} />
                     <button
                       type="button"
-                      onClick={() => handleUndo(r.key)}
-                      className="text-xs px-2 py-1 rounded border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors"
+                      onClick={() => handleRowClick(n)}
+                      className="flex-1 text-left cursor-pointer min-w-0"
                     >
-                      {t('notifications.undo')}
+                      <div className="text-sm font-medium text-text">{renderNotificationTitle(n, t)}</div>
+                      {renderNotificationBody(n, t) && (
+                        <div className="text-xs text-text-sec mt-0.5">{renderNotificationBody(n, t)}</div>
+                      )}
                     </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => snooze(n.key, 1)}
+                        title={t('notifications.snooze1d')}
+                        className="text-xs px-2 py-1 rounded border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors"
+                      >
+                        {t('notifications.snooze1d')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => dismiss(n.key)}
+                        title={t('notifications.dismiss')}
+                        className="text-text-sec hover:text-red cursor-pointer text-sm px-2"
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
             )}
-          </div>
+          </>
+        )}
+
+        {/* ── HISTORY TAB ─────────────────────────────────────────── */}
+        {tab === 'history' && (
+          history.length === 0 ? (
+            <div className="bg-card border border-border rounded-lg p-8 text-center text-text-sec">
+              {t('notifications.noHistory')}
+            </div>
+          ) : (
+            <div className="bg-card border border-border rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border text-text-sec text-xs text-left">
+                    <th className="px-4 py-2.5 font-medium">{t('notifications.historyKey')}</th>
+                    <th className="px-4 py-2.5 font-medium">{t('notifications.historyDismissedAt')}</th>
+                    <th className="px-4 py-2.5 font-medium">{t('notifications.historyExpires')}</th>
+                    <th className="px-4 py-2.5 font-medium w-20"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {history.map(r => (
+                    <tr key={r.key} className="border-b border-border last:border-b-0 hover:bg-card-hover transition-colors">
+                      <td className="px-4 py-2.5 text-text truncate max-w-[280px]">{r.key}</td>
+                      <td className="px-4 py-2.5 text-text-sec tabular-nums">{r.dismissed_at}</td>
+                      <td className="px-4 py-2.5 text-text-sec tabular-nums">{r.expires_at ?? '—'}</td>
+                      <td className="px-4 py-2.5">
+                        <button
+                          type="button"
+                          onClick={() => handleUndo(r.key)}
+                          className="text-xs px-2 py-1 rounded border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors"
+                        >
+                          {t('notifications.undo')}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
         )}
       </div>
     </div>
