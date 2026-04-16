@@ -13,8 +13,14 @@ function isPantryEnabled(db) {
   return row ? Number(row.value) === 1 : true;
 }
 
+function getDefaultPantryId(db) {
+  const row = db.prepare('SELECT id FROM pantries WHERE is_default = 1').get();
+  return row?.id ?? 1;
+}
+
 /**
- * Deduct `grams_needed` from the food's pantry batches using FEFO order.
+ * Deduct `grams_needed` from the food's pantry batches using FEFO order,
+ * scoped to a specific pantry location.
  *
  * Strategy:
  *   Pass 1 — drain already-open batches first (opened_at IS NOT NULL).
@@ -26,7 +32,8 @@ function isPantryEnabled(db) {
  * Returns { requested, deducted, shortage, events }
  *   events: DeductionEvent[] — empty array when pantry is empty/no batches.
  */
-function deductFoodFEFO(db, food_id, grams_needed) {
+function deductFoodFEFO(db, food_id, grams_needed, pantry_id) {
+  const pid = pantry_id ?? getDefaultPantryId(db);
   const food = db.prepare(
     'SELECT name, opened_days, discard_threshold_pct FROM foods WHERE id = ?'
   ).get(food_id);
@@ -38,11 +45,11 @@ function deductFoodFEFO(db, food_id, grams_needed) {
   const allBatches = db.prepare(`
     SELECT id, quantity_g, expiry_date, opened_at, opened_days, starting_grams
     FROM pantry
-    WHERE food_id = ?
+    WHERE food_id = ? AND pantry_id = ?
     ORDER BY
       CASE WHEN expiry_date IS NULL THEN '9999-99-99' ELSE expiry_date END ASC,
       id ASC
-  `).all(food_id);
+  `).all(food_id, pid);
 
   const openBatches   = allBatches.filter(b => b.opened_at !== null);
   const sealedBatches = allBatches.filter(b => b.opened_at === null);
@@ -62,12 +69,12 @@ function deductFoodFEFO(db, food_id, grams_needed) {
     if (newQty <= 0) {
       db.prepare('DELETE FROM pantry WHERE id = ?').run(batch.id);
       lastDrainedStarting = sg;
-      events.push({ kind: 'finished', batch_id: batch.id, food_id, food_name: foodName });
+      events.push({ kind: 'finished', batch_id: batch.id, food_id, food_name: foodName, pantry_id: pid });
     } else {
       db.prepare("UPDATE pantry SET quantity_g = ?, updated_at = datetime('now') WHERE id = ?")
         .run(newQty, batch.id);
       if (newQty / sg <= thresholdPct / 100) {
-        events.push({ kind: 'near_empty', batch_id: batch.id, food_id, food_name: foodName, remaining_g: newQty, starting_g: sg });
+        events.push({ kind: 'near_empty', batch_id: batch.id, food_id, food_name: foodName, remaining_g: newQty, starting_g: sg, pantry_id: pid });
       }
     }
   }
@@ -85,8 +92,8 @@ function deductFoodFEFO(db, food_id, grams_needed) {
       food_name: foodName,
       overflow_g: remaining,
       next_batch_id: sealedBatches[0]?.id ?? null,
+      pantry_id: pid,
     });
-    // Treat as deducted (the caller absorbs or resolves the discrepancy)
     return { requested: grams_needed, deducted: grams_needed, shortage: 0, events };
   }
 
@@ -101,7 +108,7 @@ function deductFoodFEFO(db, food_id, grams_needed) {
     if (newQty <= 0) {
       db.prepare('DELETE FROM pantry WHERE id = ?').run(batch.id);
       lastDrainedStarting = sg;
-      events.push({ kind: 'finished', batch_id: batch.id, food_id, food_name: foodName });
+      events.push({ kind: 'finished', batch_id: batch.id, food_id, food_name: foodName, pantry_id: pid });
     } else {
       db.prepare(`
         UPDATE pantry
@@ -117,9 +124,9 @@ function deductFoodFEFO(db, food_id, grams_needed) {
       `).run(newQty, defaultDays, defaultDays, defaultDays, batch.id);
       const afterRow = db.prepare('SELECT expiry_date FROM pantry WHERE id = ?').get(batch.id);
       console.log(`[FEFO pass2] batch ${batch.id}: qty ${batch.quantity_g}→${newQty}, expiry ${batch.expiry_date}→${afterRow?.expiry_date}, defaultDays=${defaultDays}`);
-      events.push({ kind: 'opened', batch_id: batch.id, food_id, food_name: foodName, default_days: defaultDays });
+      events.push({ kind: 'opened', batch_id: batch.id, food_id, food_name: foodName, default_days: defaultDays, pantry_id: pid });
       if (newQty / sg <= thresholdPct / 100) {
-        events.push({ kind: 'near_empty', batch_id: batch.id, food_id, food_name: foodName, remaining_g: newQty, starting_g: sg });
+        events.push({ kind: 'near_empty', batch_id: batch.id, food_id, food_name: foodName, remaining_g: newQty, starting_g: sg, pantry_id: pid });
       }
     }
   }
@@ -131,8 +138,9 @@ function deductFoodFEFO(db, food_id, grams_needed) {
  * Check how much of food_id is in stock vs grams needed — does NOT mutate.
  * Returns { have_g, shortage }.
  */
-function checkStock(db, food_id, grams) {
-  const row = db.prepare('SELECT COALESCE(SUM(quantity_g), 0) AS total FROM pantry WHERE food_id = ?').get(food_id);
+function checkStock(db, food_id, grams, pantry_id) {
+  const pid = pantry_id ?? getDefaultPantryId(db);
+  const row = db.prepare('SELECT COALESCE(SUM(quantity_g), 0) AS total FROM pantry WHERE food_id = ? AND pantry_id = ?').get(food_id, pid);
   const have_g = row ? row.total : 0;
   const shortage = Math.max(0, grams - have_g);
   return { have_g, shortage };
@@ -142,7 +150,8 @@ function checkStock(db, food_id, grams) {
  * Perform a follow-up deduction into sealed batches only (used by pantry:resolveResidual).
  * Same event emission as pass 2 above.
  */
-function deductSealedFEFO(db, food_id, grams_needed) {
+function deductSealedFEFO(db, food_id, grams_needed, pantry_id) {
+  const pid = pantry_id ?? getDefaultPantryId(db);
   const food = db.prepare(
     'SELECT name, opened_days, discard_threshold_pct FROM foods WHERE id = ?'
   ).get(food_id);
@@ -153,11 +162,11 @@ function deductSealedFEFO(db, food_id, grams_needed) {
   const sealedBatches = db.prepare(`
     SELECT id, quantity_g, expiry_date, starting_grams
     FROM pantry
-    WHERE food_id = ? AND opened_at IS NULL
+    WHERE food_id = ? AND opened_at IS NULL AND pantry_id = ?
     ORDER BY
       CASE WHEN expiry_date IS NULL THEN '9999-99-99' ELSE expiry_date END ASC,
       id ASC
-  `).all(food_id);
+  `).all(food_id, pid);
 
   const events = [];
   let remaining = grams_needed;
@@ -171,7 +180,7 @@ function deductSealedFEFO(db, food_id, grams_needed) {
 
     if (newQty <= 0) {
       db.prepare('DELETE FROM pantry WHERE id = ?').run(batch.id);
-      events.push({ kind: 'finished', batch_id: batch.id, food_id, food_name: foodName });
+      events.push({ kind: 'finished', batch_id: batch.id, food_id, food_name: foodName, pantry_id: pid });
     } else {
       db.prepare(`
         UPDATE pantry
@@ -185,9 +194,9 @@ function deductSealedFEFO(db, food_id, grams_needed) {
             updated_at = datetime('now')
         WHERE id = ?
       `).run(newQty, defaultDays, defaultDays, defaultDays, batch.id);
-      events.push({ kind: 'opened', batch_id: batch.id, food_id, food_name: foodName, default_days: defaultDays });
+      events.push({ kind: 'opened', batch_id: batch.id, food_id, food_name: foodName, default_days: defaultDays, pantry_id: pid });
       if (newQty / sg <= thresholdPct / 100) {
-        events.push({ kind: 'near_empty', batch_id: batch.id, food_id, food_name: foodName, remaining_g: newQty, starting_g: sg });
+        events.push({ kind: 'near_empty', batch_id: batch.id, food_id, food_name: foodName, remaining_g: newQty, starting_g: sg, pantry_id: pid });
       }
     }
   }
@@ -195,4 +204,4 @@ function deductSealedFEFO(db, food_id, grams_needed) {
   return { requested: grams_needed, deducted: grams_needed - remaining, shortage: remaining, events };
 }
 
-module.exports = { isPantryEnabled, deductFoodFEFO, deductSealedFEFO, checkStock };
+module.exports = { isPantryEnabled, getDefaultPantryId, deductFoodFEFO, deductSealedFEFO, checkStock };

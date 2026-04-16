@@ -36,7 +36,8 @@ function registerExportIpc() {
     if (result.canceled || !result.filePath) return { ok: false };
 
     if (format === 'json') {
-      const data = { foods, log, weight_log: weightLog, water_log: waterLog, exercises, daily_notes: notes, supplements, supplement_plans: supplementPlans, supplement_plan_items: supplementPlanItems };
+      const pantries = db.prepare('SELECT * FROM pantries ORDER BY is_default DESC, name').all();
+      const data = { foods, log, weight_log: weightLog, water_log: waterLog, exercises, daily_notes: notes, supplements, supplement_plans: supplementPlans, supplement_plan_items: supplementPlanItems, pantries };
       fs.writeFileSync(result.filePath, JSON.stringify(data, null, 2), 'utf-8');
     } else {
       let csv = '';

@@ -47,7 +47,7 @@ function registerLogIpc() {
     `).all(d);
   });
 
-  ipcMain.handle('log:confirmPlanned', (_, { id }) => {
+  ipcMain.handle('log:confirmPlanned', (_, { id, pantry_id }) => {
     const db = getDb();
     return db.transaction(() => {
       const row = db.prepare(`
@@ -67,7 +67,7 @@ function registerLogIpc() {
       let shortage = 0;
       let events = [];
       if (isPantryEnabled(db)) {
-        const r = deductFoodFEFO(db, row.food_id, row.grams);
+        const r = deductFoodFEFO(db, row.food_id, row.grams, pantry_id);
         shortage = r.shortage;
         events = r.events;
       }
@@ -75,7 +75,7 @@ function registerLogIpc() {
     })();
   });
 
-  ipcMain.handle('log:confirmAllPlanned', (_, { date }) => {
+  ipcMain.handle('log:confirmAllPlanned', (_, { date, pantry_id }) => {
     const d = date || today();
     const db = getDb();
     return db.transaction(() => {
@@ -94,7 +94,7 @@ function registerLogIpc() {
           insertWater.run(r.date, r.grams, r.food_name, r.id);
         }
         if (isPantryEnabled(db)) {
-          const res = deductFoodFEFO(db, r.food_id, r.grams);
+          const res = deductFoodFEFO(db, r.food_id, r.grams, pantry_id);
           if (res.shortage > 0) shortages.push({ food_name: r.food_name, shortage: Math.round(res.shortage * 10) / 10 });
           allEvents.push(...res.events);
         }
@@ -103,7 +103,7 @@ function registerLogIpc() {
     })();
   });
 
-  ipcMain.handle('log:add', (_, { food_id, grams, meal, date, status }) => {
+  ipcMain.handle('log:add', (_, { food_id, grams, meal, date, status, pantry_id }) => {
     const db = getDb();
     const d = date || today();
     const s = status || 'logged';
@@ -120,7 +120,7 @@ function registerLogIpc() {
           db.prepare('INSERT INTO water_log (date, ml, source, log_id) VALUES (?, ?, ?, ?)').run(d, grams, food.name, logId);
         }
         if (isPantryEnabled(db)) {
-          const r = deductFoodFEFO(db, food_id, grams);
+          const r = deductFoodFEFO(db, food_id, grams, pantry_id);
           shortage = r.shortage;
           shortage_food = food ? food.name : null;
           events = r.events;

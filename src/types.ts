@@ -375,6 +375,12 @@ export interface WeekDayDetail {
   planned_fiber: number;
 }
 
+export interface PantryLocation {
+  id: number;
+  name: string;
+  is_default: number; // 0 or 1
+}
+
 export interface PantryItem {
   id: number;
   food_id: number;
@@ -388,13 +394,14 @@ export interface PantryItem {
   opened_at: string | null;
   opened_days: number | null;
   starting_grams: number | null;
+  pantry_id: number;
 }
 
 export type DeductionEvent =
-  | { kind: 'opened'; batch_id: number; food_id: number; food_name: string; default_days: number | null }
-  | { kind: 'residual_or_new'; food_id: number; food_name: string; overflow_g: number; next_batch_id: number | null }
-  | { kind: 'near_empty'; batch_id: number; food_id: number; food_name: string; remaining_g: number; starting_g: number }
-  | { kind: 'finished'; batch_id: number; food_id: number; food_name: string };
+  | { kind: 'opened'; batch_id: number; food_id: number; food_name: string; default_days: number | null; pantry_id?: number }
+  | { kind: 'residual_or_new'; food_id: number; food_name: string; overflow_g: number; next_batch_id: number | null; pantry_id?: number }
+  | { kind: 'near_empty'; batch_id: number; food_id: number; food_name: string; remaining_g: number; starting_g: number; pantry_id?: number }
+  | { kind: 'finished'; batch_id: number; food_id: number; food_name: string; pantry_id?: number };
 
 export interface PantryAggregate {
   food_id: number;
@@ -419,6 +426,7 @@ export interface ShoppingItem {
   food_name: string;
   quantity_g: number;
   checked: number; // 0 or 1
+  pantry_id: number;
 }
 
 export interface DailyEnergy {

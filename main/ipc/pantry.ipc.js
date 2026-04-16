@@ -1,37 +1,81 @@
 const { ipcMain } = require('electron');
 const { getDb } = require('../db');
-const { isPantryEnabled, deductFoodFEFO, deductSealedFEFO, checkStock } = require('../lib/pantryFefo');
+const { isPantryEnabled, getDefaultPantryId, deductFoodFEFO, deductSealedFEFO, checkStock } = require('../lib/pantryFefo');
 const { logAction } = require('../lib/actionLog');
 
 function registerPantryIpc() {
-  // Return all batches (one row per batch), sorted: earliest expiry first, null expiry last, then food name.
-  // Client aggregates into PantryAggregate.
-  ipcMain.handle('pantry:getAll', () =>
-    getDb().prepare(`
+
+  // ── Pantry location CRUD ─────────────────────────────────────────────────────
+
+  ipcMain.handle('pantries:getAll', () =>
+    getDb().prepare('SELECT * FROM pantries ORDER BY is_default DESC, name').all()
+  );
+
+  ipcMain.handle('pantries:create', (_, { name }) => {
+    const db = getDb();
+    const count = db.prepare('SELECT COUNT(*) AS n FROM pantries').get().n;
+    const isDefault = count === 0 ? 1 : 0;
+    const result = db.prepare('INSERT INTO pantries (name, is_default) VALUES (?, ?)').run(name, isDefault);
+    return { id: result.lastInsertRowid };
+  });
+
+  ipcMain.handle('pantries:rename', (_, { id, name }) => {
+    getDb().prepare('UPDATE pantries SET name = ? WHERE id = ?').run(name, id);
+    return { ok: true };
+  });
+
+  ipcMain.handle('pantries:delete', (_, { id }) => {
+    const db = getDb();
+    const pantry = db.prepare('SELECT is_default FROM pantries WHERE id = ?').get(id);
+    if (!pantry) return { ok: false, reason: 'not_found' };
+    if (pantry.is_default) return { ok: false, reason: 'is_default' };
+    db.transaction(() => {
+      db.prepare('DELETE FROM pantry WHERE pantry_id = ?').run(id);
+      db.prepare('DELETE FROM shopping_list WHERE pantry_id = ?').run(id);
+      db.prepare('DELETE FROM pantries WHERE id = ?').run(id);
+    })();
+    return { ok: true };
+  });
+
+  ipcMain.handle('pantries:setDefault', (_, { id }) => {
+    const db = getDb();
+    db.transaction(() => {
+      db.prepare('UPDATE pantries SET is_default = 0').run();
+      db.prepare('UPDATE pantries SET is_default = 1 WHERE id = ?').run(id);
+    })();
+    return { ok: true };
+  });
+
+  // ── Pantry batches ──────────────────────────────────────────────────────────
+
+  ipcMain.handle('pantry:getAll', (_, { pantry_id } = {}) => {
+    const db = getDb();
+    const pid = pantry_id ?? getDefaultPantryId(db);
+    return db.prepare(`
       SELECT p.id, p.food_id, f.name AS food_name, f.piece_grams,
              p.quantity_g, p.expiry_date, p.updated_at,
              p.package_id, fp.grams AS package_grams,
-             p.opened_at, p.opened_days, p.starting_grams
+             p.opened_at, p.opened_days, p.starting_grams, p.pantry_id
       FROM pantry p
       JOIN foods f ON f.id = p.food_id
       LEFT JOIN food_packages fp ON fp.id = p.package_id
+      WHERE p.pantry_id = ?
       ORDER BY CASE WHEN p.expiry_date IS NULL THEN '9999-99-99' ELSE p.expiry_date END ASC, f.name ASC
-    `).all()
-  );
+    `).all(pid);
+  });
 
-  // Add a new batch (no UNIQUE conflict — always inserts)
-  ipcMain.handle('pantry:addBatch', (_, { food_id, quantity_g, expiry_date, package_id }) => {
+  ipcMain.handle('pantry:addBatch', (_, { food_id, quantity_g, expiry_date, package_id, pantry_id }) => {
     const db = getDb();
+    const pid = pantry_id ?? getDefaultPantryId(db);
     db.prepare(`
-      INSERT INTO pantry (food_id, quantity_g, expiry_date, package_id, starting_grams, updated_at)
-      VALUES (?, ?, ?, ?, ?, datetime('now'))
-    `).run(food_id, quantity_g, expiry_date || null, package_id ?? null, quantity_g);
+      INSERT INTO pantry (food_id, quantity_g, expiry_date, package_id, starting_grams, pantry_id, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+    `).run(food_id, quantity_g, expiry_date || null, package_id ?? null, quantity_g, pid);
     const food = db.prepare('SELECT name FROM foods WHERE id = ?').get(food_id);
     logAction(db, 'pantry:add', { food_name: food?.name, grams: quantity_g, details: { expiry_date: expiry_date || null } });
     return { ok: true };
   });
 
-  // Set exact quantity + expiry + package for a specific batch (by batch id)
   ipcMain.handle('pantry:set', (_, { id, quantity_g, expiry_date, package_id }) => {
     getDb().prepare(`
       UPDATE pantry SET quantity_g = ?, expiry_date = ?, package_id = ?, updated_at = datetime('now') WHERE id = ?
@@ -39,7 +83,6 @@ function registerPantryIpc() {
     return { ok: true };
   });
 
-  // Delete a single batch (used for both "remove" and "discard")
   ipcMain.handle('pantry:delete', (_, { id }) => {
     const db = getDb();
     const row = db.prepare('SELECT p.quantity_g, f.name AS food_name FROM pantry p JOIN foods f ON f.id = p.food_id WHERE p.id = ?').get(id);
@@ -48,26 +91,31 @@ function registerPantryIpc() {
     return { ok: true };
   });
 
-  // Check stock for a food without mutating (for plan-time shortage warning)
-  ipcMain.handle('pantry:checkStock', (_, { food_id, grams }) => {
+  ipcMain.handle('pantry:checkStock', (_, { food_id, grams, pantry_id }) => {
     const db = getDb();
     if (!isPantryEnabled(db)) return { have_g: 0, shortage: 0 };
-    return checkStock(db, food_id, grams);
+    return checkStock(db, food_id, grams, pantry_id);
   });
 
-  // Shopping list (unchanged)
-  ipcMain.handle('shopping:getAll', () =>
-    getDb().prepare(`
-      SELECT s.id, s.food_id, f.name as food_name, s.quantity_g, s.checked
-      FROM shopping_list s JOIN foods f ON f.id = s.food_id
-      ORDER BY s.checked, f.name
-    `).all()
-  );
+  // ── Shopping list ────────────────────────────────────────────────────────────
 
-  ipcMain.handle('shopping:add', (_, { food_id, quantity_g }) => {
-    const { lastInsertRowid } = getDb().prepare(
-      'INSERT INTO shopping_list (food_id, quantity_g) VALUES (?, ?)'
-    ).run(food_id, quantity_g || 0);
+  ipcMain.handle('shopping:getAll', (_, { pantry_id } = {}) => {
+    const db = getDb();
+    const pid = pantry_id ?? getDefaultPantryId(db);
+    return db.prepare(`
+      SELECT s.id, s.food_id, f.name as food_name, s.quantity_g, s.checked, s.pantry_id
+      FROM shopping_list s JOIN foods f ON f.id = s.food_id
+      WHERE s.pantry_id = ?
+      ORDER BY s.checked, f.name
+    `).all(pid);
+  });
+
+  ipcMain.handle('shopping:add', (_, { food_id, quantity_g, pantry_id }) => {
+    const db = getDb();
+    const pid = pantry_id ?? getDefaultPantryId(db);
+    const { lastInsertRowid } = db.prepare(
+      'INSERT INTO shopping_list (food_id, quantity_g, pantry_id) VALUES (?, ?, ?)'
+    ).run(food_id, quantity_g || 0, pid);
     return { id: lastInsertRowid };
   });
 
@@ -81,37 +129,41 @@ function registerPantryIpc() {
     return { ok: true };
   });
 
-  ipcMain.handle('shopping:clearChecked', () => {
-    getDb().prepare('DELETE FROM shopping_list WHERE checked = 1').run();
+  ipcMain.handle('shopping:clearChecked', (_, { pantry_id } = {}) => {
+    const db = getDb();
+    const pid = pantry_id ?? getDefaultPantryId(db);
+    db.prepare('DELETE FROM shopping_list WHERE checked = 1 AND pantry_id = ?').run(pid);
     return { ok: true };
   });
 
-  // canMake: sum batches per food_id before comparing to recipe requirement
-  ipcMain.handle('pantry:canMake', (_, { recipe_id, recipe_type }) => {
+  // ── canMake / canMakeAll ─────────────────────────────────────────────────────
+
+  ipcMain.handle('pantry:canMake', (_, { recipe_id, recipe_type, pantry_id }) => {
     const db = getDb();
+    const pid = pantry_id ?? getDefaultPantryId(db);
     const table = recipe_type === 'bundle' ? 'recipe_ingredients' : 'actual_recipe_ingredients';
     const ingredients = db.prepare(`
       SELECT ri.food_id, f.name as food_name, ri.grams as need_g,
-             COALESCE((SELECT SUM(p.quantity_g) FROM pantry p WHERE p.food_id = ri.food_id), 0) as have_g
+             COALESCE((SELECT SUM(p.quantity_g) FROM pantry p WHERE p.food_id = ri.food_id AND p.pantry_id = ?), 0) as have_g
       FROM ${table} ri
       JOIN foods f ON f.id = ri.food_id
       WHERE ri.recipe_id = ?
-    `).all(recipe_id);
+    `).all(pid, recipe_id);
     const missing = ingredients.filter(i => i.have_g < i.need_g);
     return { recipe_id, can_make: missing.length === 0, ingredients, missing };
   });
 
-  // canMakeAll: bulk check
-  ipcMain.handle('pantry:canMakeAll', (_, { recipe_type }) => {
+  ipcMain.handle('pantry:canMakeAll', (_, { recipe_type, pantry_id }) => {
     const db = getDb();
+    const pid = pantry_id ?? getDefaultPantryId(db);
     const table = recipe_type === 'bundle' ? 'recipe_ingredients' : 'actual_recipe_ingredients';
     const recipeTable = recipe_type === 'bundle' ? 'recipes' : 'actual_recipes';
     const rows = db.prepare(`
       SELECT ri.recipe_id,
-             SUM(CASE WHEN COALESCE((SELECT SUM(p.quantity_g) FROM pantry p WHERE p.food_id = ri.food_id), 0) < ri.grams THEN 1 ELSE 0 END) as missing_count
+             SUM(CASE WHEN COALESCE((SELECT SUM(p.quantity_g) FROM pantry p WHERE p.food_id = ri.food_id AND p.pantry_id = ?), 0) < ri.grams THEN 1 ELSE 0 END) as missing_count
       FROM ${table} ri
       GROUP BY ri.recipe_id
-    `).all();
+    `).all(pid);
     const map = {};
     for (const r of rows) map[r.recipe_id] = r.missing_count;
     const allIds = db.prepare(`SELECT id FROM ${recipeTable}`).all().map(r => r.id);
@@ -122,10 +174,12 @@ function registerPantryIpc() {
     }));
   });
 
-  // Deduct recipe ingredients using FEFO. Returns shortages per ingredient.
-  ipcMain.handle('pantry:deductRecipe', (_, { recipe_id, scale = 1, recipe_type = 'actual' }) => {
+  // ── Recipe deduction ─────────────────────────────────────────────────────────
+
+  ipcMain.handle('pantry:deductRecipe', (_, { recipe_id, scale = 1, recipe_type = 'actual', pantry_id }) => {
     const db = getDb();
     if (!isPantryEnabled(db)) return { ok: true, shortages: [] };
+    const pid = pantry_id ?? getDefaultPantryId(db);
     const table = recipe_type === 'bundle' ? 'recipe_ingredients' : 'actual_recipe_ingredients';
     const ingredients = db.prepare(`
       SELECT ri.food_id, f.name as food_name, ri.grams FROM ${table} ri
@@ -137,7 +191,7 @@ function registerPantryIpc() {
     const allEvents = [];
     db.transaction(() => {
       for (const ing of ingredients) {
-        const result = deductFoodFEFO(db, ing.food_id, ing.grams * scale);
+        const result = deductFoodFEFO(db, ing.food_id, ing.grams * scale, pid);
         if (result.shortage > 0) {
           shortages.push({ food_name: ing.food_name, shortage: Math.round(result.shortage * 10) / 10 });
         }
@@ -147,7 +201,8 @@ function registerPantryIpc() {
     return { ok: true, shortages, events: allEvents };
   });
 
-  // Set opened_days on a specific batch (called after the user confirms in the opened-pack modal)
+  // ── Batch management ─────────────────────────────────────────────────────────
+
   ipcMain.handle('pantry:setOpenedDays', (_, { batch_id, days }) => {
     getDb().prepare(`
       UPDATE pantry
@@ -163,19 +218,18 @@ function registerPantryIpc() {
     return { ok: true };
   });
 
-  // Resolve a "residual or new pack" prompt.
-  // mode='residual' → no-op (shortage is written off).
-  // mode='new_open' → deduct overflow_g from sealed batches and return new events.
-  ipcMain.handle('pantry:resolveResidual', (_, { food_id, overflow_g, mode }) => {
+  ipcMain.handle('pantry:resolveResidual', (_, { food_id, overflow_g, mode, pantry_id }) => {
     if (mode === 'residual') return { ok: true, events: [] };
     const db = getDb();
     let events = [];
     db.transaction(() => {
-      const result = deductSealedFEFO(db, food_id, overflow_g);
+      const result = deductSealedFEFO(db, food_id, overflow_g, pantry_id);
       events = result.events;
     })();
     return { ok: true, events };
   });
+
+  // ── Action log ───────────────────────────────────────────────────────────────
 
   ipcMain.handle('actionlog:getRecent', (_, { limit = 200 } = {}) =>
     getDb().prepare(`

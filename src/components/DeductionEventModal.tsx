@@ -106,7 +106,7 @@ function ResidualModal({
   useDeferredFocus(residualRef);
 
   async function handleNewPack() {
-    const result = await api.pantry.resolveResidual(event.food_id, event.overflow_g, 'new_open');
+    const result = await api.pantry.resolveResidual(event.food_id, event.overflow_g, 'new_open', event.pantry_id);
     if (result.events.length > 0) pushMore(result.events);
     onPantryChanged?.();
     onDone();
@@ -195,13 +195,13 @@ function FinishedModal({
   const [remaining, setRemaining] = useState<number | null>(null);
 
   useEffect(() => {
-    api.pantry.getAll().then(items => {
+    api.pantry.getAll(event.pantry_id).then(items => {
       setRemaining(items.filter(i => i.food_id === event.food_id).length);
     });
-  }, [event.food_id]);
+  }, [event.food_id, event.pantry_id]);
 
   async function handleAdd() {
-    await api.shopping.add({ food_id: event.food_id });
+    await api.shopping.add({ food_id: event.food_id, pantry_id: event.pantry_id });
     onPantryChanged?.();
     onDone();
   }

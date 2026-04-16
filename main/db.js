@@ -307,10 +307,28 @@ function initDb() {
       FOREIGN KEY (plan_id) REFERENCES supplement_plans(id) ON DELETE CASCADE,
       FOREIGN KEY (supplement_id) REFERENCES supplements(id)
     )`,
+    `CREATE TABLE IF NOT EXISTS pantries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      is_default INTEGER NOT NULL DEFAULT 0
+    )`,
+    'ALTER TABLE pantry ADD COLUMN pantry_id INTEGER DEFAULT 1',
+    'ALTER TABLE shopping_list ADD COLUMN pantry_id INTEGER DEFAULT 1',
   ];
   for (const stmt of migrations) {
     try { database.exec(stmt); } catch (_) {}
   }
+
+  // Bootstrap the pantries table — create default "Home" pantry and backfill existing rows
+  try {
+    const pantryCount = database.prepare('SELECT COUNT(*) AS n FROM pantries').get().n;
+    if (pantryCount === 0) {
+      database.prepare("INSERT INTO pantries (name, is_default) VALUES ('Home', 1)").run();
+      const defaultId = database.prepare('SELECT id FROM pantries WHERE is_default = 1').get().id;
+      database.prepare('UPDATE pantry SET pantry_id = ? WHERE pantry_id IS NULL').run(defaultId);
+      database.prepare('UPDATE shopping_list SET pantry_id = ? WHERE pantry_id IS NULL').run(defaultId);
+    }
+  } catch (_) {}
 
   // Migrate existing supplements into the plan system (one-time, guarded)
   try {

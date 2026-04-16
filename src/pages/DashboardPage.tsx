@@ -225,6 +225,10 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   // Pantry deduction event queue (opened-pack lifecycle prompts)
   const { current: deductionEvent, next: nextDeduction, push: pushDeduction } = useDeductionEvents();
 
+  // Pantry location for deduction
+  const [pantries, setPantries] = useState<import('../types').PantryLocation[]>([]);
+  const [logPantryId, setLogPantryId] = useState<number | undefined>(undefined);
+
   // Form state
   const [selectedFood, setSelectedFood]     = useState<Food|null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<RecipeEditState|null>(null);
@@ -259,6 +263,15 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     setNote(nd.note || '');
     setFrequent(freq);
   }, [dateStr]);
+
+  // Load pantries once on mount
+  useEffect(() => {
+    api.pantries.getAll().then(ps => {
+      setPantries(ps);
+      const def = ps.find(p => p.is_default) ?? ps[0];
+      if (def) setLogPantryId(def.id);
+    });
+  }, []);
 
   useEffect(() => {
     load();
@@ -337,11 +350,11 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
 
   async function handleLogFood(status: 'logged' | 'planned') {
     if (!selectedFood || !effectiveGrams) return;
-    const result = await api.log.add({ food_id: selectedFood.id, grams: effectiveGrams, meal, date: dateStr, status });
+    const result = await api.log.add({ food_id: selectedFood.id, grams: effectiveGrams, meal, date: dateStr, status, pantry_id: logPantryId });
     if (result.shortage > 0 && result.shortage_food) {
       showToast(`Pantry short by ${Math.round(result.shortage)}g of ${result.shortage_food}`, 'warning');
     } else if (status === 'planned') {
-      const stock = await api.pantry.checkStock(selectedFood.id, effectiveGrams);
+      const stock = await api.pantry.checkStock(selectedFood.id, effectiveGrams, logPantryId);
       if (stock.shortage > 0) showToast(`Pantry short by ${Math.round(stock.shortage)}g of ${selectedFood.name}`, 'warning');
     }
     if (result.events?.length) pushDeduction(result.events);
@@ -354,11 +367,11 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     const allEvents: import('../types').DeductionEvent[] = [];
     for (const ing of selectedRecipe.ingredients) {
       if (ing.editGrams > 0) {
-        const result = await api.log.add({ food_id: ing.food_id, grams: ing.editGrams, meal, date: dateStr, status });
+        const result = await api.log.add({ food_id: ing.food_id, grams: ing.editGrams, meal, date: dateStr, status, pantry_id: logPantryId });
         if (result.shortage > 0 && result.shortage_food) {
           shortages.push(`${Math.round(result.shortage)}g of ${result.shortage_food}`);
         } else if (status === 'planned' && result.shortage === 0) {
-          const stock = await api.pantry.checkStock(ing.food_id, ing.editGrams);
+          const stock = await api.pantry.checkStock(ing.food_id, ing.editGrams, logPantryId);
           if (stock.shortage > 0) shortages.push(`${Math.round(stock.shortage)}g of ${ing.name}`);
         }
         if (result.events?.length) allEvents.push(...result.events);
@@ -370,7 +383,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   }
 
   async function handleConfirmPlanned(id: number) {
-    const result = await api.log.confirmPlanned(id);
+    const result = await api.log.confirmPlanned({ id, pantry_id: logPantryId });
     if (result.shortage > 0 && result.shortage_food) {
       showToast(`Pantry short by ${Math.round(result.shortage)}g of ${result.shortage_food}`, 'warning');
     }
@@ -379,7 +392,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   }
 
   async function handleConfirmAll() {
-    const result = await api.log.confirmAllPlanned(dateStr);
+    const result = await api.log.confirmAllPlanned({ date: dateStr, pantry_id: logPantryId });
     if (result.shortages?.length > 0) {
       const list = result.shortages.map(s => `${s.shortage}g of ${s.food_name}`).join(', ');
       showToast(`Pantry short on: ${list}`, 'warning');
@@ -461,7 +474,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   }
 
   async function quickLog(food: Food) {
-    await api.log.add({ food_id: food.id, grams: food.piece_grams || 100, meal: 'Snack', date: dateStr, status: logStatus });
+    await api.log.add({ food_id: food.id, grams: food.piece_grams || 100, meal: 'Snack', date: dateStr, status: logStatus, pantry_id: logPantryId });
     load();
   }
 
@@ -799,7 +812,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
               </div>
             )}
             <MealPills selected={meal} onChange={setMeal} />
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap items-center">
               {(planMode ? ['planned', 'logged'] : ['logged', 'planned'] as const).map((status, i) => (
                 <button
                   key={status}
@@ -815,6 +828,20 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                 </button>
               ))}
               <button onClick={handleClear} className="border border-border text-text-sec px-4 py-2 rounded-lg text-sm cursor-pointer hover:text-text">{t('common.cancel')}</button>
+              {pantries.length > 1 && (
+                <div className="flex items-center gap-1.5 ml-auto">
+                  <span className="text-xs text-text-sec">{t('pantry.deductFrom')}</span>
+                  <select
+                    value={logPantryId ?? ''}
+                    onChange={e => setLogPantryId(Number(e.target.value))}
+                    className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-text outline-none focus:border-accent cursor-pointer"
+                  >
+                    {pantries.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           </div>
         )}

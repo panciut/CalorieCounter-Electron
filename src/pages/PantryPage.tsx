@@ -4,11 +4,12 @@ import { today, daysUntil, formatDMY } from '../lib/dateUtil';
 import { api } from '../api';
 import { useToast } from '../components/Toast';
 import { useSettings } from '../hooks/useSettings';
+import { useT } from '../i18n/useT';
 import FoodSearch from '../components/FoodSearch';
 import type { SearchItem } from '../components/FoodSearch';
 import ConfirmDialog from '../components/ConfirmDialog';
 import AddFoodPanel from '../components/AddFoodPanel';
-import type { Food, PantryItem, PantryAggregate, ShoppingItem } from '../types';
+import type { Food, PantryItem, PantryAggregate, PantryLocation, ShoppingItem } from '../types';
 
 type Tab = 'pantry' | 'shopping';
 
@@ -144,7 +145,13 @@ function unitToPackageId(unit: PantryUnit): number | null {
 export default function PantryPage() {
   const { showToast } = useToast();
   const { settings } = useSettings();
+  const { t } = useT();
   const [tab, setTab] = useState<Tab>('pantry');
+
+  // Pantry location state
+  const [pantries, setPantries]             = useState<PantryLocation[]>([]);
+  const [activePantryId, setActivePantryId] = useState<number | undefined>(undefined);
+  const [showManageModal, setShowManageModal] = useState(false);
 
   // Pantry state
   const [items, setItems]               = useState<PantryItem[]>([]);
@@ -168,17 +175,33 @@ export default function PantryPage() {
   const [shopQty, setShopQty]     = useState('');
   const [shopOpen, setShopOpen]   = useState(true);
 
-  const loadPantry = useCallback(async () => {
-    const [p, f] = await Promise.all([api.pantry.getAll(), api.foods.getAll()]);
+  const loadPantry = useCallback(async (pid?: number) => {
+    const [p, f] = await Promise.all([api.pantry.getAll(pid), api.foods.getAll()]);
     setItems(p);
     setFoods(f);
   }, []);
 
-  const loadShopping = useCallback(async () => {
-    setShopping(await api.shopping.getAll());
+  const loadShopping = useCallback(async (pid?: number) => {
+    setShopping(await api.shopping.getAll(pid));
   }, []);
 
-  useEffect(() => { loadPantry(); loadShopping(); }, [loadPantry, loadShopping]);
+  const loadPantries = useCallback(async () => {
+    const ps = await api.pantries.getAll();
+    setPantries(ps);
+    return ps;
+  }, []);
+
+  useEffect(() => {
+    async function init() {
+      const ps = await api.pantries.getAll();
+      setPantries(ps);
+      const def = ps.find(p => p.is_default) ?? ps[0];
+      const pid = def?.id;
+      setActivePantryId(pid);
+      await Promise.all([loadPantry(pid), loadShopping(pid)]);
+    }
+    init();
+  }, [loadPantry, loadShopping]);
 
   // ── Aggregation ─────────────────────────────────────────────────────────────
 
@@ -248,13 +271,13 @@ export default function PantryPage() {
       const pkgGrams = selFood.packages?.find(p => p.id === pkgId)?.grams ?? addGrams;
       const count = Math.round(addGrams / pkgGrams);
       for (let i = 0; i < count; i++) {
-        await api.pantry.addBatch({ food_id: selFood.id, quantity_g: pkgGrams, expiry_date: expiry || null, package_id: pkgId });
+        await api.pantry.addBatch({ food_id: selFood.id, quantity_g: pkgGrams, expiry_date: expiry || null, package_id: pkgId, pantry_id: activePantryId });
       }
     } else {
-      await api.pantry.addBatch({ food_id: selFood.id, quantity_g: addGrams, expiry_date: expiry || null, package_id: null });
+      await api.pantry.addBatch({ food_id: selFood.id, quantity_g: addGrams, expiry_date: expiry || null, package_id: null, pantry_id: activePantryId });
     }
     setSelFood(null); setQty(''); setUnit('g'); setExpiry('');
-    loadPantry();
+    loadPantry(activePantryId);
   }
 
   function startEditBatch(batch: PantryItem) {
@@ -283,21 +306,21 @@ export default function PantryPage() {
       package_id: batch.package_id,
     });
     setEditingBatch(null);
-    loadPantry();
+    loadPantry(activePantryId);
   }
 
   async function handleConfirmDiscard() {
     if (discardId === null) return;
     await api.pantry.delete(discardId);
     setDiscardId(null);
-    loadPantry();
+    loadPantry(activePantryId);
   }
 
   async function handleConfirmDiscardAll() {
     if (!discardAllIds) return;
     for (const id of discardAllIds) await api.pantry.delete(id);
     setDiscardAllIds(null);
-    loadPantry();
+    loadPantry(activePantryId);
   }
 
   function toggleCollapse(food_id: number) {
@@ -310,7 +333,7 @@ export default function PantryPage() {
 
   function handleFoodSaved(food: Food) {
     // Called by AddFoodPanel after a new food is created — refresh the foods list.
-    loadPantry();
+    loadPantry(activePantryId);
     // Pre-select the new food in the "Add / top up" form.
     setSelFood(food);
     setUnit(defaultUnit(food));
@@ -329,9 +352,15 @@ export default function PantryPage() {
 
   async function handleAddShopping() {
     if (!shopFood) return;
-    await api.shopping.add({ food_id: shopFood.id, quantity_g: shopQty ? (evalExpr(shopQty) ?? 0) : 0 });
+    await api.shopping.add({ food_id: shopFood.id, quantity_g: shopQty ? (evalExpr(shopQty) ?? 0) : 0, pantry_id: activePantryId });
     setShopFood(null); setShopQty('');
-    loadShopping();
+    loadShopping(activePantryId);
+  }
+
+  function handleSwitchPantry(id: number) {
+    setActivePantryId(id);
+    loadPantry(id);
+    loadShopping(id);
   }
 
   // ── Styles ───────────────────────────────────────────────────────────────────
@@ -351,7 +380,24 @@ export default function PantryPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-5">
-      <h1 className="text-2xl font-bold text-text">Pantry</h1>
+      <div className="flex items-center gap-3 flex-wrap">
+        <h1 className="text-2xl font-bold text-text flex-1">Pantry</h1>
+        {pantries.length > 1 && (
+          <select
+            value={activePantryId ?? ''}
+            onChange={e => handleSwitchPantry(Number(e.target.value))}
+            className="bg-bg border border-border rounded-lg px-3 py-1.5 text-sm text-text outline-none focus:border-accent cursor-pointer"
+          >
+            {pantries.map(p => (
+              <option key={p.id} value={p.id}>{p.name}{p.is_default ? ` (${t('pantry.defaultBadge')})` : ''}</option>
+            ))}
+          </select>
+        )}
+        <button
+          onClick={() => setShowManageModal(true)}
+          className="text-sm text-text-sec hover:text-text cursor-pointer transition-colors px-2 py-1 rounded border border-border hover:border-text-sec"
+        >{t('pantry.managePantries')}</button>
+      </div>
 
       {/* Add new food (collapsed by default) — 📷 in header scans to create or find existing food */}
       <AddFoodPanel
@@ -778,7 +824,7 @@ export default function PantryPage() {
                 <>
                   <div className="flex items-center justify-between px-4 py-2 border-t border-border bg-bg/30">
                     <span className="text-xs text-text-sec uppercase tracking-wider font-medium">{checked.length} checked</span>
-                    <button onClick={() => api.shopping.clearChecked().then(loadShopping)} className="text-xs text-text-sec hover:text-red cursor-pointer transition-colors">Clear all</button>
+                    <button onClick={() => api.shopping.clearChecked(activePantryId).then(() => loadShopping(activePantryId))} className="text-xs text-text-sec hover:text-red cursor-pointer transition-colors">Clear all</button>
                   </div>
                   <div className="flex flex-col divide-y divide-border/40">
                     {checked.map(item => (
@@ -810,11 +856,157 @@ export default function PantryPage() {
           onCancel={() => setDiscardAllIds(null)}
         />
       )}
+      {showManageModal && (
+        <ManagePantriesModal
+          pantries={pantries}
+          activePantryId={activePantryId}
+          onClose={() => setShowManageModal(false)}
+          onChanged={async () => {
+            const ps = await loadPantries();
+            const stillActive = ps.find(p => p.id === activePantryId);
+            const def = ps.find(p => p.is_default) ?? ps[0];
+            const pid = stillActive ? activePantryId : def?.id;
+            if (pid !== activePantryId) {
+              setActivePantryId(pid);
+              loadPantry(pid);
+              loadShopping(pid);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
 
 // ── Module-level sub-components ───────────────────────────────────────────────
+
+interface ManagePantriesModalProps {
+  pantries: PantryLocation[];
+  activePantryId: number | undefined;
+  onClose: () => void;
+  onChanged: () => void;
+}
+
+function ManagePantriesModal({ pantries, activePantryId: _activePantryId, onClose, onChanged }: ManagePantriesModalProps) {
+  const { t } = useT();
+  const { showToast } = useToast();
+  const [newName, setNewName]           = useState('');
+  const [renamingId, setRenamingId]     = useState<number | null>(null);
+  const [renameVal, setRenameVal]       = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<PantryLocation | null>(null);
+
+  async function handleCreate() {
+    if (!newName.trim()) return;
+    await api.pantries.create(newName.trim());
+    setNewName('');
+    onChanged();
+  }
+
+  async function handleRename(id: number) {
+    if (!renameVal.trim()) return;
+    await api.pantries.rename(id, renameVal.trim());
+    setRenamingId(null);
+    onChanged();
+  }
+
+  async function handleDelete(p: PantryLocation) {
+    if (p.is_default) { showToast(t('pantry.cannotDeleteDefault')); return; }
+    setDeleteTarget(p);
+  }
+
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
+    const res = await api.pantries.delete(deleteTarget.id);
+    if (!res.ok && res.reason === 'is_default') {
+      showToast(t('pantry.cannotDeleteDefault'));
+    }
+    setDeleteTarget(null);
+    onChanged();
+  }
+
+  async function handleSetDefault(id: number) {
+    await api.pantries.setDefault(id);
+    onChanged();
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-2xl w-full max-w-md flex flex-col gap-4 p-6" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-text">{t('pantry.managePantries')}</h2>
+          <button onClick={onClose} className="text-text-sec hover:text-text cursor-pointer text-lg">✕</button>
+        </div>
+
+        {/* Existing pantries */}
+        <div className="flex flex-col divide-y divide-border rounded-xl border border-border overflow-hidden">
+          {pantries.map(p => (
+            <div key={p.id} className="flex items-center gap-2 px-3 py-2.5 bg-bg">
+              {renamingId === p.id ? (
+                <>
+                  <input
+                    type="text"
+                    value={renameVal}
+                    onChange={e => setRenameVal(e.target.value)}
+                    autoFocus
+                    onKeyDown={e => { if (e.key === 'Enter') handleRename(p.id); if (e.key === 'Escape') setRenamingId(null); }}
+                    className="flex-1 bg-bg border border-border rounded-lg px-2 py-1 text-sm text-text outline-none focus:border-accent"
+                  />
+                  <button onClick={() => handleRename(p.id)} className="text-xs text-accent font-medium cursor-pointer hover:opacity-75">Save</button>
+                  <button onClick={() => setRenamingId(null)} className="text-xs text-text-sec cursor-pointer hover:text-text">✕</button>
+                </>
+              ) : (
+                <>
+                  <span className="flex-1 text-sm text-text">{p.name}</span>
+                  {p.is_default ? (
+                    <span className="text-xs bg-accent/15 text-accent px-2 py-0.5 rounded-full">{t('pantry.defaultBadge')}</span>
+                  ) : (
+                    <button onClick={() => handleSetDefault(p.id)} className="text-xs text-text-sec hover:text-accent cursor-pointer transition-colors">{t('pantry.setDefault')}</button>
+                  )}
+                  <button
+                    onClick={() => { setRenamingId(p.id); setRenameVal(p.name); }}
+                    className="text-xs text-text-sec hover:text-text cursor-pointer transition-colors"
+                  >{t('pantry.renamePantry')}</button>
+                  {!p.is_default && (
+                    <button
+                      onClick={() => handleDelete(p)}
+                      className="text-xs text-text-sec hover:text-red cursor-pointer transition-colors"
+                    >✕</button>
+                  )}
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {/* Add new pantry */}
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleCreate(); }}
+            placeholder={t('pantry.pantryName')}
+            className="flex-1 bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent"
+          />
+          <button
+            onClick={handleCreate}
+            disabled={!newName.trim()}
+            className="px-4 py-2 bg-accent text-white text-sm rounded-lg cursor-pointer hover:opacity-90 disabled:opacity-40 font-medium"
+          >{t('pantry.addPantry')}</button>
+        </div>
+      </div>
+      {deleteTarget && (
+        <ConfirmDialog
+          message={t('pantry.deletePantryConfirm').replace('{name}', deleteTarget.name)}
+          confirmLabel={t('pantry.deletePantry')}
+          dangerous
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+    </div>
+  );
+}
 
 interface ShoppingRowProps {
   item: ShoppingItem;

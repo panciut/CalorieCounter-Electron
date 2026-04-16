@@ -4,7 +4,7 @@ import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import AddFoodRow from '../components/AddFoodRow';
 import { today } from '../lib/dateUtil';
-import type { Recipe, RecipeIngredient, ActualRecipe, ActualRecipeIngredient, Food, Meal, PantryIngredientCheck } from '../types';
+import type { Recipe, RecipeIngredient, ActualRecipe, ActualRecipeIngredient, Food, Meal, PantryIngredientCheck, PantryLocation } from '../types';
 import { useDeductionEvents } from '../hooks/useDeductionEvents';
 import DeductionEventModal from '../components/DeductionEventModal';
 
@@ -36,18 +36,26 @@ function BundlesTab() {
   const [canMakeMap, setCanMakeMap]       = useState<Map<number, { can_make: boolean; missing_count: number }>>(new Map());
   const [logPantryCheck, setLogPantryCheck] = useState<PantryCheckResult | null>(null);
   const [deductOnLog, setDeductOnLog]     = useState(false);
+  const [pantries, setPantries]           = useState<PantryLocation[]>([]);
+  const [pantryId, setPantryId]           = useState<number | undefined>(undefined);
 
-  const loadBundles = useCallback(async () => {
+  const loadBundles = useCallback(async (pid?: number) => {
     const [b, m] = await Promise.all([
       api.recipes.getAll(),
-      api.pantry.canMakeAll('bundle'),
+      api.pantry.canMakeAll('bundle', pid),
     ]);
     setBundles(b);
     setCanMakeMap(new Map(m.map(x => [x.recipe_id, x])));
   }, []);
 
   useEffect(() => {
-    loadBundles();
+    api.pantries.getAll().then(ps => {
+      setPantries(ps);
+      const def = ps.find(p => p.is_default) ?? ps[0];
+      const pid = def?.id;
+      setPantryId(pid);
+      loadBundles(pid);
+    });
     api.foods.getAll().then(setFoods);
   }, [loadBundles]);
 
@@ -73,7 +81,7 @@ function BundlesTab() {
     setLogTarget(b);
     setLogScale('1');
     setDeductOnLog(false);
-    const check = await api.pantry.canMake(b.id, 'bundle');
+    const check = await api.pantry.canMake(b.id, 'bundle', pantryId);
     setLogPantryCheck({ can_make: check.can_make, missing: check.missing });
   }
 
@@ -89,7 +97,7 @@ function BundlesTab() {
     await api.recipes.log({ recipe_id: logTarget.id, date: logDate, meal: logMeal, scale });
     if (deductOnLog) {
       try {
-        const dr = await api.pantry.deductRecipe(logTarget.id, scale, 'bundle');
+        const dr = await api.pantry.deductRecipe(logTarget.id, scale, 'bundle', pantryId);
         if (dr.shortages?.length > 0) {
           const list = dr.shortages.map(s => `${s.shortage}g of ${s.food_name}`).join(', ');
           showToast(`Logged — pantry short on: ${list}`, 'warning');
@@ -116,9 +124,9 @@ function BundlesTab() {
   }
 
   async function addMissingToShopping(bundleId: number) {
-    const check = await api.pantry.canMake(bundleId, 'bundle');
+    const check = await api.pantry.canMake(bundleId, 'bundle', pantryId);
     if (!check.missing.length) { showToast('Nothing missing — pantry has everything'); return; }
-    await Promise.all(check.missing.map(m => api.shopping.add({ food_id: m.food_id, quantity_g: Math.ceil(m.need_g - m.have_g) })));
+    await Promise.all(check.missing.map(m => api.shopping.add({ food_id: m.food_id, quantity_g: Math.ceil(m.need_g - m.have_g), pantry_id: pantryId })));
     showToast(`Added ${check.missing.length} item${check.missing.length > 1 ? 's' : ''} to shopping list`);
   }
 
@@ -131,7 +139,16 @@ function BundlesTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-sm text-text-sec">Fixed-portion shortcuts — log a set of foods in one tap.</p>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {pantries.length > 1 && (
+            <select
+              value={pantryId ?? ''}
+              onChange={e => { const pid = Number(e.target.value); setPantryId(pid); loadBundles(pid); }}
+              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-text outline-none focus:border-accent cursor-pointer"
+            >
+              {pantries.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          )}
           <button
             onClick={() => setCanMakeFilter(v => !v)}
             className={[
@@ -481,18 +498,26 @@ function RecipesTab() {
   const [canMakeMap, setCanMakeMap]       = useState<Map<number, { can_make: boolean; missing_count: number }>>(new Map());
   const [logPantryCheck, setLogPantryCheck] = useState<PantryCheckResult | null>(null);
   const [deductOnLog, setDeductOnLog]     = useState(false);
+  const [pantries, setPantries]           = useState<PantryLocation[]>([]);
+  const [pantryId, setPantryId]           = useState<number | undefined>(undefined);
 
-  const loadRecipes = useCallback(async () => {
+  const loadRecipes = useCallback(async (pid?: number) => {
     const [r, m] = await Promise.all([
       api.actualRecipes.getAll(),
-      api.pantry.canMakeAll('actual'),
+      api.pantry.canMakeAll('actual', pid),
     ]);
     setRecipes(r);
     setCanMakeMap(new Map(m.map(x => [x.recipe_id, x])));
   }, []);
 
   useEffect(() => {
-    loadRecipes();
+    api.pantries.getAll().then(ps => {
+      setPantries(ps);
+      const def = ps.find(p => p.is_default) ?? ps[0];
+      const pid = def?.id;
+      setPantryId(pid);
+      loadRecipes(pid);
+    });
     api.foods.getAll().then(setFoods);
   }, [loadRecipes]);
 
@@ -523,14 +548,14 @@ function RecipesTab() {
     showToast('Recipe saved');
     setDetailId(null);
     setDetail(null);
-    loadRecipes();
+    loadRecipes(pantryId);
   }
 
   async function openLogTarget(r: ActualRecipe) {
     setLogTarget(r);
     setLogGrams(String(r.yield_g || ''));
     setDeductOnLog(false);
-    const check = await api.pantry.canMake(r.id, 'actual');
+    const check = await api.pantry.canMake(r.id, 'actual', pantryId);
     setLogPantryCheck({ can_make: check.can_make, missing: check.missing });
   }
 
@@ -541,7 +566,7 @@ function RecipesTab() {
     const scale = logTarget.yield_g > 0 ? g / logTarget.yield_g : 1;
     await api.actualRecipes.log({ recipe_id: logTarget.id, grams_eaten: g, meal: logMeal, date: logDate });
     if (deductOnLog && logTarget.yield_g > 0) {
-      const dr = await api.pantry.deductRecipe(logTarget.id, scale, 'actual');
+      const dr = await api.pantry.deductRecipe(logTarget.id, scale, 'actual', pantryId);
       if (dr.shortages?.length > 0) {
         const list = dr.shortages.map(s => `${s.shortage}g of ${s.food_name}`).join(', ');
         showToast(`Logged — pantry short on: ${list}`, 'warning');
@@ -555,7 +580,7 @@ function RecipesTab() {
     setLogTarget(null);
     setLogGrams('');
     setLogPantryCheck(null);
-    loadRecipes();
+    loadRecipes(pantryId);
   }
 
   async function doDelete() {
@@ -567,9 +592,9 @@ function RecipesTab() {
   }
 
   async function addMissingToShopping(recipeId: number) {
-    const check = await api.pantry.canMake(recipeId, 'actual');
+    const check = await api.pantry.canMake(recipeId, 'actual', pantryId);
     if (!check.missing.length) { showToast('Nothing missing — pantry has everything'); return; }
-    await Promise.all(check.missing.map(m => api.shopping.add({ food_id: m.food_id, quantity_g: Math.ceil(m.need_g - m.have_g) })));
+    await Promise.all(check.missing.map(m => api.shopping.add({ food_id: m.food_id, quantity_g: Math.ceil(m.need_g - m.have_g), pantry_id: pantryId })));
     showToast(`Added ${check.missing.length} item${check.missing.length > 1 ? 's' : ''} to shopping list`);
   }
 
@@ -594,7 +619,16 @@ function RecipesTab() {
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-sm text-text-sec">Full recipes with yield — log by how much you ate.</p>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {pantries.length > 1 && (
+            <select
+              value={pantryId ?? ''}
+              onChange={e => { const pid = Number(e.target.value); setPantryId(pid); loadRecipes(pid); }}
+              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-text outline-none focus:border-accent cursor-pointer"
+            >
+              {pantries.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+          )}
           <button
             onClick={() => setCanMakeFilter(v => !v)}
             className={[
