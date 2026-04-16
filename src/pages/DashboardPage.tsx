@@ -264,13 +264,25 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     setFrequent(freq);
   }, [dateStr]);
 
-  // Load pantries once on mount
+  // Load pantries once on mount; restore today's selection from localStorage or default
   useEffect(() => {
     api.pantries.getAll().then(ps => {
       setPantries(ps);
       const def = ps.find(p => p.is_default) ?? ps[0];
-      if (def) setLogPantryId(def.id);
+      if (!def) return;
+      try {
+        const stored = JSON.parse(localStorage.getItem('dashPantry') || '{}');
+        // Use stored id only if it was set today and the pantry still exists
+        if (stored.date === today() && ps.some(p => p.id === stored.id)) {
+          setLogPantryId(stored.id);
+        } else {
+          setLogPantryId(def.id);
+        }
+      } catch {
+        setLogPantryId(def.id);
+      }
     });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -473,6 +485,11 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     showToast(ok ? t('export.copied') : t('export.copyFailed'), ok ? 'success' : 'error');
   }
 
+  function selectPantry(id: number) {
+    setLogPantryId(id);
+    localStorage.setItem('dashPantry', JSON.stringify({ id, date: today() }));
+  }
+
   async function quickLog(food: Food) {
     await api.log.add({ food_id: food.id, grams: food.piece_grams || 100, meal: 'Snack', date: dateStr, status: logStatus, pantry_id: logPantryId });
     load();
@@ -526,6 +543,24 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
             >
               {t('week.today')}
             </button>
+          )}
+          {pantries.length > 1 && (
+            <div className="flex gap-1 ml-3">
+              {pantries.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => selectPantry(p.id)}
+                  className={[
+                    'text-xs px-3 py-1 rounded-lg border cursor-pointer transition-colors',
+                    logPantryId === p.id
+                      ? 'border-accent bg-accent/10 text-accent'
+                      : 'border-border text-text-sec hover:border-accent/50',
+                  ].join(' ')}
+                >
+                  {p.name}
+                </button>
+              ))}
+            </div>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -828,20 +863,6 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                 </button>
               ))}
               <button onClick={handleClear} className="border border-border text-text-sec px-4 py-2 rounded-lg text-sm cursor-pointer hover:text-text">{t('common.cancel')}</button>
-              {pantries.length > 1 && (
-                <div className="flex items-center gap-1.5 ml-auto">
-                  <span className="text-xs text-text-sec">{t('pantry.deductFrom')}</span>
-                  <select
-                    value={logPantryId ?? ''}
-                    onChange={e => setLogPantryId(Number(e.target.value))}
-                    className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-text outline-none focus:border-accent cursor-pointer"
-                  >
-                    {pantries.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
             </div>
           </div>
         )}

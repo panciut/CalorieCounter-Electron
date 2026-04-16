@@ -383,6 +383,7 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'settings.pantryEnabled':   'Enable pantry tracking',
     'settings.pantryWarnDays':  'Warning days',
     'settings.pantryUrgentDays':'Urgent days',
+    'settings.pantryDefault':   'Default pantry',
 
     'notifications.title':               'Notifications',
     'notifications.empty':               'All caught up',
@@ -933,6 +934,7 @@ export const translations: Record<'en' | 'it', TranslationMap> = {
     'settings.pantryEnabled':   'Abilita gestione dispensa',
     'settings.pantryWarnDays':  'Giorni di preavviso',
     'settings.pantryUrgentDays':'Giorni urgenti',
+    'settings.pantryDefault':   'Dispensa predefinita',
 
     'notifications.title':               'Notifiche',
     'notifications.empty':               'Tutto a posto',

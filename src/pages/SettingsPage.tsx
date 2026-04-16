@@ -1,9 +1,15 @@
+import { useState, useEffect } from 'react';
 import { useSettings } from '../hooks/useSettings';
 import { useT } from '../i18n/useT';
+import { api } from '../api';
+import type { PantryLocation } from '../types';
 
 export default function SettingsPage() {
   const { t } = useT();
   const { settings, updateSettings } = useSettings();
+  const [pantries, setPantries] = useState<PantryLocation[]>([]);
+
+  useEffect(() => { api.pantries.getAll().then(setPantries); }, []);
 
   const currentTheme = settings.theme    ?? 'dark';
   const currentLang  = settings.language ?? 'en';
@@ -76,25 +82,48 @@ export default function SettingsPage() {
             <span className="text-sm text-text">{t('settings.pantryEnabled')}</span>
           </label>
           {settings.pantry_enabled !== 0 && (
-            <div className="grid grid-cols-2 gap-4 pt-1">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-text-sec">{t('settings.pantryWarnDays')}</label>
-                <input
-                  type="number" min={0} max={30}
-                  value={settings.pantry_warn_days}
-                  onChange={e => updateSettings({ pantry_warn_days: Math.max(0, parseInt(e.target.value) || 0) })}
-                  className="bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent w-24"
-                />
+            <div className="flex flex-col gap-4 pt-1">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-text-sec">{t('settings.pantryWarnDays')}</label>
+                  <input
+                    type="number" min={0} max={30}
+                    value={settings.pantry_warn_days}
+                    onChange={e => updateSettings({ pantry_warn_days: Math.max(0, parseInt(e.target.value) || 0) })}
+                    className="bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent w-24"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-text-sec">{t('settings.pantryUrgentDays')}</label>
+                  <input
+                    type="number" min={0} max={30}
+                    value={settings.pantry_urgent_days}
+                    onChange={e => updateSettings({ pantry_urgent_days: Math.max(0, parseInt(e.target.value) || 0) })}
+                    className="bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent w-24"
+                  />
+                </div>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-text-sec">{t('settings.pantryUrgentDays')}</label>
-                <input
-                  type="number" min={0} max={30}
-                  value={settings.pantry_urgent_days}
-                  onChange={e => updateSettings({ pantry_urgent_days: Math.max(0, parseInt(e.target.value) || 0) })}
-                  className="bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent w-24"
-                />
-              </div>
+              {pantries.length > 1 && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-text-sec">{t('settings.pantryDefault')}</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {pantries.map(p => (
+                      <button
+                        key={p.id}
+                        onClick={async () => { await api.pantries.setDefault(p.id); api.pantries.getAll().then(setPantries); }}
+                        className={[
+                          'text-xs px-3 py-1.5 rounded-lg border cursor-pointer transition-colors',
+                          p.is_default
+                            ? 'border-accent bg-accent/10 text-accent'
+                            : 'border-border text-text-sec hover:border-accent/50',
+                        ].join(' ')}
+                      >
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
