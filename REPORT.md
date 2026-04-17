@@ -1,8 +1,12 @@
 # CalorieCounter Electron — Application Report
 
+*Last updated: 2026-04-17*
+
+---
+
 ## Overview
 
-A personal Mac desktop app for tracking daily food intake, macronutrients, water consumption, and body weight. Built as an Electron app with a dark-themed single-page renderer, replacing an earlier Flask/Python web version. All data is stored locally; no network required.
+A personal macOS desktop health OS built with Electron + React. Covers daily food logging, meal planning, exercise tracking, net calories, body composition, pantry management, recipes, supplements, water, measurements, and analytics. All data is stored locally in SQLite — no account or network required.
 
 ---
 
@@ -11,194 +15,187 @@ A personal Mac desktop app for tracking daily food intake, macronutrients, water
 | Layer | Technology |
 |---|---|
 | Desktop shell | Electron 33 |
-| Database | better-sqlite3 (synchronous SQLite) |
-| Charts | Chart.js 4 (UMD, vendored from node_modules) |
-| Fuzzy search | Fuse.js 7 (vendored) |
-| Frontend | Vanilla JS, HTML, CSS — no framework |
+| Renderer | React 19, TypeScript, Vite 8, Tailwind CSS v4 |
+| Database | better-sqlite3 (synchronous SQLite, WAL mode) |
+| Charts | Recharts 3 |
+| Fuzzy search | Fuse.js 7 |
+| Barcode scanning | html5-qrcode |
+| i18n | Custom `useT()` hook, EN + IT translations |
 | IPC bridge | `contextBridge` + `ipcMain.handle` / `ipcRenderer.invoke` |
 
 ---
 
-## Architecture
+## Project Structure
 
 ```
-main process (Node.js)
-├── main.js          — BrowserWindow, IPC registration, globalShortcut
-├── preload.js       — contextBridge: exposes window.electronAPI.{invoke, on, off}
-├── db.js            — better-sqlite3 singleton, initDb(), migrations
-└── ipc/
-    ├── foods.ipc.js
-    ├── log.ipc.js
-    ├── recipes.ipc.js
-    ├── water.ipc.js
-    ├── weight.ipc.js
-    └── settings.ipc.js
+main/                        Electron main process (Node.js, CommonJS)
+├── main.js                  BrowserWindow, IPC registration, Apple Health bridge
+├── preload.js               contextBridge: exposes window.electronAPI.{invoke,on,off}
+├── db.js                    better-sqlite3 singleton, initDb(), migrations array
+├── lib/
+│   ├── pantryFefo.js        FEFO deduction engine for pantry batches
+│   ├── notifications.js     Notification generation logic
+│   └── actionLog.js         Pantry action audit log
+└── ipc/                     One file per domain
+    ├── log.ipc.js           Food log (add, update, delete, plan/confirm)
+    ├── foods.ipc.js         Food database CRUD, barcode lookup
+    ├── recipes.ipc.js       Bundle recipes (ratio-based)
+    ├── actual_recipes.ipc.js Real recipes (yield_g, procedure)
+    ├── pantry.ipc.js        Pantry batches, shopping list, canMake, FEFO deduction
+    ├── exercises.ipc.js     Exercise logging, types catalog
+    ├── workout_plans.ipc.js Workout plans + schedule
+    ├── weight.ipc.js        Weight + body composition entries
+    ├── water.ipc.js         Water entries
+    ├── supplements.ipc.js   Supplement catalog, daily plan, adherence
+    ├── measurements.ipc.js  Body measurements (waist, chest, arms…)
+    ├── daily_energy.ipc.js  Resting/active/extra kcal entries
+    ├── analytics.ipc.js     Trend queries (calorie, macro, exercise)
+    ├── goals_tdee.ipc.js    TDEE estimation, goal suggestions
+    ├── notifications.ipc.js Notification generation + dismissal
+    ├── settings.ipc.js      App settings (goals, toggles, preferences)
+    ├── notes.ipc.js         Daily notes
+    ├── streaks.ipc.js       Logging streak (current + best)
+    ├── barcode.ipc.js       OpenFoodFacts barcode lookup
+    ├── templates.ipc.js     Meal templates / quick-add presets
+    ├── undo.ipc.js          Last-action undo
+    ├── export.ipc.js        JSON full backup export
+    └── import.ipc.js        JSON backup import
 
-renderer process (browser-like, no Node access)
-├── index.html       — single-page shell with all <section class="page"> + <dialog> modals
-├── style.css
-└── js/
-    ├── api.js           — thin async wrappers over window.electronAPI.invoke
-    ├── router.js        — navigate(page, param), DOMContentLoaded boot
-    ├── shortcuts.js     — keyboard shortcut handler
-    ├── components/
-    │   ├── foodSearch.js  — Fuse.js dropdown (FoodSearch class)
-    │   ├── macroChart.js  — Chart.js doughnut factory
-    │   └── barChart.js    — Chart.js bar + line chart factories
-    └── pages/
-        ├── dashboard.js, foods.js, recipes.js, history.js
-        ├── week.js, day.js, weight.js, settings.js
+src/                         React renderer (TypeScript)
+├── api.ts                   Typed wrappers over window.electronAPI.invoke
+├── types.ts                 All shared TypeScript interfaces and types
+├── pages/                   One file per page (16 pages total)
+├── components/              Shared UI components
+│   ├── Nav.tsx              Sidebar navigation (draggable order, hideable pages)
+│   ├── ConfirmDialog.tsx    Modal confirmation (used for all destructive actions)
+│   ├── FoodSearch.tsx       Fuse.js food search dropdown
+│   ├── EntryTable.tsx       Meal-grouped log entry table
+│   ├── DeductionEventModal  FEFO event handler (opened/residual/near-empty/finished)
+│   └── Toast.tsx            Transient toast notifications
+├── hooks/
+│   ├── useSettings.ts       Settings context + updater
+│   ├── useNavigate.ts       Client-side router
+│   └── useToast.ts          Toast trigger hook
+├── lib/
+│   └── macroCalc.ts         Macro range calculator + bar color logic
+└── i18n/
+    ├── translations.ts      EN + IT string map
+    └── useT.ts              Translation hook
 ```
-
-The renderer uses classic `<script>` tags (not ES modules), so all page functions are globals. The router hides/shows `<section class="page">` elements and calls each page's `xOnEnter(param)` function on navigation.
 
 ---
 
 ## Database
 
 **Location:** `~/Library/Application Support/caloriecounter/calories.db`
-**Mode:** WAL + foreign keys enabled
+**Mode:** WAL, foreign keys enabled
+**Schema:** Managed in `main/db.js` via `CREATE TABLE IF NOT EXISTS` + an `ALTER TABLE` migrations array (each guarded by `PRAGMA table_info` to avoid re-applying).
 
-| Table | Key Columns | Notes |
-|---|---|---|
-| `foods` | `id, name, calories, protein, carbs, fat, piece_grams, favorite` | `piece_grams` enables piece-count logging; `favorite` is 0/1 |
-| `log` | `id, date TEXT, food_id, grams, meal TEXT` | meal = Breakfast/Lunch/Dinner/Snack |
-| `settings` | `key TEXT PK, value TEXT` | key-value store |
-| `weight_log` | `id, date TEXT UNIQUE, weight REAL` | one entry per date (upsert on conflict) |
-| `recipes` | `id, name UNIQUE, description` | |
-| `recipe_ingredients` | `id, recipe_id, food_id, grams` | CASCADE delete when recipe deleted |
-| `water_log` | `id, date TEXT, ml REAL` | multiple rows per day, summed at query time |
+### Key tables
 
-**Default settings keys:** `cal_goal` (2000), `protein_goal` (150), `carbs_goal` (250), `fat_goal` (70), `weight_goal` (0), `water_goal` (2000)
-
-**Migrations** (safe, wrapped in try/catch): adds `piece_grams` and `favorite` to `foods`, adds `meal` to `log` — so an imported Flask DB upgrades automatically.
+| Table | Purpose |
+|---|---|
+| `foods` | Food database: calories/protein/carbs/fat/fiber per 100g, piece_grams, is_liquid, is_bulk, barcode, packages |
+| `food_packages` | Package sizes (grams, price) per food |
+| `log` | Daily food log: food_id, grams, meal, date, status (logged/planned) |
+| `recipes` | Bundle recipes (food ratios) |
+| `recipe_ingredients` | Ingredients per bundle recipe |
+| `actual_recipes` | Real recipes with yield_g, procedure, prep/cook time |
+| `actual_recipe_ingredients` | Ingredients per actual recipe |
+| `pantries` | Named pantry locations (multi-pantry, one default) |
+| `pantry` | Pantry batches: food_id, quantity_g, expiry_date, opened_at, package_id, pantry_id |
+| `shopping_list` | Shopping items per pantry |
+| `weight_log` | Weight + body composition entries (fat_pct, muscle_mass, water_pct, bone_mass) |
+| `exercises` | Exercise sessions: type, duration, calories_burned, source |
+| `exercise_sets` | Sets/reps/weight per exercise session |
+| `exercise_types` | Exercise type catalog (MET, muscle groups, equipment) |
+| `workout_plans` | Named workout plans |
+| `workout_plan_exercises` | Exercises per plan (sets, reps, rest, superset) |
+| `workout_schedule` | Planned/done/skipped/rest entries per date |
+| `supplements` | Supplement catalog (name, description) |
+| `supplement_plans` | Versioned daily supplement plans (effective_from) |
+| `supplement_plan_items` | Items per plan (qty, unit, notes) |
+| `supplement_log` | Daily supplement take log |
+| `water_log` | Water entries per day |
+| `measurements` | Body measurements (waist, chest, arms, thighs, hips, neck) |
+| `daily_energy` | Resting + active + extra kcal per day |
+| `daily_notes` | Free-text notes per day |
+| `settings` | Key-value app settings |
+| `dismissed_notifications` | Dismissed notification keys + expiry |
+| `action_log` | Pantry action audit trail |
 
 ---
 
-## IPC API
+## Pages
 
-All calls go through `window.electronAPI.invoke(channel, args)`.
-
-### `foods:*`
-| Channel | Description |
+| Page | Key features |
 |---|---|
-| `foods:getAll` | All foods, ordered by name |
-| `foods:getFavorites` | Foods with `favorite = 1` |
-| `foods:add` | Insert food; returns `{ id }` |
-| `foods:delete` | Delete by id |
-| `foods:toggleFavorite` | Flips 0↔1; returns `{ favorite }` |
-
-### `log:*`
-| Channel | Description |
-|---|---|
-| `log:getDay` | All entries for a date with computed kcal/macros (JOIN foods); ordered Breakfast→Lunch→Dinner→Snack |
-| `log:add` | Insert log entry |
-| `log:addQuick` | Atomic transaction: insert food + log entry |
-| `log:update` | Update grams/food/meal for an entry |
-| `log:delete` | Delete entry by id |
-| `log:getWeeklySummaries` | Aggregate by ISO week: avg kcal/protein/carbs/fat, days logged; descending |
-| `log:getWeekDetail` | Per-day totals for a 7-day window starting `weekStart` |
-
-### `recipes:*`
-| Channel | Description |
-|---|---|
-| `recipes:getAll` | All recipes with aggregated totals + ingredient count |
-| `recipes:get` | Single recipe with ingredient list (with per-ingredient macros) |
-| `recipes:create` | Atomic: insert recipe + all ingredients |
-| `recipes:delete` | Delete recipe (cascades to ingredients) |
-| `recipes:log` | Expand recipe into individual log rows; supports `scale` multiplier |
-| `recipes:updateIngredients` | Replace all ingredients for a recipe |
-
-### `water:*`
-| Channel | Description |
-|---|---|
-| `water:getDay` | `{ total_ml, entries[] }` for a date |
-| `water:add` | Insert a water entry |
-| `water:delete` | Delete by id |
-
-### `weight:*`
-| Channel | Description |
-|---|---|
-| `weight:getAll` | All weight entries, ascending by date |
-| `weight:add` | Upsert (date is unique) |
-| `weight:delete` | Delete by id |
-
-### `settings:*`
-| Channel | Description |
-|---|---|
-| `settings:get` | Returns all goals as a flat object with numeric values |
-| `settings:save` | Upserts any subset of keys |
+| **Dashboard** | Date navigation, macro totals + bars, pie chart, favorites row, food search + log form, meal-grouped entry table, planned vs actual, water widget, supplement widget, pantry selector (when >1 pantry) |
+| **Exercise** | Log exercise sessions (type, duration, sets/reps), calorie burn estimate, workout plan runner, Apple Health import |
+| **Net Calories** | Calories in − resting − active − extra = net, trend chart |
+| **Foods** | Food database CRUD, barcode scanner, package management, favorite toggle, detail/edit mode |
+| **Pantry** | Multi-pantry selector, batch management (add/edit/delete), expiry tracking, shopping list, canMake check, FEFO deduction, action log, pantry management modal |
+| **Recipes** | Bundle recipes + actual recipes (with procedure), canMake filter, log to diary, deduct from pantry, add missing to shopping |
+| **History** | Weekly summaries table + bar chart (12 weeks) |
+| **Week** | 7-day macro breakdown + chart, click-through to day |
+| **Day** | Single-day log, same as dashboard entry table |
+| **Weight** | Weight + body composition log, trend chart with regression line, goal-date prediction |
+| **Supplements** | Catalog (name + description), daily plan editor, adherence history, detail/edit modal |
+| **Measurements** | Body measurements log + trend chart |
+| **Goals** | TDEE estimation from history, goal-type suggestions (lose/maintain/gain), macro range calculator, full goals form |
+| **Notifications** | In-app notification center: pantry expiry, low stock, missing log, missing energy, missing weight |
+| **Data** | JSON export/import (full backup) |
+| **Settings** | Language, theme, pantry toggles, notification toggles, default pantry, tolerances |
 
 ---
 
-## Pages & Features
+## Core Systems
 
-### Dashboard (`dashboard.js`)
-- Date header (today)
-- **Macro totals**: kcal, protein, carbs, fat with color-coded progress bars (green/yellow/red based on % of goal)
-- **Macro pie chart**: Chart.js doughnut (protein=green, carbs=orange, fat=yellow) with center kcal label
-- **Favorites row**: one-click log buttons for starred foods (uses `piece_grams` or 100g default)
-- **Fuzzy food search**: Fuse.js dropdown (threshold 0.4), supports Arrow/Enter/Escape navigation; shows a "recipe" badge for recipes
-- **Log form**: appears on food selection; switches between grams input and piece-count input based on `piece_grams`
-- **Meal-grouped entry table**: editable rows (inline expand) with delete; shared with the Day page
-- **Water section**: progress bar, +200ml / +500ml / custom buttons; custom amount via `<dialog>`
-- **Quick-food dialog**: add a one-off food+log entry in one step; includes macro preset buttons (high-protein, balanced, high-carb) that auto-fill macros from kcal
+### FEFO Pantry Engine (`main/lib/pantryFefo.js`)
+Deducts food from pantry batches in First-Expired-First-Out order. Handles:
+- Sealed batch opening (emits `opened` event → user sets opened_days)
+- Open batch draining
+- Residual detection (near-empty open batch → prompt for new pack)
+- Near-empty warning (below discard threshold %)
+- Finished batch cleanup
+- Multi-pantry: all queries scoped to `pantry_id`
 
-### Foods (`foods.js`)
-- Full food database CRUD: add with name/kcal/protein/carbs/fat/piece_grams, delete
-- Toggle favorite star per food
-- Macro preset buttons (same as quick-food dialog)
+### Macro Range Calculator (`src/lib/macroCalc.ts`)
+Given body weight (kg) and calorie target:
+- **Protein:** 1.6 / 1.9 / 2.2 g/kg (min / rec / max)
+- **Fat:** max(weight×0.6, 45g) / max(weight×0.7, cal×28%÷9) / cal×33%÷9
+- **Carbs:** residual after protein + fat fill the calorie budget
+- **Fiber:** 25 / 30 / 38g (fixed)
 
-### Recipes (`recipes.js`)
-- Recipe card list with aggregated macros + ingredient count
-- **Create dialog**: name + description + ingredient builder (FoodSearch per ingredient, grams, live macro total preview)
-- **Log dialog**: meal picker + scale multiplier (default 1.0) + macro preview; calls `recipes:log` which expands to N log rows
-- Delete recipe
+### TDEE Estimation (`main/ipc/goals_tdee.ipc.js`)
+Linear regression over logged calorie intake vs weight change history. Returns TDEE estimate + confidence (low/medium/high based on data point count) + goal-type suggestions (lose/maintain/gain).
 
-### History (`history.js`)
-- Weekly summaries table: week start, days logged / 7, avg kcal/protein/carbs/fat
-- Bar chart (last 12 weeks) with dashed calorie goal line
-- Click a week row → navigates to Week page
+### Notifications (`main/lib/notifications.js`)
+Generated on demand from current app state:
+- `pantry_expiry` — batches expiring within warn/urgent threshold days
+- `pantry_opened` — opened batches with no opened_days set
+- `low_pantry` — foods with total stock below one serving
+- `missing_log` — days with no food logged in recent history
+- `missing_active_energy` — days with no exercise logged
+- `missing_weight` — no weight entry within warn/urgent threshold days
 
-### Week (`week.js`)
-- 7-day bar chart + per-day rows showing kcal/protein/carbs/fat
-- Click a day row → navigates to Day page
-
-### Day (`day.js`)
-- Single-day food log, same meal-grouped entry table as dashboard
-- "Add food" button opens Quick-food dialog targeting that day's date
-- Back navigation to Week page
-
-### Weight (`weight.js`)
-- Add weight entry form (date + value)
-- Line chart with: actual weight points, linear regression trend line, optional goal line
-- Goal-date prediction based on trend slope
-- Entry table with delete
-
-### Settings (`settings.js`)
-- Form for all numeric goals: calories, protein, carbs, fat, weight, water
-- Saved via `settings:save` on submit
+### Multi-Pantry
+`pantries` dimension table with `is_default`. `pantry_id` FK on `pantry` and `shopping_list` tables. All FEFO, canMake, stock check, and shopping queries are scoped per pantry. Dashboard persists pantry selection in localStorage, scoped to the current date (resets next day).
 
 ---
 
-## Cross-Cutting Features
+## i18n
 
-**Keyboard shortcuts** (`shortcuts.js`):
-- `1–6`: navigate to Dashboard / Foods / Recipes / History / Weight / Settings (blocked when focus is in an input)
-- `Escape`: close topmost open `<dialog>`
-- `Cmd/Ctrl+N`: global shortcut registered in main process → sends `shortcut:quickAdd` IPC → focuses dashboard food search
-
-**Dev seeding** (`seed_dev.js`):
-- Runs once on startup (guarded by `seeded_dev` settings key)
-- Populates 3 weeks of log data (~85% of days), weekly weight entries (84.5 → ~82 kg trend), today's partial log (breakfast + lunch), water entries
-- Uses deterministic pseudo-RNG (seed=42) for reproducibility
-
-**Migration support**: `initDb()` safely upgrades an imported Flask SQLite DB via `CREATE TABLE IF NOT EXISTS` + `ALTER TABLE` in try/catch blocks.
+All UI strings live in `src/i18n/translations.ts` as a typed key → `{ en, it }` map. The `useT()` hook reads the current `language` setting and returns the appropriate string. Every new UI text requires both EN and IT entries.
 
 ---
 
-## Known Issues / Notes
+## Dev Commands
 
-- **UTC date bug**: `new Date().toISOString().slice(0, 10)` returns UTC date; if local timezone is ahead of UTC, entries logged at night may land on the wrong date. This affects both the dashboard's "today" query and seed data. Fix: use local date via `new Date().toLocaleDateString('sv')` or manual formatting.
-- **DevTools auto-open**: `mainWindow.webContents.openDevTools()` is called unconditionally — should be gated on a dev flag before shipping.
-- **No input validation** on the main process side: IPC handlers trust renderer input (acceptable for a local single-user app).
+```bash
+npm run dev          # Vite + Electron together (Ctrl+C kills both), port 5199
+npm run dev:vite     # Vite renderer only
+npm run dev:electron # Electron main only
+npm run build && npm run dist  # Production build
+npm run rebuild      # Rebuild native modules (after Node/Electron version change)
+```

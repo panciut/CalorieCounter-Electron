@@ -31,10 +31,10 @@ export interface MacroRanges {
 export function calcMacroRanges(weightKg: number, calories: number): MacroRanges {
   const protein_min = Math.round(weightKg * 1.6);
   const protein_max = Math.round(weightKg * 2.2);
-  const protein_rec = Math.round(weightKg * 1.75);
+  const protein_rec = Math.round(weightKg * 1.9);
 
   const fat_min = Math.round(Math.max(weightKg * 0.6, 45));
-  const fat_max = Math.round(calories * 0.30 / 9);
+  const fat_max = Math.round(calories * 0.33 / 9);
   const fat_rec = Math.round(Math.max(weightKg * 0.7, calories * 0.28 / 9));
 
   const carbs_max = Math.max(0, Math.round((calories - protein_min * 4 - fat_min * 9) / 4));
