@@ -499,27 +499,6 @@ function initDb() {
     }
   } catch (e) { console.error('pantry package backfill failed:', e); }
 
-  // One-time seed: generic estimate meals as favorites for quick logging
-  try {
-    const seeded = database.prepare("SELECT value FROM settings WHERE key = 'schema.generic_meals_seeded_v1'").get();
-    if (!seeded) {
-      const insertFood = database.prepare(
-        "INSERT OR IGNORE INTO foods (name, calories, protein, carbs, fat, fiber, favorite) VALUES (?, ?, 0, 0, 0, 0, 1)"
-      );
-      const genericMeals = [
-        ['Meal ~400kcal', 400],
-        ['Meal ~600kcal', 600],
-        ['Meal ~800kcal', 800],
-        ['Snack ~150kcal', 150],
-        ['Snack ~300kcal', 300],
-      ];
-      database.transaction(() => {
-        for (const [name, kcal] of genericMeals) insertFood.run(name, kcal);
-      })();
-      database.prepare("INSERT INTO settings (key, value) VALUES ('schema.generic_meals_seeded_v1', '1')").run();
-    }
-  } catch (e) { console.error('generic meal seed failed:', e); }
-
   // Default settings
   const insertSetting = database.prepare(
     'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)'
