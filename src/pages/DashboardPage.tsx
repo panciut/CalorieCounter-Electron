@@ -509,7 +509,15 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   }
 
   async function quickLog(food: Food) {
-    await api.log.add({ food_id: food.id, grams: food.piece_grams || 100, meal: 'Snack', date: dateStr, status: logStatus, pantry_id: logPantryId });
+    // Non-bulk foods log by pack size (smallest available); bulk foods fall
+    // back to piece_grams, then 100g.
+    const smallestPack = (food.packages ?? []).reduce<number | null>(
+      (min, p) => (min == null || p.grams < min ? p.grams : min), null,
+    );
+    const grams = (food.is_bulk !== 1 && smallestPack != null)
+      ? smallestPack
+      : (food.piece_grams || 100);
+    await api.log.add({ food_id: food.id, grams, meal: 'Snack', date: dateStr, status: logStatus, pantry_id: logPantryId });
     load();
   }
 

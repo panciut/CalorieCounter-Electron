@@ -2,9 +2,7 @@ const { ipcMain } = require('electron');
 const { getDb } = require('../db');
 
 function registerFoodsIpc() {
-  ipcMain.handle('foods:getAll', () => {
-    const db = getDb();
-    const foods = db.prepare('SELECT * FROM foods ORDER BY name').all();
+  function attachPackages(db, foods) {
     const packages = db.prepare('SELECT id, food_id, grams, price FROM food_packages ORDER BY food_id, grams ASC').all();
     const byFood = new Map();
     for (const p of packages) {
@@ -13,11 +11,17 @@ function registerFoodsIpc() {
     }
     for (const f of foods) f.packages = byFood.get(f.id) ?? [];
     return foods;
+  }
+
+  ipcMain.handle('foods:getAll', () => {
+    const db = getDb();
+    return attachPackages(db, db.prepare('SELECT * FROM foods ORDER BY name').all());
   });
 
-  ipcMain.handle('foods:getFavorites', () =>
-    getDb().prepare('SELECT * FROM foods WHERE favorite = 1 ORDER BY name').all()
-  );
+  ipcMain.handle('foods:getFavorites', () => {
+    const db = getDb();
+    return attachPackages(db, db.prepare('SELECT * FROM foods WHERE favorite = 1 ORDER BY name').all());
+  });
 
   ipcMain.handle('foods:add', (_, { name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, is_bulk, barcode, opened_days, discard_threshold_pct, price_per_100g }) => {
     const bulk = is_bulk ? 1 : 0;
@@ -46,7 +50,8 @@ function registerFoodsIpc() {
   });
 
   ipcMain.handle('foods:getFrequent', (_, { limit }) => {
-    return getDb().prepare(`
+    const db = getDb();
+    const rows = db.prepare(`
       SELECT f.*, COUNT(l.id) AS use_count
       FROM foods f
       JOIN log l ON l.food_id = f.id
@@ -54,6 +59,7 @@ function registerFoodsIpc() {
       ORDER BY use_count DESC
       LIMIT ?
     `).all(limit || 10);
+    return attachPackages(db, rows);
   });
 
   ipcMain.handle('foods:toggleFavorite', (_, { id }) => {
