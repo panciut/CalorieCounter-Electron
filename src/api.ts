@@ -6,6 +6,7 @@ import type {
   Measurement,
   WeeklySummary, WeekDayDetail, BarcodeResult,
   PantryItem, PantryAggregate, PantryLocation, ShoppingItem, PantryIngredientCheck,
+  Scale,
   CalorieTrendPoint, MacroTrendPoint, ExerciseTrendPoint,
   GoalType, TDEEResult, GoalSuggestion, DailyEnergy,
   DeductionEvent,
@@ -60,6 +61,8 @@ export const api = {
     confirmPlanned:     (data: { id: number; pantry_id?: number }) => invoke<{ ok: boolean; shortage: number; shortage_food: string; events: DeductionEvent[] }>('log:confirmPlanned', data),
     confirmAllPlanned:  (data: { date: string; pantry_id?: number }) => invoke<{ ok: boolean; shortages: { food_name: string; shortage: number }[]; events: DeductionEvent[] }>('log:confirmAllPlanned', data),
     swapLunchDinner:    (date: string) => invoke<{ ok: boolean }>('log:swapLunchDinner', { date }),
+    swapDays:           (data: { dateA: string; dateB: string }) =>
+                          invoke<{ ok: boolean; swapped: number }>('log:swapDays', data),
     getWeeklySummaries: () => invoke<WeeklySummary[]>('log:getWeeklySummaries'),
     getWeekDetail:      (weekStart: string) => invoke<WeekDayDetail[]>('log:getWeekDetail', { weekStart }),
   },
@@ -136,8 +139,16 @@ export const api = {
 
   weight: {
     getAll: () => invoke<WeightEntry[]>('weight:getAll'),
-    add:    (data: { weight: number; date: string; fat_pct?: number | null; muscle_mass?: number | null; water_pct?: number | null; bone_mass?: number | null }) => invoke<{ ok: boolean }>('weight:add', data),
+    add:    (data: { weight: number; date: string; fat_pct?: number | null; muscle_mass?: number | null; water_pct?: number | null; bone_mass?: number | null; scale_id?: number | null }) => invoke<{ ok: boolean }>('weight:add', data),
     delete: (id: number) => invoke<{ ok: boolean }>('weight:delete', { id }),
+  },
+
+  scales: {
+    getAll:     () => invoke<Scale[]>('scales:getAll'),
+    create:     (name: string) => invoke<{ id: number }>('scales:create', { name }),
+    rename:     (id: number, name: string) => invoke<{ ok: boolean }>('scales:rename', { id, name }),
+    delete:     (id: number) => invoke<{ ok: boolean; reason?: string }>('scales:delete', { id }),
+    setDefault: (id: number) => invoke<{ ok: boolean }>('scales:setDefault', { id }),
   },
 
   barcode: {

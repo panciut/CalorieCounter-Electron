@@ -165,6 +165,19 @@ function registerLogIpc() {
     return { ok: true };
   });
 
+  ipcMain.handle('log:swapDays', (_, { dateA, dateB }) => {
+    if (!dateA || !dateB || dateA === dateB) return { ok: false, swapped: 0 };
+    const db = getDb();
+    return db.transaction(() => {
+      const info = db.prepare(`
+        UPDATE log
+        SET date = CASE date WHEN ? THEN ? ELSE ? END
+        WHERE status = 'planned' AND date IN (?, ?)
+      `).run(dateA, dateB, dateA, dateA, dateB);
+      return { ok: true, swapped: info.changes };
+    })();
+  });
+
   ipcMain.handle('log:delete', (_, { id }) => {
     const db = getDb();
     const row = db.prepare('SELECT date, food_id, grams, meal, f.name AS food_name FROM log l JOIN foods f ON f.id = l.food_id WHERE l.id = ?').get(id);

@@ -271,6 +271,14 @@ export interface WeightEntry {
   muscle_mass: number | null;
   water_pct: number | null;
   bone_mass: number | null;
+  scale_id: number | null;
+  scale_name: string | null;
+}
+
+export interface Scale {
+  id: number;
+  name: string;
+  is_default: number; // 0 or 1
 }
 
 export interface WaterEntry {

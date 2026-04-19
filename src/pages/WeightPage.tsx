@@ -5,7 +5,7 @@ import { api } from "../api";
 import { linearRegression } from "../lib/macroCalc";
 import { today, fmtDate, formatShortDate } from "../lib/dateUtil";
 import LineChartCard from "../components/LineChartCard";
-import type { WeightEntry } from "../types";
+import type { WeightEntry, Scale } from "../types";
 
 type Tab = 'weight' | 'body';
 
@@ -22,6 +22,9 @@ export default function WeightPage() {
   const [muscleMass, setMuscleMass]   = useState('');
   const [waterPct, setWaterPct]       = useState('');
   const [boneMass, setBoneMass]       = useState('');
+  // Scales
+  const [scales, setScales]           = useState<Scale[]>([]);
+  const [scaleId, setScaleId]         = useState<number | null>(null);
 
   const loadEntries = useCallback(async () => {
     const data = await api.weight.getAll();
@@ -29,6 +32,21 @@ export default function WeightPage() {
   }, []);
 
   useEffect(() => { loadEntries(); }, [loadEntries]);
+
+  useEffect(() => {
+    api.scales.getAll().then(list => {
+      setScales(list);
+      const stored = Number(localStorage.getItem('weightScaleId') || '');
+      const existing = list.find(s => s.id === stored);
+      const def = list.find(s => s.is_default) ?? list[0];
+      setScaleId((existing ?? def)?.id ?? null);
+    });
+  }, []);
+
+  function pickScale(id: number) {
+    setScaleId(id);
+    localStorage.setItem('weightScaleId', String(id));
+  }
 
   async function handleAdd() {
     const w = parseFloat(weight);
@@ -40,6 +58,7 @@ export default function WeightPage() {
       muscle_mass: muscleMass ? parseFloat(muscleMass) : null,
       water_pct:   waterPct   ? parseFloat(waterPct)   : null,
       bone_mass:   boneMass   ? parseFloat(boneMass)   : null,
+      scale_id:    scaleId,
     });
     setWeight(''); setFatPct(''); setMuscleMass(''); setWaterPct(''); setBoneMass('');
     setDate(today());
@@ -132,6 +151,18 @@ export default function WeightPage() {
                 onChange={e => setWeight(e.target.value)}
                 onKeyDown={e => e.key === "Enter" && handleAdd()}
               />
+              {scales.length > 0 && (
+                <select
+                  className={`${inputCls} w-auto`}
+                  value={scaleId ?? ''}
+                  onChange={e => pickScale(Number(e.target.value))}
+                  title={t("weight.scale")}
+                >
+                  {scales.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              )}
               <button onClick={handleAdd} className="rounded-xl bg-accent text-white px-5 py-2 text-sm font-semibold hover:opacity-90 cursor-pointer">
                 {t("common.add")}
               </button>
@@ -167,6 +198,7 @@ export default function WeightPage() {
                   <tr className="border-b border-border text-text-sec text-xs uppercase tracking-wider">
                     <th className="text-left px-4 py-3">{t("weight.dateCol")}</th>
                     <th className="text-right px-4 py-3">{t("weight.weightCol")}</th>
+                    <th className="text-right px-4 py-3">{t("weight.scale")}</th>
                     <th className="px-4 py-3" />
                   </tr>
                 </thead>
@@ -175,6 +207,7 @@ export default function WeightPage() {
                     <tr key={entry.id} className="border-b border-border/50 last:border-0 hover:bg-bg/50 transition-colors">
                       <td className="px-4 py-3 text-text">{fmtDate(entry.date)}</td>
                       <td className="px-4 py-3 text-right font-medium text-text tabular-nums">{entry.weight} kg</td>
+                      <td className="px-4 py-3 text-right text-text-sec">{entry.scale_name ?? '—'}</td>
                       <td className="px-4 py-3 text-right">
                         <button onClick={() => handleDelete(entry.id)} className="text-text-sec hover:text-red transition-colors px-1 cursor-pointer">✕</button>
                       </td>
@@ -218,6 +251,20 @@ export default function WeightPage() {
                 <label className="text-xs text-text-sec">Bone mass (kg)</label>
                 <input type="text" inputMode="decimal" className={inputCls} placeholder="kg" value={boneMass} onChange={e => setBoneMass(e.target.value)} />
               </div>
+              {scales.length > 0 && (
+                <div className="space-y-1">
+                  <label className="text-xs text-text-sec">{t("weight.scale")}</label>
+                  <select
+                    className={inputCls}
+                    value={scaleId ?? ''}
+                    onChange={e => pickScale(Number(e.target.value))}
+                  >
+                    {scales.map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
             <button onClick={handleAdd} disabled={!weight} className="w-full rounded-xl bg-accent text-white py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-40 cursor-pointer">
               {t("common.add")}

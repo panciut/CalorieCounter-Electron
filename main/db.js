@@ -315,6 +315,12 @@ function initDb() {
     )`,
     'ALTER TABLE pantry ADD COLUMN pantry_id INTEGER DEFAULT 1',
     'ALTER TABLE shopping_list ADD COLUMN pantry_id INTEGER DEFAULT 1',
+    `CREATE TABLE IF NOT EXISTS scales (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      is_default INTEGER NOT NULL DEFAULT 0
+    )`,
+    'ALTER TABLE weight_log ADD COLUMN scale_id INTEGER',
   ];
   for (const stmt of migrations) {
     try { database.exec(stmt); } catch (_) {}
@@ -328,6 +334,17 @@ function initDb() {
       const defaultId = database.prepare('SELECT id FROM pantries WHERE is_default = 1').get().id;
       database.prepare('UPDATE pantry SET pantry_id = ? WHERE pantry_id IS NULL').run(defaultId);
       database.prepare('UPDATE shopping_list SET pantry_id = ? WHERE pantry_id IS NULL').run(defaultId);
+    }
+  } catch (_) {}
+
+  // Bootstrap the scales table — seed two default scales the first time
+  try {
+    const scaleCount = database.prepare('SELECT COUNT(*) AS n FROM scales').get().n;
+    if (scaleCount === 0) {
+      database.prepare("INSERT INTO scales (name, is_default) VALUES ('Scale 1', 1)").run();
+      database.prepare("INSERT INTO scales (name, is_default) VALUES ('Scale 2', 0)").run();
+      const defaultId = database.prepare('SELECT id FROM scales WHERE is_default = 1').get().id;
+      database.prepare('UPDATE weight_log SET scale_id = ? WHERE scale_id IS NULL').run(defaultId);
     }
   } catch (_) {}
 

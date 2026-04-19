@@ -2,14 +2,39 @@ import { useState, useEffect } from 'react';
 import { useSettings } from '../hooks/useSettings';
 import { useT } from '../i18n/useT';
 import { api } from '../api';
-import type { PantryLocation } from '../types';
+import type { PantryLocation, Scale } from '../types';
 
 export default function SettingsPage() {
   const { t } = useT();
   const { settings, updateSettings } = useSettings();
   const [pantries, setPantries] = useState<PantryLocation[]>([]);
+  const [scales, setScales] = useState<Scale[]>([]);
+  const [newScaleName, setNewScaleName] = useState('');
 
   useEffect(() => { api.pantries.getAll().then(setPantries); }, []);
+  useEffect(() => { api.scales.getAll().then(setScales); }, []);
+
+  async function reloadScales() { setScales(await api.scales.getAll()); }
+  async function handleRenameScale(id: number, name: string) {
+    if (!name.trim()) return;
+    await api.scales.rename(id, name.trim());
+    reloadScales();
+  }
+  async function handleAddScale() {
+    const name = newScaleName.trim();
+    if (!name) return;
+    await api.scales.create(name);
+    setNewScaleName('');
+    reloadScales();
+  }
+  async function handleDeleteScale(id: number) {
+    await api.scales.delete(id);
+    reloadScales();
+  }
+  async function handleSetDefaultScale(id: number) {
+    await api.scales.setDefault(id);
+    reloadScales();
+  }
 
   const currentTheme = settings.theme    ?? 'dark';
   const currentLang  = settings.language ?? 'en';
@@ -126,6 +151,60 @@ export default function SettingsPage() {
               )}
             </div>
           )}
+        </div>
+      </section>
+
+      {/* ── Scales ─────────────────────────────────────────────────────────── */}
+      <section>
+        <h2 className={sectionTitle}>{t('settings.scalesSection')}</h2>
+        <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+          {scales.map(s => (
+            <div key={s.id} className="flex items-center gap-2">
+              <input
+                type="text"
+                defaultValue={s.name}
+                onBlur={e => { if (e.target.value.trim() && e.target.value.trim() !== s.name) handleRenameScale(s.id, e.target.value); }}
+                onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                className="flex-1 bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent"
+              />
+              <button
+                onClick={() => handleSetDefaultScale(s.id)}
+                className={[
+                  'text-xs px-3 py-1.5 rounded-lg border cursor-pointer transition-colors',
+                  s.is_default
+                    ? 'border-accent bg-accent/10 text-accent'
+                    : 'border-border text-text-sec hover:border-accent/50',
+                ].join(' ')}
+              >
+                {s.is_default ? t('settings.scaleDefault') : t('settings.scaleSetDefault')}
+              </button>
+              {!s.is_default && (
+                <button
+                  onClick={() => handleDeleteScale(s.id)}
+                  className="text-xs px-2 py-1.5 rounded-lg border border-border text-text-sec hover:text-red hover:border-red/50 cursor-pointer transition-colors"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          ))}
+          <div className="flex items-center gap-2 pt-2 border-t border-border/50">
+            <input
+              type="text"
+              value={newScaleName}
+              onChange={e => setNewScaleName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAddScale()}
+              placeholder={t('settings.scaleNewPlaceholder')}
+              className="flex-1 bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent"
+            />
+            <button
+              onClick={handleAddScale}
+              disabled={!newScaleName.trim()}
+              className="text-xs px-3 py-1.5 rounded-lg border border-accent text-accent hover:bg-accent/10 cursor-pointer disabled:opacity-40 transition-colors"
+            >
+              {t('settings.scaleAdd')}
+            </button>
+          </div>
         </div>
       </section>
 
