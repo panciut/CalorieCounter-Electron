@@ -13,6 +13,7 @@ import { linearRegression } from '../lib/macroCalc';
 interface DataPoint {
   label: string;
   value: number;
+  color?: string;
 }
 
 interface LineChartCardProps {
@@ -36,9 +37,12 @@ export default function LineChartCard({
   const ys = data.map(d => d.value);
   const { slope, intercept } = linearRegression(xs, ys);
 
+  const hasPointColors = data.some(d => d.color);
+
   const chartData = data.map((d, i) => ({
     label: d.label,
     value: d.value,
+    color: d.color,
     trend: showTrend ? +(slope * i + intercept).toFixed(2) : undefined,
   }));
 
@@ -69,7 +73,13 @@ export default function LineChartCard({
           dataKey="value"
           stroke={color}
           strokeWidth={2}
-          dot={{ fill: 'var(--accent2)', r: 3, strokeWidth: 0 }}
+          dot={hasPointColors
+            ? ((props: { cx?: number; cy?: number; payload?: { color?: string }; index?: number }) => {
+                const { cx, cy, payload, index } = props;
+                if (cx == null || cy == null) return <g key={`dot-${index}`} />;
+                return <circle key={`dot-${index}`} cx={cx} cy={cy} r={3.5} fill={payload?.color ?? 'var(--accent2)'} />;
+              }) as never
+            : { fill: 'var(--accent2)', r: 3, strokeWidth: 0 }}
           activeDot={{ r: 5 }}
           connectNulls
         />

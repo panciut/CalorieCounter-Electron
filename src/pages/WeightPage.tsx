@@ -4,14 +4,24 @@ import { useT } from "../i18n/useT";
 import { api } from "../api";
 import { linearRegression } from "../lib/macroCalc";
 import { today, fmtDate, formatShortDate } from "../lib/dateUtil";
+import { copyToClipboard } from "../lib/exportText";
+import { useToast } from "../components/Toast";
 import LineChartCard from "../components/LineChartCard";
 import type { WeightEntry, Scale } from "../types";
+
+// Golden-ratio hue shift picks visually distinct colors for any scale id.
+function colorForScaleId(id: number | null | undefined): string {
+  if (id == null) return 'var(--accent2)';
+  const hue = (id * 137) % 360;
+  return `hsl(${hue}, 70%, 55%)`;
+}
 
 type Tab = 'weight' | 'body';
 
 export default function WeightPage() {
   const { settings } = useSettings();
   const { t } = useT();
+  const { showToast } = useToast();
   const [tab, setTab] = useState<Tab>('weight');
 
   const [entries, setEntries] = useState<WeightEntry[]>([]);
@@ -100,7 +110,23 @@ export default function WeightPage() {
 
   const chartData = [...entries]
     .sort((a, b) => a.date.localeCompare(b.date))
-    .map(e => ({ label: formatShortDate(e.date), value: e.weight }));
+    .map(e => ({ label: formatShortDate(e.date), value: e.weight, color: colorForScaleId(e.scale_id) }));
+
+  async function handleCopyHistory() {
+    const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
+    const hasBody = sorted.some(e => e.fat_pct != null || e.muscle_mass != null || e.water_pct != null || e.bone_mass != null);
+    const header = hasBody
+      ? 'Date\tWeight (kg)\tScale\tFat %\tMuscle (kg)\tWater %\tBone (kg)'
+      : 'Date\tWeight (kg)\tScale';
+    const lines = sorted.map(e => {
+      const base = `${e.date}\t${e.weight}\t${e.scale_name ?? ''}`;
+      if (!hasBody) return base;
+      return `${base}\t${e.fat_pct ?? ''}\t${e.muscle_mass ?? ''}\t${e.water_pct ?? ''}\t${e.bone_mass ?? ''}`;
+    });
+    const text = [header, ...lines].join('\n');
+    const ok = await copyToClipboard(text);
+    showToast(ok ? t('export.copied') : t('export.copyFailed'), ok ? 'success' : 'error');
+  }
 
   // Body comp data (only entries with fat_pct)
   const bodyEntries = [...entries]
@@ -184,10 +210,30 @@ export default function WeightPage() {
           </div>
 
           {chartData.length > 0 && (
-            <div className="bg-card rounded-2xl border border-border p-4">
+            <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
               <LineChartCard data={chartData} goalValue={settings.weight_goal || undefined} showTrend={true} unit=" kg" height={250} />
+              {scales.length > 1 && (
+                <div className="flex flex-wrap items-center gap-3 text-xs text-text-sec">
+                  {scales.map(s => (
+                    <span key={s.id} className="flex items-center gap-1.5">
+                      <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: colorForScaleId(s.id) }} />
+                      {s.name}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           )}
+
+          <div className="flex justify-end">
+            <button
+              onClick={handleCopyHistory}
+              disabled={entries.length === 0}
+              className="text-sm text-text-sec border border-border rounded-lg px-3 py-1.5 hover:border-accent/50 hover:text-text disabled:opacity-40 cursor-pointer transition-colors"
+            >
+              📋 {t('weight.copyHistory')}
+            </button>
+          </div>
 
           <div className="bg-card rounded-2xl border border-border overflow-hidden">
             {entries.length === 0 ? (
