@@ -321,6 +321,8 @@ function initDb() {
       is_default INTEGER NOT NULL DEFAULT 0
     )`,
     'ALTER TABLE weight_log ADD COLUMN scale_id INTEGER',
+    'ALTER TABLE foods ADD COLUMN is_placeholder INTEGER NOT NULL DEFAULT 0',
+    'ALTER TABLE foods ADD COLUMN display_name TEXT',
   ];
   for (const stmt of migrations) {
     try { database.exec(stmt); } catch (_) {}

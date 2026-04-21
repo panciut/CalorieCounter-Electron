@@ -15,12 +15,12 @@ function registerFoodsIpc() {
 
   ipcMain.handle('foods:getAll', () => {
     const db = getDb();
-    return attachPackages(db, db.prepare('SELECT * FROM foods ORDER BY name').all());
+    return attachPackages(db, db.prepare('SELECT * FROM foods WHERE is_placeholder = 0 ORDER BY name').all());
   });
 
   ipcMain.handle('foods:getFavorites', () => {
     const db = getDb();
-    return attachPackages(db, db.prepare('SELECT * FROM foods WHERE favorite = 1 ORDER BY name').all());
+    return attachPackages(db, db.prepare('SELECT * FROM foods WHERE favorite = 1 AND is_placeholder = 0 ORDER BY name').all());
   });
 
   ipcMain.handle('foods:add', (_, { name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, is_bulk, barcode, opened_days, discard_threshold_pct, price_per_100g }) => {
@@ -55,6 +55,7 @@ function registerFoodsIpc() {
       SELECT f.*, COUNT(l.id) AS use_count
       FROM foods f
       JOIN log l ON l.food_id = f.id
+      WHERE f.is_placeholder = 0
       GROUP BY f.id
       ORDER BY use_count DESC
       LIMIT ?

@@ -1,4 +1,5 @@
 const { ipcMain } = require('electron');
+const crypto = require('crypto');
 const { getDb } = require('../db');
 const { pushUndo } = require('./undo.ipc');
 const { isPantryEnabled, deductFoodFEFO } = require('../lib/pantryFefo');
@@ -17,7 +18,7 @@ function registerLogIpc() {
   ipcMain.handle('log:getDay', (_, { date }) => {
     const d = date || today();
     return getDb().prepare(`
-      SELECT l.id, l.food_id, l.meal, l.status, f.name, l.grams,
+      SELECT l.id, l.food_id, l.meal, l.status, COALESCE(f.display_name, f.name) AS name, l.grams,
         ROUND(f.calories * l.grams / 100, 2) AS calories,
         ROUND(f.protein  * l.grams / 100, 2) AS protein,
         ROUND(f.carbs    * l.grams / 100, 2) AS carbs,
@@ -34,7 +35,7 @@ function registerLogIpc() {
   ipcMain.handle('log:getPlanned', (_, { date }) => {
     const d = date || today();
     return getDb().prepare(`
-      SELECT l.id, l.food_id, l.meal, l.status, f.name, l.grams,
+      SELECT l.id, l.food_id, l.meal, l.status, COALESCE(f.display_name, f.name) AS name, l.grams,
         ROUND(f.calories * l.grams / 100, 2) AS calories,
         ROUND(f.protein  * l.grams / 100, 2) AS protein,
         ROUND(f.carbs    * l.grams / 100, 2) AS carbs,
@@ -135,16 +136,18 @@ function registerLogIpc() {
     const db = getDb();
     const d = date || today();
     return db.transaction(() => {
+      // Placeholder food rows use a unique internal name so the user's chosen name
+      // stays free for a real food entry later. display_name carries the label.
+      const internalName = `__qa_${crypto.randomUUID()}__`;
       const foodResult = db.prepare(
-        'INSERT INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-      ).run(food.name, food.calories, food.protein || 0, food.carbs || 0, food.fat || 0, food.fiber || 0, food.piece_grams || null, food.is_liquid ? 1 : 0);
+        'INSERT INTO foods (name, display_name, is_placeholder, calories, protein, carbs, fat, fiber, piece_grams, is_liquid) VALUES (?, ?, 1, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(internalName, food.name, food.calories, food.protein || 0, food.carbs || 0, food.fat || 0, food.fiber || 0, food.piece_grams || null, food.is_liquid ? 1 : 0);
       const logResult = db.prepare(
         "INSERT INTO log (date, food_id, grams, meal, status) VALUES (?, ?, ?, ?, 'logged')"
       ).run(d, foodResult.lastInsertRowid, grams, meal || 'Snack');
       if (food.is_liquid) {
         db.prepare('INSERT INTO water_log (date, ml, source, log_id) VALUES (?, ?, ?, ?)').run(d, grams, food.name, logResult.lastInsertRowid);
       }
-      // No FEFO deduction for quick-add (food is brand new, can't be in pantry yet)
       return { id: logResult.lastInsertRowid, food_id: foodResult.lastInsertRowid, shortage: 0 };
     })();
   });
@@ -180,7 +183,7 @@ function registerLogIpc() {
 
   ipcMain.handle('log:delete', (_, { id }) => {
     const db = getDb();
-    const row = db.prepare('SELECT date, food_id, grams, meal, f.name AS food_name FROM log l JOIN foods f ON f.id = l.food_id WHERE l.id = ?').get(id);
+    const row = db.prepare('SELECT date, food_id, grams, meal, COALESCE(f.display_name, f.name) AS food_name FROM log l JOIN foods f ON f.id = l.food_id WHERE l.id = ?').get(id);
     if (row) {
       pushUndo('log:delete', { date: row.date, food_id: row.food_id, grams: row.grams, meal: row.meal });
       logAction(db, 'log:delete', { food_name: row.food_name, grams: row.grams, details: { date: row.date, meal: row.meal } });

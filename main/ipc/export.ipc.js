@@ -9,9 +9,9 @@ function registerExportIpc() {
   ipcMain.handle('export:data', async (_, { format }) => {
     const db = getDb();
 
-    const foods      = db.prepare('SELECT * FROM foods').all();
+    const foods      = db.prepare('SELECT * FROM foods WHERE is_placeholder = 0').all();
     const log        = db.prepare(`
-      SELECT l.id, l.date, f.name AS food_name, l.grams, l.meal, l.status,
+      SELECT l.id, l.date, COALESCE(f.display_name, f.name) AS food_name, l.grams, l.meal, l.status,
         ROUND(f.calories * l.grams / 100, 2) AS calories,
         ROUND(f.protein  * l.grams / 100, 2) AS protein,
         ROUND(f.carbs    * l.grams / 100, 2) AS carbs,
@@ -86,7 +86,7 @@ function registerExportIpc() {
   // ── Export food database as JSON ──────────────────────────────────────────
   ipcMain.handle('export:foods', async () => {
     const db = getDb();
-    const foods = db.prepare('SELECT name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode, favorite FROM foods ORDER BY name').all();
+    const foods = db.prepare('SELECT name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode, favorite FROM foods WHERE is_placeholder = 0 ORDER BY name').all();
 
     const result = await dialog.showSaveDialog({
       defaultPath: `foods-${new Date().toISOString().slice(0,10)}.json`,
