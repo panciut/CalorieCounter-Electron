@@ -140,6 +140,7 @@ export const api = {
   weight: {
     getAll: () => invoke<WeightEntry[]>('weight:getAll'),
     add:    (data: { weight: number; date: string; fat_pct?: number | null; muscle_mass?: number | null; water_pct?: number | null; bone_mass?: number | null; scale_id?: number | null }) => invoke<{ ok: boolean }>('weight:add', data),
+    update: (data: { id: number; weight: number; date: string; fat_pct?: number | null; muscle_mass?: number | null; water_pct?: number | null; bone_mass?: number | null; scale_id?: number | null }) => invoke<{ ok: boolean; reason?: string }>('weight:update', data),
     delete: (id: number) => invoke<{ ok: boolean }>('weight:delete', { id }),
   },
 

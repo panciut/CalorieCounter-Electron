@@ -42,6 +42,14 @@ function registerUndoIpc() {
         db.prepare('INSERT INTO weight_log (date, weight) VALUES (?, ?)').run(data.date, data.weight);
         return { action, description: 'weight entry' };
 
+      case 'weight:update':
+        db.prepare(`
+          UPDATE weight_log
+          SET date = ?, weight = ?, fat_pct = ?, muscle_mass = ?, water_pct = ?, bone_mass = ?, scale_id = ?
+          WHERE id = ?
+        `).run(data.date, data.weight, data.fat_pct, data.muscle_mass, data.water_pct, data.bone_mass, data.scale_id, data.id);
+        return { action, description: 'weight entry' };
+
       default:
         return null;
     }

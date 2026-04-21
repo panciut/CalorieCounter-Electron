@@ -7,6 +7,7 @@ import { today, fmtDate, formatShortDate } from "../lib/dateUtil";
 import { copyToClipboard } from "../lib/exportText";
 import { useToast } from "../components/Toast";
 import LineChartCard from "../components/LineChartCard";
+import Modal from "../components/Modal";
 import type { WeightEntry, Scale } from "../types";
 
 // Golden-ratio hue shift picks visually distinct colors for any scale id.
@@ -35,6 +36,15 @@ export default function WeightPage() {
   // Scales
   const [scales, setScales]           = useState<Scale[]>([]);
   const [scaleId, setScaleId]         = useState<number | null>(null);
+  // Edit modal
+  const [editing, setEditing]         = useState<WeightEntry | null>(null);
+  const [editDate, setEditDate]         = useState('');
+  const [editWeight, setEditWeight]     = useState('');
+  const [editFatPct, setEditFatPct]     = useState('');
+  const [editMuscle, setEditMuscle]     = useState('');
+  const [editWater, setEditWater]       = useState('');
+  const [editBone, setEditBone]         = useState('');
+  const [editScaleId, setEditScaleId]   = useState<number | null>(null);
 
   const loadEntries = useCallback(async () => {
     const data = await api.weight.getAll();
@@ -77,6 +87,39 @@ export default function WeightPage() {
 
   async function handleDelete(id: number) {
     await api.weight.delete(id);
+    await loadEntries();
+  }
+
+  function openEdit(entry: WeightEntry) {
+    setEditing(entry);
+    setEditDate(entry.date);
+    setEditWeight(String(entry.weight));
+    setEditFatPct(entry.fat_pct != null ? String(entry.fat_pct) : '');
+    setEditMuscle(entry.muscle_mass != null ? String(entry.muscle_mass) : '');
+    setEditWater(entry.water_pct != null ? String(entry.water_pct) : '');
+    setEditBone(entry.bone_mass != null ? String(entry.bone_mass) : '');
+    setEditScaleId(entry.scale_id);
+  }
+
+  async function handleSaveEdit() {
+    if (!editing) return;
+    const w = parseFloat(editWeight);
+    if (!w || w <= 0 || !editDate) return;
+    const res = await api.weight.update({
+      id: editing.id,
+      weight: w,
+      date: editDate,
+      fat_pct:     editFatPct ? parseFloat(editFatPct) : null,
+      muscle_mass: editMuscle ? parseFloat(editMuscle) : null,
+      water_pct:   editWater  ? parseFloat(editWater)  : null,
+      bone_mass:   editBone   ? parseFloat(editBone)   : null,
+      scale_id:    editScaleId,
+    });
+    if (!res.ok) {
+      if (res.reason === 'duplicate_date') showToast(t('weight.duplicateDate'), 'error');
+      return;
+    }
+    setEditing(null);
     await loadEntries();
   }
 
@@ -254,8 +297,9 @@ export default function WeightPage() {
                       <td className="px-4 py-3 text-text">{fmtDate(entry.date)}</td>
                       <td className="px-4 py-3 text-right font-medium text-text tabular-nums">{entry.weight} kg</td>
                       <td className="px-4 py-3 text-right text-text-sec">{entry.scale_name ?? '—'}</td>
-                      <td className="px-4 py-3 text-right">
-                        <button onClick={() => handleDelete(entry.id)} className="text-text-sec hover:text-red transition-colors px-1 cursor-pointer">✕</button>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <button onClick={() => openEdit(entry)} title={t('common.edit')} className="text-text-sec hover:text-accent transition-colors px-1 cursor-pointer">✎</button>
+                        <button onClick={() => handleDelete(entry.id)} title={t('common.delete')} className="text-text-sec hover:text-red transition-colors px-1 cursor-pointer">✕</button>
                       </td>
                     </tr>
                   ))}
@@ -265,6 +309,54 @@ export default function WeightPage() {
           </div>
         </>
       )}
+
+      {/* ── EDIT MODAL ─────────────────────────────────────────────────────── */}
+      <Modal isOpen={editing !== null} onClose={() => setEditing(null)} title={t('weight.editEntry')}>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-xs text-text-sec">{t('weight.dateCol')}</label>
+              <input type="date" className={inputCls} value={editDate} onChange={e => setEditDate(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-text-sec">{t('weight.weightCol')}</label>
+              <input type="text" inputMode="decimal" className={inputCls} value={editWeight} onChange={e => setEditWeight(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-text-sec">Body fat (%)</label>
+              <input type="text" inputMode="decimal" className={inputCls} value={editFatPct} onChange={e => setEditFatPct(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-text-sec">Muscle mass (kg)</label>
+              <input type="text" inputMode="decimal" className={inputCls} value={editMuscle} onChange={e => setEditMuscle(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-text-sec">Body water (%)</label>
+              <input type="text" inputMode="decimal" className={inputCls} value={editWater} onChange={e => setEditWater(e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-text-sec">Bone mass (kg)</label>
+              <input type="text" inputMode="decimal" className={inputCls} value={editBone} onChange={e => setEditBone(e.target.value)} />
+            </div>
+            {scales.length > 0 && (
+              <div className="space-y-1 col-span-2">
+                <label className="text-xs text-text-sec">{t('weight.scale')}</label>
+                <select className={inputCls} value={editScaleId ?? ''} onChange={e => setEditScaleId(e.target.value ? Number(e.target.value) : null)}>
+                  {scales.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+          <div className="flex gap-2 justify-end pt-2">
+            <button onClick={() => setEditing(null)} className="rounded-xl border border-border text-text-sec px-5 py-2 text-sm font-semibold hover:text-text cursor-pointer">
+              {t('common.cancel')}
+            </button>
+            <button onClick={handleSaveEdit} disabled={!editWeight || !editDate} className="rounded-xl bg-accent text-white px-5 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-40 cursor-pointer">
+              {t('common.save')}
+            </button>
+          </div>
+        </div>
+      </Modal>
 
       {/* ── BODY COMPOSITION TAB ───────────────────────────────────────────── */}
       {tab === 'body' && (

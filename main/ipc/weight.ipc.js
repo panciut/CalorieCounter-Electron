@@ -33,6 +33,24 @@ function registerWeightIpc() {
     return { ok: true };
   });
 
+  ipcMain.handle('weight:update', (_, { id, weight, date, fat_pct, muscle_mass, water_pct, bone_mass, scale_id }) => {
+    const db = getDb();
+    const prev = db.prepare('SELECT * FROM weight_log WHERE id = ?').get(id);
+    if (!prev) return { ok: false, reason: 'not_found' };
+    try {
+      db.prepare(`
+        UPDATE weight_log
+        SET date = ?, weight = ?, fat_pct = ?, muscle_mass = ?, water_pct = ?, bone_mass = ?, scale_id = ?
+        WHERE id = ?
+      `).run(date, weight, fat_pct ?? null, muscle_mass ?? null, water_pct ?? null, bone_mass ?? null, scale_id ?? null, id);
+    } catch (err) {
+      if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') return { ok: false, reason: 'duplicate_date' };
+      throw err;
+    }
+    pushUndo('weight:update', prev);
+    return { ok: true };
+  });
+
   ipcMain.handle('weight:delete', (_, { id }) => {
     const db = getDb();
     const row = db.prepare('SELECT date, weight FROM weight_log WHERE id = ?').get(id);
