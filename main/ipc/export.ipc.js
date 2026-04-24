@@ -86,7 +86,7 @@ function registerExportIpc() {
   // ── Export food database as JSON ──────────────────────────────────────────
   ipcMain.handle('export:foods', async () => {
     const db = getDb();
-    const foods = db.prepare('SELECT name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode, favorite FROM foods WHERE is_placeholder = 0 ORDER BY name').all();
+    const foods = db.prepare('SELECT name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, is_bulk, opened_days, barcode, favorite FROM foods WHERE is_placeholder = 0 ORDER BY name').all();
 
     const result = await dialog.showSaveDialog({
       defaultPath: `foods-${new Date().toISOString().slice(0,10)}.json`,

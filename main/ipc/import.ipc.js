@@ -38,8 +38,8 @@ function registerImportIpc() {
 
     let imported = 0, skipped = 0;
     const insert = db.prepare(
-      `INSERT OR IGNORE INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT OR IGNORE INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, is_bulk, opened_days)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     db.transaction(() => {
       for (const f of foods) {
@@ -48,7 +48,9 @@ function registerImportIpc() {
           f.name, +f.calories || 0, +f.protein || 0, +f.carbs || 0,
           +f.fat || 0, +f.fiber || 0,
           f.piece_grams ? +f.piece_grams : null,
-          +f.is_liquid || 0
+          +f.is_liquid || 0,
+          +f.is_bulk || 0,
+          f.opened_days != null && f.opened_days !== '' ? +f.opened_days : null
         );
         r.changes > 0 ? imported++ : skipped++;
       }
@@ -69,8 +71,8 @@ function registerImportIpc() {
 
     let imported = 0, skipped = 0;
     const insert = db.prepare(
-      `INSERT OR IGNORE INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT OR IGNORE INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, is_bulk, opened_days)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     );
     db.transaction(() => {
       for (const f of foods) {
@@ -79,7 +81,9 @@ function registerImportIpc() {
           f.name, +f.calories || 0, +f.protein || 0, +f.carbs || 0,
           +f.fat || 0, +f.fiber || 0,
           f.piece_grams ? +f.piece_grams : null,
-          +f.is_liquid || 0
+          +f.is_liquid || 0,
+          +f.is_bulk || 0,
+          f.opened_days != null && f.opened_days !== '' ? +f.opened_days : null
         );
         r.changes > 0 ? imported++ : skipped++;
       }
@@ -98,12 +102,12 @@ function registerImportIpc() {
     db.transaction(() => {
       // Foods
       const insFood = db.prepare(
-        `INSERT OR IGNORE INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT OR IGNORE INTO foods (name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, is_bulk, opened_days)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       );
       for (const f of data.foods ?? []) {
         const r = insFood.run(f.name, f.calories, f.protein, f.carbs, f.fat, f.fiber,
-          f.piece_grams ?? null, f.is_liquid ?? 0);
+          f.piece_grams ?? null, f.is_liquid ?? 0, f.is_bulk ?? 0, f.opened_days ?? null);
         if (r.changes) stats.foods++;
       }
 

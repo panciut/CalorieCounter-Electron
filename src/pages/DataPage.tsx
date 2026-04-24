@@ -29,6 +29,8 @@ Each food object must have:
   - "fiber": number (g per 100g, optional, default 0)
   - "piece_grams": number or null (grams per piece, e.g. 60 for an egg, null if N/A)
   - "is_liquid": 0 or 1 (1 for drinks/liquids measured in ml, 0 otherwise)
+  - "is_bulk": 0 or 1 (1 for bulk staples sold loose — rice, flour, oats, sugar; 0 for packaged items)
+  - "opened_days": number or null (typical shelf life in days once opened/cooked; null if indefinite or N/A)
 
 Rules:
 - All macro values are PER 100g (or per 100ml for liquids)
@@ -37,10 +39,10 @@ Rules:
 
 Example output:
 [
-  { "name": "Chicken Breast", "calories": 165, "protein": 31, "carbs": 0, "fat": 3.6, "fiber": 0, "piece_grams": null, "is_liquid": 0 },
-  { "name": "Whole Egg", "calories": 155, "protein": 13, "carbs": 1.1, "fat": 11, "fiber": 0, "piece_grams": 60, "is_liquid": 0 },
-  { "name": "Whole Milk", "calories": 61, "protein": 3.2, "carbs": 4.8, "fat": 3.3, "fiber": 0, "piece_grams": null, "is_liquid": 1 },
-  { "name": "Brown Rice (cooked)", "calories": 123, "protein": 2.7, "carbs": 25.6, "fat": 1, "fiber": 1.8, "piece_grams": null, "is_liquid": 0 }
+  { "name": "Chicken Breast", "calories": 165, "protein": 31, "carbs": 0, "fat": 3.6, "fiber": 0, "piece_grams": null, "is_liquid": 0, "is_bulk": 0, "opened_days": 3 },
+  { "name": "Whole Egg", "calories": 155, "protein": 13, "carbs": 1.1, "fat": 11, "fiber": 0, "piece_grams": 60, "is_liquid": 0, "is_bulk": 0, "opened_days": null },
+  { "name": "Whole Milk", "calories": 61, "protein": 3.2, "carbs": 4.8, "fat": 3.3, "fiber": 0, "piece_grams": null, "is_liquid": 1, "is_bulk": 0, "opened_days": 5 },
+  { "name": "Brown Rice (uncooked)", "calories": 362, "protein": 7.5, "carbs": 76, "fat": 2.7, "fiber": 3.4, "piece_grams": null, "is_liquid": 0, "is_bulk": 1, "opened_days": null }
 ]
 
 Now generate foods for: [DESCRIBE YOUR FOODS HERE]`;
@@ -73,8 +75,8 @@ export default function DataPage() {
 
   async function handleCopyFoods() {
     const foods = await api.foods.getAll();
-    const json = JSON.stringify(foods.map(({ name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode, favorite }) =>
-      ({ name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, barcode, favorite })
+    const json = JSON.stringify(foods.map(({ name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, is_bulk, opened_days, barcode, favorite }) =>
+      ({ name, calories, protein, carbs, fat, fiber, piece_grams, is_liquid, is_bulk, opened_days, barcode, favorite })
     ), null, 2);
     await copyToClipboard(json);
     setFoodsCopied(true);
@@ -248,7 +250,9 @@ export default function DataPage() {
     "fat": 3.6,                 // optional, default 0
     "fiber": 0,                 // optional, default 0
     "piece_grams": null,        // optional — g per piece (e.g. 60 for egg)
-    "is_liquid": 0              // optional — 1 for drinks, 0 otherwise
+    "is_liquid": 0,             // optional — 1 for drinks, 0 otherwise
+    "is_bulk": 0,               // optional — 1 for bulk staples (rice, flour)
+    "opened_days": null         // optional — shelf life in days once opened
   }
 ]`}</pre>
             </div>
