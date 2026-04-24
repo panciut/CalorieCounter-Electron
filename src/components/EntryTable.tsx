@@ -21,6 +21,22 @@ interface EditState {
   piecesStr: string;
   meal: Meal;
   mode: 'pieces' | 'grams';
+  packId: number | null;
+}
+
+function smallestPackId(food: Food | undefined): number | null {
+  const pkgs = food?.packages ?? [];
+  if (!pkgs.length) return null;
+  return pkgs.reduce((min, p) => (min.grams <= p.grams ? min : p)).id;
+}
+
+function unitSize(food: Food | undefined, packId: number | null): { size: number; label: 'pcs' | 'packs' } {
+  if (food?.piece_grams && food.piece_grams > 0) return { size: food.piece_grams, label: 'pcs' };
+  if (food?.is_bulk !== 1) {
+    const pkg = food?.packages?.find(p => p.id === packId) ?? food?.packages?.[0];
+    if (pkg) return { size: pkg.grams, label: 'packs' };
+  }
+  return { size: 0, label: 'pcs' };
 }
 
 export default function EntryTable({ entries, foods, onRefresh, onConfirm }: EntryTableProps) {
@@ -92,16 +108,18 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
 
   function startEdit(e: LogEntry) {
     const food = foodsById.get(e.food_id);
-    const pieceG = food?.piece_grams || 0;
-    const hasPieces = pieceG > 0;
+    const packId = smallestPackId(food);
+    const { size } = unitSize(food, packId);
+    const hasUnits = size > 0;
     setEditing({
       id: e.id,
       food_id: e.food_id,
       origGrams: e.grams,
       gramsStr: String(Math.round(e.grams * 10) / 10),
-      piecesStr: hasPieces ? String(Math.round((e.grams / pieceG) * 100) / 100) : '',
+      piecesStr: hasUnits ? String(Math.round((e.grams / size) * 100) / 100) : '',
       meal: e.meal as Meal,
-      mode: hasPieces ? 'pieces' : 'grams',
+      mode: hasUnits ? 'pieces' : 'grams',
+      packId,
     });
   }
 
@@ -157,8 +175,10 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                   </tr>
                   {editing?.id === e.id && (() => {
                     const editFood = foodsById.get(editing.food_id);
-                    const pieceG   = editFood?.piece_grams || 0;
-                    const hasPieces = pieceG > 0;
+                    const { size: pieceG, label: unitLabel } = unitSize(editFood, editing.packId);
+                    const hasUnits = pieceG > 0;
+                    const packages = editFood?.packages ?? [];
+                    const showPackPicker = unitLabel === 'packs' && packages.length > 1;
                     const inputCls = "w-24 bg-card border border-border rounded px-2 py-1 text-sm text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
                     return (
                       <tr className="bg-card-hover/50">
@@ -169,13 +189,15 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                               onChange={ev => {
                                 const newId = +ev.target.value;
                                 const f = foodsById.get(newId);
-                                const pg = f?.piece_grams || 0;
+                                const newPackId = smallestPackId(f);
+                                const { size } = unitSize(f, newPackId);
                                 const grams = parseFloat(editing.gramsStr) || editing.origGrams;
                                 setEditing({
                                   ...editing,
                                   food_id: newId,
-                                  mode: pg > 0 ? 'pieces' : 'grams',
-                                  piecesStr: pg > 0 ? String(Math.round((grams / pg) * 100) / 100) : '',
+                                  mode: size > 0 ? 'pieces' : 'grams',
+                                  piecesStr: size > 0 ? String(Math.round((grams / size) * 100) / 100) : '',
+                                  packId: newPackId,
                                 });
                               }}
                               className="bg-card border border-border rounded px-2 py-1 text-sm text-text outline-none focus:border-accent"
@@ -183,7 +205,7 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                               {foods.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                             </select>
 
-                            {hasPieces && editing.mode === 'pieces' ? (
+                            {hasUnits && editing.mode === 'pieces' ? (
                               <>
                                 <input
                                   type="text" inputMode="decimal"
@@ -200,7 +222,7 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                                   }}
                                   className={inputCls}
                                 />
-                                <span className="text-xs text-text-sec">pcs</span>
+                                <span className="text-xs text-text-sec">{unitLabel}</span>
                                 <button
                                   type="button"
                                   onClick={() => setEditing({ ...editing, mode: 'grams' })}
@@ -222,13 +244,13 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                                     setEditing({
                                       ...editing,
                                       gramsStr: v,
-                                      piecesStr: hasPieces && !isNaN(n) ? String(Math.max(1, Math.round(n / pieceG))) : editing.piecesStr,
+                                      piecesStr: hasUnits && !isNaN(n) ? String(Math.max(1, Math.round(n / pieceG))) : editing.piecesStr,
                                     });
                                   }}
                                   className={inputCls}
                                 />
                                 <span className="text-xs text-text-sec">g</span>
-                                {hasPieces && (
+                                {hasUnits && (
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -242,12 +264,39 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                                       });
                                     }}
                                     className="text-xs text-text-sec border border-border rounded px-2 py-1 hover:border-accent/50 hover:text-text cursor-pointer"
-                                    title="Switch to pieces"
+                                    title={`Switch to ${unitLabel}`}
                                   >
-                                    ⇆ pcs
+                                    ⇆ {unitLabel}
                                   </button>
                                 )}
                               </>
+                            )}
+
+                            {showPackPicker && editing.mode === 'pieces' && (
+                              <div className="flex items-center gap-1 flex-wrap text-xs">
+                                {packages.map(pkg => (
+                                  <button
+                                    key={pkg.id}
+                                    type="button"
+                                    onClick={() => {
+                                      const n = parseFloat(editing.piecesStr);
+                                      const pcs = !isNaN(n) && n > 0 ? n : 1;
+                                      setEditing({
+                                        ...editing,
+                                        packId: pkg.id,
+                                        gramsStr: String(Math.round(pcs * pkg.grams * 10) / 10),
+                                      });
+                                    }}
+                                    className={`px-2 py-1 rounded border cursor-pointer ${
+                                      editing.packId === pkg.id
+                                        ? 'border-accent text-accent bg-accent/10'
+                                        : 'border-border text-text-sec hover:text-text'
+                                    }`}
+                                  >
+                                    {Math.round(pkg.grams)}g
+                                  </button>
+                                ))}
+                              </div>
                             )}
 
                             <select value={editing.meal}
