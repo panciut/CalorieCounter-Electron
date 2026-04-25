@@ -45,27 +45,68 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
   const [editing, setEditing] = useState<EditState | null>(null);
   const [saveMeal, setSaveMeal] = useState<{ meal: Meal; entries: LogEntry[] } | null>(null);
   const [bundleName, setBundleName] = useState('');
+  const [bundleItems, setBundleItems] = useState<{ food_id: number; name: string; gramsStr: string }[]>([]);
 
   function openSaveMeal(meal: Meal, mealEntries: LogEntry[]) {
     setSaveMeal({ meal, entries: mealEntries });
     const d = mealEntries[0]?.date ?? '';
     setBundleName(`${tMeal(meal)}${d ? ' ' + d : ''}`);
+    const merged = new Map<number, { name: string; grams: number }>();
+    for (const e of mealEntries) {
+      const cur = merged.get(e.food_id);
+      merged.set(e.food_id, {
+        name: e.name,
+        grams: (cur?.grams ?? 0) + e.grams,
+      });
+    }
+    setBundleItems(
+      Array.from(merged.entries()).map(([food_id, v]) => ({
+        food_id,
+        name: v.name,
+        gramsStr: String(Math.round(v.grams * 10) / 10),
+      })),
+    );
+  }
+
+  function closeSaveMeal() {
+    setSaveMeal(null);
+    setBundleName('');
+    setBundleItems([]);
   }
 
   async function confirmSaveMeal() {
     if (!saveMeal || !bundleName.trim()) return;
-    const merged = new Map<number, number>();
-    for (const e of saveMeal.entries) {
-      merged.set(e.food_id, (merged.get(e.food_id) ?? 0) + e.grams);
-    }
-    const ingredients = Array.from(merged.entries()).map(([food_id, grams]) => ({
-      food_id,
-      grams: Math.round(grams * 10) / 10,
-    }));
+    const ingredients = bundleItems
+      .map(it => ({ food_id: it.food_id, grams: parseFloat(it.gramsStr) }))
+      .filter(it => !isNaN(it.grams) && it.grams > 0)
+      .map(it => ({ food_id: it.food_id, grams: Math.round(it.grams * 10) / 10 }));
+    if (!ingredients.length) return;
     await api.recipes.create({ name: bundleName.trim(), description: '', ingredients });
     showToast(t('entry.bundleSaved'));
-    setSaveMeal(null);
-    setBundleName('');
+    closeSaveMeal();
+  }
+
+  function bundlePreview() {
+    let cal = 0, protein = 0, carbs = 0, fat = 0, fiber = 0;
+    for (const it of bundleItems) {
+      const food = foodsById.get(it.food_id);
+      if (!food) continue;
+      const g = parseFloat(it.gramsStr);
+      if (isNaN(g) || g <= 0) continue;
+      const r = g / 100;
+      cal     += food.calories * r;
+      protein += food.protein  * r;
+      carbs   += food.carbs    * r;
+      fat     += food.fat      * r;
+      fiber   += (food.fiber || 0) * r;
+    }
+    return {
+      cal: Math.round(cal),
+      protein: Math.round(protein * 10) / 10,
+      carbs: Math.round(carbs * 10) / 10,
+      fat: Math.round(fat * 10) / 10,
+      fiber: Math.round(fiber * 10) / 10,
+    };
   }
 
   if (!entries.length) {
@@ -349,35 +390,75 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
           </table>
         </div>
       ))}
-      {saveMeal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-md mx-4 space-y-4">
-            <h2 className="font-semibold text-text text-lg">{t('entry.saveAsBundle')}</h2>
-            <p className="text-xs text-text-sec">
-              {saveMeal.entries.length} {saveMeal.entries.length === 1 ? t('entry.item') : t('entry.items')}
-            </p>
-            <input
-              autoFocus
-              className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none focus:border-accent"
-              placeholder={t('common.name')}
-              value={bundleName}
-              onChange={e => setBundleName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') confirmSaveMeal(); }}
-            />
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => { setSaveMeal(null); setBundleName(''); }}
-                className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer"
-              >{t('common.cancel')}</button>
-              <button
-                onClick={confirmSaveMeal}
-                disabled={!bundleName.trim()}
-                className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40 cursor-pointer"
-              >{t('common.save')}</button>
+      {saveMeal && (() => {
+        const prev = bundlePreview();
+        const validCount = bundleItems.filter(it => {
+          const g = parseFloat(it.gramsStr);
+          return !isNaN(g) && g > 0;
+        }).length;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+            <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg mx-4 space-y-4">
+              <h2 className="font-semibold text-text text-lg">{t('entry.saveAsBundle')}</h2>
+              <input
+                autoFocus
+                className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none focus:border-accent"
+                placeholder={t('common.name')}
+                value={bundleName}
+                onChange={e => setBundleName(e.target.value)}
+              />
+
+              <div className="flex flex-col gap-1.5 max-h-72 overflow-y-auto">
+                {bundleItems.map((it, idx) => (
+                  <div key={`${it.food_id}-${idx}`} className="flex items-center gap-2 text-sm">
+                    <span className="flex-1 truncate text-text">{it.name}</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={it.gramsStr}
+                      onChange={e => {
+                        const v = e.target.value;
+                        setBundleItems(items => items.map((b, i) => i === idx ? { ...b, gramsStr: v } : b));
+                      }}
+                      className="w-20 bg-bg border border-border rounded px-2 py-1 text-sm text-text outline-none focus:border-accent text-right tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                    <span className="text-xs text-text-sec w-4">g</span>
+                    <button
+                      type="button"
+                      onClick={() => setBundleItems(items => items.filter((_, i) => i !== idx))}
+                      className="text-text-sec hover:text-red px-1 cursor-pointer"
+                      title={t('common.delete') || 'Remove'}
+                    >✕</button>
+                  </div>
+                ))}
+                {bundleItems.length === 0 && (
+                  <p className="text-xs text-text-sec italic">—</p>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-3 text-xs text-text-sec border-t border-border pt-2">
+                <span><span className="text-text font-semibold tabular-nums">{prev.cal}</span> kcal</span>
+                <span><span className="text-text tabular-nums">{prev.fat}</span>g {t('macro.fat')}</span>
+                <span><span className="text-text tabular-nums">{prev.carbs}</span>g {t('macro.carbs')}</span>
+                {prev.fiber > 0 && <span><span className="text-text tabular-nums">{prev.fiber}</span>g {t('macro.fiber')}</span>}
+                <span><span className="text-text tabular-nums">{prev.protein}</span>g {t('macro.protein')}</span>
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={closeSaveMeal}
+                  className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer"
+                >{t('common.cancel')}</button>
+                <button
+                  onClick={confirmSaveMeal}
+                  disabled={!bundleName.trim() || validCount === 0}
+                  className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40 cursor-pointer"
+                >{t('common.save')}</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

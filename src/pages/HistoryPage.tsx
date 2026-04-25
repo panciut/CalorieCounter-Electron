@@ -99,7 +99,7 @@ export default function HistoryPage() {
   const statsAvgKcal = includedForStats.length
     ? Math.round(includedForStats.reduce((s, w) => s + w.avg_calories, 0) / includedForStats.length)
     : 0;
-  const totalDays = completeWeeks.reduce((s, w) => s + w.days_logged, 0);
+  const totalDays = rangedSummaries.reduce((s, w) => s + w.days_logged, 0);
   const netRows = completeWeeks
     .map(s => energyByWeek.get(getMondayOf(s.week_start)))
     .filter(Boolean) as { avgNet: number; days: number }[];

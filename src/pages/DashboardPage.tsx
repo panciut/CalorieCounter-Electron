@@ -756,13 +756,16 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
             <div className="flex gap-4 text-xs text-text-sec flex-wrap">
               <span>{t('energy.foodIn')}: <span className="text-text tabular-nums">{caloriesIn}</span></span>
               <span>{t('energy.out')}: <span className="text-text tabular-nums">
-                {energyResting > 0 || energyActive > 0 || energyExtra > 0
-                  ? [
-                      energyResting > 0 ? String(energyResting) : null,
-                      energyActive  > 0 ? String(energyActive)  : null,
-                      energyExtra   > 0 ? String(energyExtra)   : null,
-                    ].filter(Boolean).join(' + ')
-                  : '0'}
+                {(() => {
+                  const parts = [
+                    energyResting > 0 ? String(energyResting) : null,
+                    energyActive  > 0 ? String(energyActive)  : null,
+                    energyExtra   > 0 ? String(energyExtra)   : null,
+                  ].filter(Boolean) as string[];
+                  if (parts.length === 0) return '0';
+                  if (parts.length === 1) return parts[0];
+                  return `${energyOut} (${parts.join(' + ')})`;
+                })()}
               </span></span>
             </div>
           )}
