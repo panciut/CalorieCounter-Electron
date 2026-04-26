@@ -335,6 +335,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const [restingKcal, setRestingKcal] = useState('');
   const [activeKcal, setActiveKcal]   = useState('');
   const [extraKcal, setExtraKcal]     = useState('');
+  const [steps, setSteps]             = useState('');
   const [restingFromYest, setRestingFromYest] = useState(false);
   const noteSaveTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
 
@@ -410,10 +411,11 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     });
     // Load Apple Watch energy for this date
     api.dailyEnergy.get(dateStr).then((rec: DailyEnergy) => {
-      if (rec.resting_kcal > 0 || rec.active_kcal > 0 || rec.extra_kcal > 0) {
+      if (rec.resting_kcal > 0 || rec.active_kcal > 0 || rec.extra_kcal > 0 || (rec.steps ?? 0) > 0) {
         setRestingKcal(rec.resting_kcal > 0 ? String(rec.resting_kcal) : '');
         setActiveKcal(rec.active_kcal > 0 ? String(rec.active_kcal) : '');
         setExtraKcal(rec.extra_kcal > 0 ? String(rec.extra_kcal) : '');
+        setSteps((rec.steps ?? 0) > 0 ? String(rec.steps) : '');
         setRestingFromYest(false);
       } else {
         // No record for today — carry forward resting from yesterday
@@ -428,6 +430,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
         });
         setActiveKcal('');
         setExtraKcal('');
+        setSteps('');
       }
     });
   }, [load, dateStr]);
@@ -577,10 +580,11 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   // ── Apple Watch energy ───────────────────────────────────────────────────────
 
   function handleEnergySave() {
-    const resting = parseFloat(restingKcal) || 0;
-    const active  = parseFloat(activeKcal)  || 0;
-    const extra   = parseFloat(extraKcal)   || 0;
-    api.dailyEnergy.set({ date: dateStr, resting_kcal: resting, active_kcal: active, extra_kcal: extra });
+    const resting   = parseFloat(restingKcal) || 0;
+    const active    = parseFloat(activeKcal)  || 0;
+    const extra     = parseFloat(extraKcal)   || 0;
+    const stepCount = parseInt(steps, 10)     || 0;
+    api.dailyEnergy.set({ date: dateStr, resting_kcal: resting, active_kcal: active, extra_kcal: extra, steps: stepCount });
     setRestingFromYest(false);
   }
 
@@ -630,9 +634,10 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const energyResting  = parseFloat(restingKcal) || 0;
   const energyActive   = parseFloat(activeKcal)  || 0;
   const energyExtra    = parseFloat(extraKcal)   || 0;
+  const stepCount      = parseInt(steps, 10)     || 0;
   const energyOut      = energyResting + energyActive + energyExtra;
   const netKcal        = caloriesIn - energyOut;
-  const hasEnergyData  = energyOut > 0 || caloriesIn > 0;
+  const hasEnergyData  = energyOut > 0 || caloriesIn > 0 || stepCount > 0;
 
   return (
     <div className="p-6 max-w-6xl mx-auto flex flex-col gap-6">
@@ -768,11 +773,14 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                   return `${energyOut} (${parts.join(' + ')})`;
                 })()}
               </span></span>
+              {stepCount > 0 && (
+                <span>{t('energy.steps')}: <span className="text-text tabular-nums">{stepCount.toLocaleString()}</span></span>
+              )}
             </div>
           )}
 
           {/* Inputs */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div className="flex flex-col gap-1">
               <label className="text-xs text-text-sec text-center">{t('energy.resting')}</label>
               <input
@@ -805,6 +813,18 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                 inputMode="decimal"
                 value={extraKcal}
                 onChange={e => setExtraKcal(e.target.value)}
+                onBlur={handleEnergySave}
+                placeholder="0"
+                className={numInputCls}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-text-sec text-center">{t('energy.steps')}</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={steps}
+                onChange={e => setSteps(e.target.value.replace(/[^0-9]/g, ''))}
                 onBlur={handleEnergySave}
                 placeholder="0"
                 className={numInputCls}

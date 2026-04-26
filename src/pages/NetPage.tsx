@@ -32,6 +32,7 @@ export default function NetPage() {
       resting_kcal: p ? Math.round(p.resting_kcal) : 0,
       active_kcal:  p ? Math.round(p.active_kcal)  : 0,
       extra_kcal:   p ? Math.round(p.extra_kcal)   : 0,
+      steps:        p ? (p.steps ?? 0)             : 0,
       net:          p ? Math.round(p.net)           : 0,
     };
   });
@@ -42,6 +43,8 @@ export default function NetPage() {
   const avgIn     = withData.length ? Math.round(withData.reduce((s, d) => s + d.calories_in,  0) / withData.length) : 0;
   const avgOut    = withData.length ? Math.round(withData.reduce((s, d) => s + d.calories_out, 0) / withData.length) : 0;
   const avgNet    = withData.length ? Math.round(withData.reduce((s, d) => s + d.net,          0) / withData.length) : 0;
+  const stepsRows = chart.filter(d => d.steps > 0);
+  const avgSteps  = stepsRows.length ? Math.round(stepsRows.reduce((s, d) => s + d.steps, 0) / stepsRows.length) : 0;
 
   const calRec = settings.cal_rec || 2000;
 
@@ -71,7 +74,7 @@ export default function NetPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-card border border-border rounded-xl p-4">
           <div className="text-xs text-text-sec mb-1">Avg food in</div>
           <div className="text-lg font-bold text-accent tabular-nums">{avgIn} kcal</div>
@@ -84,6 +87,12 @@ export default function NetPage() {
           <div className="text-xs text-text-sec mb-1">Avg net</div>
           <div className={`text-lg font-bold tabular-nums ${avgNet > 0 && avgNet <= calRec ? 'text-green' : avgNet > calRec ? 'text-red' : 'text-text'}`}>
             {avgIn > 0 ? `${avgNet} kcal` : '—'}
+          </div>
+        </div>
+        <div className="bg-card border border-border rounded-xl p-4">
+          <div className="text-xs text-text-sec mb-1">Avg steps</div>
+          <div className="text-lg font-bold text-text tabular-nums">
+            {avgSteps > 0 ? avgSteps.toLocaleString() : '—'}
           </div>
         </div>
       </div>
@@ -129,6 +138,7 @@ export default function NetPage() {
               <th className="text-right px-4 py-3">Food in</th>
               <th className="text-right px-4 py-3">Energy out (AW)</th>
               <th className="text-right px-4 py-3">Net</th>
+              <th className="text-right px-4 py-3">Steps</th>
             </tr>
           </thead>
           <tbody>
@@ -151,6 +161,9 @@ export default function NetPage() {
                   d.calories_in > 0 ? (d.net <= calRec ? 'text-green' : 'text-red') : 'text-text-sec'
                 }`}>
                   {d.calories_in > 0 ? d.net : '—'}
+                </td>
+                <td className="px-4 py-2.5 text-right tabular-nums text-text-sec">
+                  {d.steps > 0 ? d.steps.toLocaleString() : '—'}
                 </td>
               </tr>
             ))}

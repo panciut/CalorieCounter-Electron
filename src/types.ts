@@ -470,6 +470,7 @@ export interface DailyEnergy {
   resting_kcal: number;
   active_kcal: number;
   extra_kcal: number;
+  steps: number;
 }
 
 export interface CalorieTrendPoint {
@@ -479,6 +480,7 @@ export interface CalorieTrendPoint {
   resting_kcal: number;
   active_kcal: number;
   extra_kcal: number;
+  steps: number;
   net: number;
 }
 

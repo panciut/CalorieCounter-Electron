@@ -324,6 +324,7 @@ function initDb() {
     'ALTER TABLE foods ADD COLUMN is_placeholder INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE foods ADD COLUMN display_name TEXT',
     "ALTER TABLE supplement_plan_items ADD COLUMN time_of_day TEXT NOT NULL DEFAULT 'breakfast'",
+    "ALTER TABLE daily_energy ADD COLUMN steps INTEGER NOT NULL DEFAULT 0",
     "UPDATE log SET meal = 'AfternoonSnack' WHERE meal = 'Snack'",
     "UPDATE template_items SET meal = 'AfternoonSnack' WHERE meal = 'Snack'",
   ];
