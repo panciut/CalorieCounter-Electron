@@ -7,8 +7,10 @@ import LineChartCard from '../components/LineChartCard';
 import type { Measurement } from '../types';
 
 type MeasurementField = 'waist' | 'chest' | 'arms' | 'thighs' | 'hips' | 'neck';
+type Range = 30 | 90 | 180 | 365 | 'all';
 
 const FIELDS: MeasurementField[] = ['waist', 'chest', 'arms', 'thighs', 'hips', 'neck'];
+const RANGES: Range[] = [30, 90, 180, 365, 'all'];
 
 export default function MeasurementsPage() {
   const { t } = useT();
@@ -16,6 +18,7 @@ export default function MeasurementsPage() {
 
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [date, setDate] = useState(today());
+  const [range, setRange] = useState<Range>(180);
   const [form, setForm] = useState<Record<MeasurementField, string>>({
     waist: '', chest: '', arms: '', thighs: '', hips: '', neck: '',
   });
@@ -51,11 +54,15 @@ export default function MeasurementsPage() {
     await load();
   };
 
+  const cutoff = range === 'all'
+    ? '0000-00-00'
+    : new Date(Date.now() - range * 86_400_000).toISOString().slice(0, 10);
+
   const getChartData = (field: MeasurementField) =>
     measurements
-      .filter(m => m[field] !== null)
+      .filter(m => m[field] !== null && m.date >= cutoff)
       .sort((a, b) => a.date.localeCompare(b.date))
-      .map(m => ({ label: formatShortDate(m.date), value: m[field] as number }));
+      .map(m => ({ label: formatShortDate(m.date), date: m.date, value: m[field] as number }));
 
   const sortedMeasurements = [...measurements].sort((a, b) => b.date.localeCompare(a.date));
 
@@ -101,18 +108,53 @@ export default function MeasurementsPage() {
 
       {/* Charts */}
       {measurements.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-          {FIELDS.map(field => {
-            const data = getChartData(field);
-            if (data.length === 0) return null;
-            return (
-              <div key={field} className="bg-card border border-border rounded-xl p-4">
-                <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider mb-3">{t(`meas.${field}`)}</h3>
-                <LineChartCard data={data} unit=" cm" height={160} />
-              </div>
-            );
-          })}
-        </div>
+        <>
+          <div className="flex items-center justify-end gap-1 mb-3">
+            {RANGES.map(r => (
+              <button
+                key={r}
+                onClick={() => setRange(r)}
+                className={[
+                  'text-xs px-3 py-1.5 rounded-lg border cursor-pointer transition-colors',
+                  range === r
+                    ? 'border-accent bg-accent/10 text-accent'
+                    : 'border-border text-text-sec hover:border-accent/50',
+                ].join(' ')}
+              >
+                {r === 'all' ? t('meas.rangeAll') ?? 'All' : `${r}d`}
+              </button>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+            {FIELDS.map(field => {
+              const data = getChartData(field);
+              if (data.length === 0) return null;
+              const first = data[0].value;
+              const last = data[data.length - 1].value;
+              const delta = +(last - first).toFixed(1);
+              const deltaSign = delta > 0 ? '+' : '';
+              const deltaCls =
+                data.length < 2 ? 'text-text-sec' :
+                delta === 0 ? 'text-text-sec' :
+                // For body measurements smaller is generally desirable for waist/hips, larger for arms/chest/thighs/neck
+                ((field === 'waist' || field === 'hips') ? (delta < 0 ? 'text-green' : 'text-accent') : (delta > 0 ? 'text-green' : 'text-accent'));
+              return (
+                <div key={field} className="bg-card border border-border rounded-xl p-4">
+                  <div className="flex items-baseline justify-between mb-3">
+                    <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider">{t(`meas.${field}`)}</h3>
+                    <div className="flex items-baseline gap-2 text-xs tabular-nums">
+                      <span className="text-text font-medium">{last} cm</span>
+                      {data.length >= 2 && (
+                        <span className={deltaCls}>{deltaSign}{delta} cm</span>
+                      )}
+                    </div>
+                  </div>
+                  <LineChartCard data={data} unit=" cm" height={160} showTrend={data.length >= 3} />
+                </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {/* Table */}

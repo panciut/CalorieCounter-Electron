@@ -136,8 +136,23 @@ export default function HistoryPage() {
   const cutoff = addDays(today(), -(aRange - 1));
   const filteredWeight = weightData
     .filter(w => w.date >= cutoff)
-    .map(w => ({ label: formatShortDate(w.date), weight: w.weight, fat_pct: w.fat_pct }));
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .map(w => ({
+      label:   formatShortDate(w.date),
+      ts:      new Date(w.date).getTime(),
+      weight:  w.weight,
+      fat_pct: w.fat_pct,
+    }));
   const hasWeightFatPct = filteredWeight.some(w => w.fat_pct != null);
+  const weightMinTs = filteredWeight.length ? filteredWeight[0].ts : 0;
+  const weightMaxTs = filteredWeight.length ? filteredWeight[filteredWeight.length - 1].ts : 0;
+  const weightSpanDays = Math.max(1, (weightMaxTs - weightMinTs) / 86_400_000);
+  const weightTickFmt = (ms: number) => {
+    const d = new Date(ms);
+    return weightSpanDays > 180
+      ? d.toLocaleDateString(undefined, { month: 'short', year: '2-digit' })
+      : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  };
 
   const xInterval = aRange === 7 ? 0 : aRange === 30 ? 4 : aRange === 90 ? 12 : 20;
 
@@ -360,12 +375,22 @@ export default function HistoryPage() {
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={filteredWeight} margin={{ top: 4, right: 8, left: -16, bottom: 0 }}>
                   <CartesianGrid vertical={false} stroke="var(--border)" />
-                  <XAxis dataKey="label" tick={{ fill: 'var(--text-sec)', fontSize: 11 }} axisLine={false} tickLine={false} interval={xInterval} />
+                  <XAxis
+                    dataKey="ts"
+                    type="number"
+                    scale="time"
+                    domain={[weightMinTs, weightMaxTs]}
+                    tick={{ fill: 'var(--text-sec)', fontSize: 11 }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={v => weightTickFmt(Number(v))}
+                  />
                   <YAxis tick={{ fill: 'var(--text-sec)', fontSize: 11 }} axisLine={false} tickLine={false} domain={['auto', 'auto']} />
                   <Tooltip
                     contentStyle={tooltipStyle}
                     cursor={{ stroke: 'var(--border)', strokeWidth: 1 }}
                     formatter={((v: unknown, name: unknown) => [name === 'fat_pct' ? `${Number(v)}%` : `${Number(v)} kg`, name === 'fat_pct' ? 'Body fat' : 'Weight']) as never}
+                    labelFormatter={(v: unknown) => new Date(Number(v)).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                   />
                   <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: 'var(--text-sec)' }} />
                   <Line type="monotone" dataKey="weight"  name="Weight" stroke="var(--accent)" strokeWidth={2} dot={false} connectNulls />

@@ -24,6 +24,7 @@ export default function WeightPage() {
   const { t } = useT();
   const { showToast } = useToast();
   const [tab, setTab] = useState<Tab>('weight');
+  const [range, setRange] = useState<30 | 90 | 180 | 365 | 'all'>(180);
 
   const [entries, setEntries] = useState<WeightEntry[]>([]);
   const [date, setDate]       = useState(today());
@@ -126,23 +127,29 @@ export default function WeightPage() {
   const currentWeight = entries.length > 0 ? entries[0].weight : null;
   const goalWeight    = settings.weight_goal || null;
 
+  const cutoffMs = range === 'all' ? 0 : Date.now() - range * 86_400_000;
+  const inRange = (d: string) => new Date(d).getTime() >= cutoffMs;
+
   function getPrediction(): string {
-    if (entries.length < 2) return t("weight.needData");
-    const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
-    const xs = sorted.map((_, i) => i);
+    const sorted = [...entries]
+      .filter(e => inRange(e.date))
+      .sort((a, b) => a.date.localeCompare(b.date));
+    if (sorted.length < 2) return t("weight.needData");
+    // Regress on real timestamps so unevenly-spaced logs (e.g. a daily cluster vs a weekly point) get correct slope.
+    const xs = sorted.map(e => new Date(e.date).getTime());
     const ys = sorted.map(e => e.weight);
     const { slope, intercept } = linearRegression(xs, ys);
     if (!goalWeight) return "—";
-    const currentVal = slope * (sorted.length - 1) + intercept;
+    const nowMs = Date.now();
+    const currentVal = slope * nowMs + intercept;
     const diff = currentVal - goalWeight;
     if (Math.abs(diff) < 0.1) return t("weight.reached");
     if (slope === 0) return "—";
     const goingDown = goalWeight < currentVal;
     if (goingDown && slope > 0) return t("weight.wrongWay");
     if (!goingDown && slope < 0) return t("weight.wrongWay");
-    const daysNeeded = Math.abs(diff / slope);
-    const targetDate = new Date();
-    targetDate.setDate(targetDate.getDate() + Math.round(daysNeeded));
+    const msNeeded = Math.abs(diff / slope);
+    const targetDate = new Date(nowMs + msNeeded);
     const yy = targetDate.getFullYear();
     const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
     const dd = String(targetDate.getDate()).padStart(2, '0');
@@ -152,8 +159,9 @@ export default function WeightPage() {
   const prediction = getPrediction();
 
   const chartData = [...entries]
+    .filter(e => inRange(e.date))
     .sort((a, b) => a.date.localeCompare(b.date))
-    .map(e => ({ label: formatShortDate(e.date), value: e.weight, color: colorForScaleId(e.scale_id) }));
+    .map(e => ({ label: formatShortDate(e.date), date: e.date, value: e.weight, color: colorForScaleId(e.scale_id) }));
 
   async function handleCopyHistory() {
     const sorted = [...entries].sort((a, b) => a.date.localeCompare(b.date));
@@ -176,9 +184,9 @@ export default function WeightPage() {
     .sort((a, b) => a.date.localeCompare(b.date))
     .filter(e => e.fat_pct != null || e.muscle_mass != null);
 
-  const fatData    = bodyEntries.filter(e => e.fat_pct     != null).map(e => ({ label: formatShortDate(e.date), value: e.fat_pct! }));
-  const muscleData = bodyEntries.filter(e => e.muscle_mass != null).map(e => ({ label: formatShortDate(e.date), value: e.muscle_mass! }));
-  const waterData  = bodyEntries.filter(e => e.water_pct   != null).map(e => ({ label: formatShortDate(e.date), value: e.water_pct! }));
+  const fatData    = bodyEntries.filter(e => e.fat_pct     != null && inRange(e.date)).map(e => ({ label: formatShortDate(e.date), date: e.date, value: e.fat_pct! }));
+  const muscleData = bodyEntries.filter(e => e.muscle_mass != null && inRange(e.date)).map(e => ({ label: formatShortDate(e.date), date: e.date, value: e.muscle_mass! }));
+  const waterData  = bodyEntries.filter(e => e.water_pct   != null && inRange(e.date)).map(e => ({ label: formatShortDate(e.date), date: e.date, value: e.water_pct! }));
 
   const latestBodyComp = entries.find(e => e.fat_pct != null || e.muscle_mass != null);
 
@@ -254,6 +262,22 @@ export default function WeightPage() {
 
           {chartData.length > 0 && (
             <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
+              <div className="flex items-center justify-end gap-1">
+                {([30, 90, 180, 365, 'all'] as const).map(r => (
+                  <button
+                    key={r}
+                    onClick={() => setRange(r)}
+                    className={[
+                      'text-xs px-3 py-1.5 rounded-lg border cursor-pointer transition-colors',
+                      range === r
+                        ? 'border-accent bg-accent/10 text-accent'
+                        : 'border-border text-text-sec hover:border-accent/50',
+                    ].join(' ')}
+                  >
+                    {r === 'all' ? (t('meas.rangeAll') ?? 'All') : `${r}d`}
+                  </button>
+                ))}
+              </div>
               <LineChartCard data={chartData} goalValue={settings.weight_goal || undefined} showTrend={true} unit=" kg" height={250} />
               {scales.length > 1 && (
                 <div className="flex flex-wrap items-center gap-3 text-xs text-text-sec">
