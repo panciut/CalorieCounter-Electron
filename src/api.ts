@@ -177,7 +177,7 @@ export const api = {
 
   supplementPlan: {
     getCurrent: () => invoke<SupplementPlanWithItems | null>('supplementPlan:getCurrent'),
-    save:       (data: { items: { supplement_id: number; qty: number; unit: string; notes: string }[] }) =>
+    save:       (data: { items: { supplement_id: number; qty: number; unit: string; notes: string; time_of_day: import('./types').SupplementTime }[] }) =>
                   invoke<{ ok: boolean; plan_id?: number }>('supplementPlan:save', data),
   },
 

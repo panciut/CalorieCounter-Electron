@@ -151,7 +151,7 @@ function initDb() {
       template_id INTEGER NOT NULL,
       food_id INTEGER NOT NULL,
       grams REAL NOT NULL,
-      meal TEXT NOT NULL DEFAULT 'Snack',
+      meal TEXT NOT NULL DEFAULT 'AfternoonSnack',
       FOREIGN KEY (template_id) REFERENCES meal_templates(id) ON DELETE CASCADE,
       FOREIGN KEY (food_id) REFERENCES foods(id)
     );
@@ -323,6 +323,9 @@ function initDb() {
     'ALTER TABLE weight_log ADD COLUMN scale_id INTEGER',
     'ALTER TABLE foods ADD COLUMN is_placeholder INTEGER NOT NULL DEFAULT 0',
     'ALTER TABLE foods ADD COLUMN display_name TEXT',
+    "ALTER TABLE supplement_plan_items ADD COLUMN time_of_day TEXT NOT NULL DEFAULT 'breakfast'",
+    "UPDATE log SET meal = 'AfternoonSnack' WHERE meal = 'Snack'",
+    "UPDATE template_items SET meal = 'AfternoonSnack' WHERE meal = 'Snack'",
   ];
   for (const stmt of migrations) {
     try { database.exec(stmt); } catch (_) {}

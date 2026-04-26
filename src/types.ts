@@ -14,7 +14,32 @@
 // Migration v1 (main/db.js) enforces this by promoting any piece_grams-only food
 // into a food_packages row.
 
-export type Meal = 'Breakfast' | 'Lunch' | 'Dinner' | 'Snack';
+export type Meal =
+  | 'Breakfast'
+  | 'MorningSnack'
+  | 'Lunch'
+  | 'AfternoonSnack'
+  | 'Dinner'
+  | 'EveningSnack';
+
+export const MEAL_ORDER: Meal[] = [
+  'Breakfast', 'MorningSnack', 'Lunch', 'AfternoonSnack', 'Dinner', 'EveningSnack',
+];
+
+export type SupplementTime =
+  | 'wake_up'
+  | 'breakfast'
+  | 'morning_snack'
+  | 'lunch'
+  | 'afternoon_snack'
+  | 'dinner'
+  | 'evening_snack'
+  | 'night';
+
+export const SUPPLEMENT_TIME_ORDER: SupplementTime[] = [
+  'wake_up', 'breakfast', 'morning_snack', 'lunch',
+  'afternoon_snack', 'dinner', 'evening_snack', 'night',
+];
 
 export interface FoodPackage {
   id: number;
@@ -323,6 +348,7 @@ export interface SupplementPlanItem {
   qty: number;
   unit: string;
   notes: string;
+  time_of_day: SupplementTime;
 }
 
 export interface SupplementPlanWithItems {
@@ -335,6 +361,7 @@ export interface SupplementDay {
   name: string;
   qty: number;
   unit: string;
+  time_of_day: SupplementTime;
   taken: number;
 }
 

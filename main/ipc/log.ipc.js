@@ -112,7 +112,7 @@ function registerLogIpc() {
     db.transaction(() => {
       const result = db.prepare(
         'INSERT INTO log (date, food_id, grams, meal, status) VALUES (?, ?, ?, ?, ?)'
-      ).run(d, food_id, grams, meal || 'Snack', s);
+      ).run(d, food_id, grams, meal || 'AfternoonSnack', s);
       logId = result.lastInsertRowid;
       if (s === 'logged') {
         pushUndo('log:add', { id: logId });
@@ -126,7 +126,7 @@ function registerLogIpc() {
           shortage_food = food ? food.name : null;
           events = r.events;
         }
-        logAction(db, 'log:add', { food_name: food?.name, grams, details: { date: d, meal: meal || 'Snack' } });
+        logAction(db, 'log:add', { food_name: food?.name, grams, details: { date: d, meal: meal || 'AfternoonSnack' } });
       }
     })();
     return { id: logId, shortage, shortage_food, events };
@@ -144,7 +144,7 @@ function registerLogIpc() {
       ).run(internalName, food.name, food.calories, food.protein || 0, food.carbs || 0, food.fat || 0, food.fiber || 0, food.piece_grams || null, food.is_liquid ? 1 : 0);
       const logResult = db.prepare(
         "INSERT INTO log (date, food_id, grams, meal, status) VALUES (?, ?, ?, ?, 'logged')"
-      ).run(d, foodResult.lastInsertRowid, grams, meal || 'Snack');
+      ).run(d, foodResult.lastInsertRowid, grams, meal || 'AfternoonSnack');
       if (food.is_liquid) {
         db.prepare('INSERT INTO water_log (date, ml, source, log_id) VALUES (?, ?, ?, ?)').run(d, grams, food.name, logResult.lastInsertRowid);
       }

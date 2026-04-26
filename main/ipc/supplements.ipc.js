@@ -8,15 +8,28 @@ function getPlanForDate(db, date) {
   ).get(date);
 }
 
+// Slot ordering for time_of_day — kept in sync with SUPPLEMENT_TIME_ORDER on the renderer side
+const TIME_ORDER_CASE = `CASE spi.time_of_day
+  WHEN 'wake_up'         THEN 1
+  WHEN 'breakfast'       THEN 2
+  WHEN 'morning_snack'   THEN 3
+  WHEN 'lunch'           THEN 4
+  WHEN 'afternoon_snack' THEN 5
+  WHEN 'dinner'          THEN 6
+  WHEN 'evening_snack'   THEN 7
+  WHEN 'night'           THEN 8
+  ELSE 9
+END`;
+
 // Helper: get items for a plan joined with supplement names
 function getPlanItems(db, planId) {
   return db.prepare(`
     SELECT spi.id, spi.plan_id, spi.supplement_id, s.name,
-           spi.qty, spi.unit, spi.notes
+           spi.qty, spi.unit, spi.notes, spi.time_of_day
     FROM supplement_plan_items spi
     JOIN supplements s ON s.id = spi.supplement_id
     WHERE spi.plan_id = ?
-    ORDER BY s.name
+    ORDER BY ${TIME_ORDER_CASE}, s.name
   `).all(planId);
 }
 
@@ -72,10 +85,17 @@ function registerSupplementsIpc() {
         plan = { id: result.lastInsertRowid, effective_from: today };
       }
       const insertItem = db.prepare(
-        'INSERT INTO supplement_plan_items (plan_id, supplement_id, qty, unit, notes) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO supplement_plan_items (plan_id, supplement_id, qty, unit, notes, time_of_day) VALUES (?, ?, ?, ?, ?, ?)'
       );
       for (const item of items) {
-        insertItem.run(plan.id, item.supplement_id, item.qty || 1, item.unit || '', item.notes || '');
+        insertItem.run(
+          plan.id,
+          item.supplement_id,
+          item.qty || 1,
+          item.unit || '',
+          item.notes || '',
+          item.time_of_day || 'breakfast',
+        );
       }
       return plan.id;
     });
@@ -91,13 +111,13 @@ function registerSupplementsIpc() {
     const plan = getPlanForDate(db, date);
     if (!plan) return [];
     return db.prepare(`
-      SELECT spi.supplement_id AS id, s.name, spi.qty, spi.unit,
+      SELECT spi.supplement_id AS id, s.name, spi.qty, spi.unit, spi.time_of_day,
              COALESCE(sl.count, 0) AS taken
       FROM supplement_plan_items spi
       JOIN supplements s ON s.id = spi.supplement_id
       LEFT JOIN supplement_log sl ON sl.supplement_id = spi.supplement_id AND sl.date = ?
       WHERE spi.plan_id = ?
-      ORDER BY s.name
+      ORDER BY ${TIME_ORDER_CASE}, s.name
     `).all(date, plan.id);
   });
 

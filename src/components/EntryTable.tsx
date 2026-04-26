@@ -2,9 +2,7 @@ import { useState, Fragment } from 'react';
 import { useT } from '../i18n/useT';
 import { api } from '../api';
 import { useToast } from './Toast';
-import type { LogEntry, Food, Meal } from '../types';
-
-const MEAL_ORDER: Meal[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
+import { MEAL_ORDER, type LogEntry, type Food, type Meal } from '../types';
 
 interface EntryTableProps {
   entries: LogEntry[];
@@ -113,7 +111,9 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
     return <p className="text-text-sec text-sm py-4">{t('dash.nothingLogged')}</p>;
   }
 
-  const groups: Record<Meal, LogEntry[]> = { Breakfast: [], Lunch: [], Dinner: [], Snack: [] };
+  const groups: Record<Meal, LogEntry[]> = Object.fromEntries(
+    MEAL_ORDER.map(m => [m, [] as LogEntry[]]),
+  ) as Record<Meal, LogEntry[]>;
   for (const e of entries) groups[e.meal as Meal]?.push(e);
 
   const foodsById = new Map(foods.map(f => [f.id, f]));
@@ -343,7 +343,7 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                             <select value={editing.meal}
                               onChange={ev => setEditing({ ...editing, meal: ev.target.value as Meal })}
                               className="bg-card border border-border rounded px-2 py-1 text-sm text-text outline-none focus:border-accent">
-                              {(['Breakfast','Lunch','Dinner','Snack'] as Meal[]).map(m =>
+                              {MEAL_ORDER.map(m =>
                                 <option key={m} value={m}>{tMeal(m)}</option>)}
                             </select>
                             <button onClick={handleSave}

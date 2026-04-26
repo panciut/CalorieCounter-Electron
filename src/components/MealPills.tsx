@@ -1,7 +1,5 @@
 import { useT } from '../i18n/useT';
-import type { Meal } from '../types';
-
-const MEALS: Meal[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
+import { MEAL_ORDER, type Meal } from '../types';
 
 interface MealPillsProps {
   selected: Meal;
@@ -12,7 +10,7 @@ export default function MealPills({ selected, onChange }: MealPillsProps) {
   const { tMeal } = useT();
   return (
     <div className="flex gap-2 flex-wrap">
-      {MEALS.map(meal => (
+      {MEAL_ORDER.map(meal => (
         <button
           key={meal}
           type="button"

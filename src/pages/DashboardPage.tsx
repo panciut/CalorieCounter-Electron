@@ -15,9 +15,10 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import { today, fmtDateWithWeekday, addDays } from '../lib/dateUtil';
 import { buildDayMarkdown, copyToClipboard } from '../lib/exportText';
 import ExerciseSection from '../components/ExerciseSection';
-import type {
-  LogEntry, Food, Recipe, RecipeIngredient, Meal,
-  WaterEntry, SupplementDay, FrequentFood, WeightEntry, DailyEnergy,
+import {
+  SUPPLEMENT_TIME_ORDER,
+  type LogEntry, type Food, type Recipe, type RecipeIngredient, type Meal,
+  type WaterEntry, type SupplementDay, type FrequentFood, type WeightEntry, type DailyEnergy,
 } from '../types';
 import { useDeductionEvents } from '../hooks/useDeductionEvents';
 import DeductionEventModal from '../components/DeductionEventModal';
@@ -351,7 +352,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const [amount, setAmount]                 = useState('');
   const [usePieces, setUsePieces]           = useState(false);
   const [selectedPackId, setSelectedPackId] = useState<number | null>(null);
-  const [meal, setMeal]                     = useState<Meal>('Snack');
+  const [meal, setMeal]                     = useState<Meal>('AfternoonSnack');
 
   // UI state
   const [quickFoodOpen, setQuickFoodOpen] = useState(false);
@@ -615,7 +616,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     const grams = (food.is_bulk !== 1 && smallestPack != null)
       ? smallestPack
       : (food.piece_grams || 100);
-    await api.log.add({ food_id: food.id, grams, meal: 'Snack', date: dateStr, status: logStatus, pantry_id: logPantryId });
+    await api.log.add({ food_id: food.id, grams, meal: 'AfternoonSnack', date: dateStr, status: logStatus, pantry_id: logPantryId });
     load();
   }
 
@@ -816,19 +817,30 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
         {supplements.length > 0 && (
           <div className="bg-card border border-border rounded-xl p-4">
             <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider mb-2">{t('suppl.dashTitle')}</h3>
-            <div className="flex flex-col gap-1.5">
-              {supplements.map(s => {
-                const done = s.taken >= s.qty;
+            <div className="flex flex-col gap-3">
+              {SUPPLEMENT_TIME_ORDER.map(slot => {
+                const group = supplements.filter(s => (s.time_of_day ?? 'breakfast') === slot);
+                if (group.length === 0) return null;
                 return (
-                  <div key={s.id} className="flex items-center justify-between gap-2">
-                    <span className={`text-sm ${done ? 'text-text-sec line-through' : 'text-text'}`}>{s.name}</span>
-                    <button
-                      disabled={done}
-                      onClick={()=>handleTakeSuppl(s.id)}
-                      className={`text-xs px-2 py-0.5 rounded cursor-pointer transition-colors ${done?'text-text-sec':'text-accent border border-accent/40 hover:bg-accent/10'}`}
-                    >
-                      {s.taken}/{s.qty}
-                    </button>
+                  <div key={slot} className="flex flex-col gap-1">
+                    <div className="text-[10px] uppercase tracking-wider text-text-sec/50">
+                      {t(`suppl.time.${slot}`)}
+                    </div>
+                    {group.map(s => {
+                      const done = s.taken >= s.qty;
+                      return (
+                        <div key={s.id} className="flex items-center justify-between gap-2">
+                          <span className={`text-sm ${done ? 'text-text-sec line-through' : 'text-text'}`}>{s.name}</span>
+                          <button
+                            disabled={done}
+                            onClick={()=>handleTakeSuppl(s.id)}
+                            className={`text-xs px-2 py-0.5 rounded cursor-pointer transition-colors ${done?'text-text-sec':'text-accent border border-accent/40 hover:bg-accent/10'}`}
+                          >
+                            {s.taken}/{s.qty}
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}

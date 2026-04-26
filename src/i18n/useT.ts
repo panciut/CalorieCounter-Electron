@@ -2,6 +2,7 @@ import { useContext } from 'react';
 import { SettingsContext } from '../hooks/useSettings';
 import { translations } from './translations';
 import type { Meal } from '../types';
+import { MEAL_ORDER } from '../types';
 
 export function useT() {
   const { settings } = useContext(SettingsContext);
@@ -19,18 +20,21 @@ export function useT() {
 
   function tMeal(meal: Meal | string): string {
     const keyMap: Record<string, string> = {
-      Breakfast: 'meal.breakfast',
-      Lunch:     'meal.lunch',
-      Dinner:    'meal.dinner',
-      Snack:     'meal.snack',
+      Breakfast:      'meal.breakfast',
+      MorningSnack:   'meal.morningSnack',
+      Lunch:          'meal.lunch',
+      AfternoonSnack: 'meal.afternoonSnack',
+      Dinner:         'meal.dinner',
+      EveningSnack:   'meal.eveningSnack',
+      // legacy fallback for any pre-migration data still in memory
+      Snack:          'meal.afternoonSnack',
     };
     const k = keyMap[meal];
     return k ? t(k) : meal;
   }
 
   function mealFromTranslated(translated: string): Meal {
-    const meals: Meal[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
-    return meals.find(m => tMeal(m) === translated) ?? (translated as Meal);
+    return MEAL_ORDER.find(m => tMeal(m) === translated) ?? (translated as Meal);
   }
 
   return { t, tMeal, mealFromTranslated, lang };

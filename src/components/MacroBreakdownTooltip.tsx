@@ -1,8 +1,6 @@
 import { useRef, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { LogEntry, Meal } from '../types';
-
-const MEAL_ORDER: Meal[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
+import { MEAL_ORDER, type LogEntry } from '../types';
 
 export function entryValue(e: LogEntry, id: string): number {
   if (id === 'cal')     return e.calories;

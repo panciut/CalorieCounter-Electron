@@ -95,7 +95,7 @@ function registerActualRecipesIpc() {
         'INSERT INTO log (date, food_id, grams, meal) VALUES (?, ?, ?, ?)'
       );
       for (const { food_id, grams } of ingredients) {
-        insert.run(d, food_id, grams * ratio, meal || 'Snack');
+        insert.run(d, food_id, grams * ratio, meal || 'AfternoonSnack');
       }
       return { ok: true, count: ingredients.length };
     })();

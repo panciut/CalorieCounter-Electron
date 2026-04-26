@@ -1,6 +1,4 @@
-import type { LogEntry, WeekDayDetail, Settings, Meal } from '../types';
-
-const MEAL_ORDER: Meal[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
+import { MEAL_ORDER, type LogEntry, type WeekDayDetail, type Settings, type Meal } from '../types';
 
 const r = (n: number, d = 0) => {
   const f = Math.pow(10, d);
@@ -39,7 +37,9 @@ function entryLine(e: LogEntry): string {
 }
 
 function groupByMeal(entries: LogEntry[]): Record<Meal, LogEntry[]> {
-  const out: Record<Meal, LogEntry[]> = { Breakfast: [], Lunch: [], Dinner: [], Snack: [] };
+  const out: Record<Meal, LogEntry[]> = Object.fromEntries(
+    MEAL_ORDER.map(m => [m, [] as LogEntry[]]),
+  ) as Record<Meal, LogEntry[]>;
   for (const e of entries) out[e.meal]?.push(e);
   return out;
 }

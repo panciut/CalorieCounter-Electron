@@ -1,16 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import { api } from '../api';
 import { useToast } from '../components/Toast';
+import { useT } from '../i18n/useT';
 import ConfirmDialog from '../components/ConfirmDialog';
 import AddFoodRow from '../components/AddFoodRow';
 import { today } from '../lib/dateUtil';
-import type { Recipe, RecipeIngredient, ActualRecipe, ActualRecipeIngredient, Food, Meal, PantryIngredientCheck, PantryLocation } from '../types';
+import { MEAL_ORDER, type Recipe, type RecipeIngredient, type ActualRecipe, type ActualRecipeIngredient, type Food, type Meal, type PantryIngredientCheck, type PantryLocation } from '../types';
 import { useDeductionEvents } from '../hooks/useDeductionEvents';
 import DeductionEventModal from '../components/DeductionEventModal';
 
 type PantryCheckResult = { can_make: boolean; missing: PantryIngredientCheck[] };
-
-const MEALS: Meal[] = ['Breakfast', 'Lunch', 'Dinner', 'Snack'];
 
 function n(v: unknown) { return Math.round(Number(v) || 0); }
 function nf(v: unknown) { return Math.round((Number(v) || 0) * 10) / 10; }
@@ -21,6 +20,7 @@ function nf(v: unknown) { return Math.round((Number(v) || 0) * 10) / 10; }
 
 function BundlesTab() {
   const { showToast } = useToast();
+  const { tMeal } = useT();
   const { current: deductionEvent, next: nextDeduction, push: pushDeduction } = useDeductionEvents();
   const [bundles, setBundles]           = useState<Recipe[]>([]);
   const [foods, setFoods]               = useState<Food[]>([]);
@@ -268,7 +268,7 @@ function BundlesTab() {
               <div className="space-y-1">
                 <label className="text-xs text-text-sec">Meal</label>
                 <select className={`${selCls} w-full`} value={logMeal} onChange={e => setLogMeal(e.target.value as Meal)}>
-                  {MEALS.map(m => <option key={m}>{m}</option>)}
+                  {MEAL_ORDER.map(m => <option key={m} value={m}>{tMeal(m)}</option>)}
                 </select>
               </div>
               <div className="space-y-1">
@@ -483,6 +483,7 @@ function BundleCreateModal({ foods, onClose, onCreate, initial }: {
 
 function RecipesTab() {
   const { showToast } = useToast();
+  const { tMeal } = useT();
   const { current: deductionEvent, next: nextDeduction, push: pushDeduction } = useDeductionEvents();
   const [recipes, setRecipes]           = useState<ActualRecipe[]>([]);
   const [foods, setFoods]               = useState<Food[]>([]);
@@ -759,7 +760,7 @@ function RecipesTab() {
               <div className="space-y-1">
                 <label className="text-xs text-text-sec">Meal</label>
                 <select className={`${selCls} w-full`} value={logMeal} onChange={e => setLogMeal(e.target.value as Meal)}>
-                  {MEALS.map(m => <option key={m}>{m}</option>)}
+                  {MEAL_ORDER.map(m => <option key={m} value={m}>{tMeal(m)}</option>)}
                 </select>
               </div>
               <div className="space-y-1">

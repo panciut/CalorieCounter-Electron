@@ -3,7 +3,10 @@ import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { api } from '../api';
-import type { Supplement, SupplementPlanItem, SupplementPlanWithItems } from '../types';
+import {
+  SUPPLEMENT_TIME_ORDER,
+  type Supplement, type SupplementPlanItem, type SupplementPlanWithItems, type SupplementTime,
+} from '../types';
 
 type Tab = 'catalog' | 'plan';
 
@@ -14,12 +17,13 @@ interface PlanRow {
   qty: string;
   unit: string;
   notes: string;
+  time_of_day: SupplementTime;
 }
 
 interface PlanEditorProps {
   catalog: Supplement[];
   initialItems: SupplementPlanItem[];
-  onSave: (items: { supplement_id: number; qty: number; unit: string; notes: string }[]) => void;
+  onSave: (items: { supplement_id: number; qty: number; unit: string; notes: string; time_of_day: SupplementTime }[]) => void;
   onCancel: () => void;
   t: ReturnType<typeof useT>['t'];
 }
@@ -32,6 +36,7 @@ function PlanEditor({ catalog, initialItems, onSave, onCancel, t }: PlanEditorPr
       qty: String(i.qty),
       unit: i.unit,
       notes: i.notes,
+      time_of_day: i.time_of_day ?? 'breakfast',
     }))
   );
   const [addId, setAddId] = useState<number | ''>('');
@@ -44,7 +49,7 @@ function PlanEditor({ catalog, initialItems, onSave, onCancel, t }: PlanEditorPr
     if (!id) return;
     const s = catalog.find(c => c.id === id);
     if (!s) return;
-    setRows(prev => [...prev, { supplement_id: id, name: s.name, qty: '1', unit: '', notes: '' }]);
+    setRows(prev => [...prev, { supplement_id: id, name: s.name, qty: '1', unit: '', notes: '', time_of_day: 'breakfast' }]);
     setAddId('');
   }
 
@@ -62,6 +67,7 @@ function PlanEditor({ catalog, initialItems, onSave, onCancel, t }: PlanEditorPr
       qty: parseInt(r.qty) || 1,
       unit: r.unit.trim(),
       notes: r.notes.trim(),
+      time_of_day: r.time_of_day,
     })));
   }
 
@@ -79,6 +85,15 @@ function PlanEditor({ catalog, initialItems, onSave, onCancel, t }: PlanEditorPr
             <div key={row.supplement_id} className="py-3 flex items-center gap-3 flex-wrap">
               <span className="text-sm font-medium text-text min-w-24 flex-1">{row.name}</span>
               <div className="flex items-center gap-1.5 flex-wrap">
+                <select
+                  value={row.time_of_day}
+                  onChange={e => patch(row.supplement_id, { time_of_day: e.target.value as SupplementTime })}
+                  className={`${inputCls} w-32`}
+                >
+                  {SUPPLEMENT_TIME_ORDER.map(slot => (
+                    <option key={slot} value={slot}>{t(`suppl.time.${slot}`)}</option>
+                  ))}
+                </select>
                 <input
                   type="text" inputMode="decimal"
                   value={row.qty}
@@ -297,7 +312,7 @@ export default function SupplementsPage() {
     loadPlan();
   }
 
-  async function handleSavePlan(items: { supplement_id: number; qty: number; unit: string; notes: string }[]) {
+  async function handleSavePlan(items: { supplement_id: number; qty: number; unit: string; notes: string; time_of_day: SupplementTime }[]) {
     await api.supplementPlan.save({ items });
     setEditingPlan(false);
     showToast(t('common.saved'));
@@ -423,22 +438,34 @@ export default function SupplementsPage() {
                 {currentPlan.items.length === 0 ? (
                   <p className="text-text-sec text-sm py-4 text-center">{t('suppl.noPlan')}</p>
                 ) : (
-                  <div className="flex flex-col divide-y divide-border/40">
-                    {/* Header row */}
-                    <div className="py-1.5 grid grid-cols-[1fr_auto_auto_auto] gap-3 text-xs font-medium text-text-sec uppercase tracking-wider">
-                      <span>{t('suppl.name')}</span>
-                      <span className="w-16 text-center">{t('suppl.qty')}</span>
-                      <span className="w-20">{t('suppl.unit')}</span>
-                      <span className="w-32">{t('suppl.notes')}</span>
-                    </div>
-                    {currentPlan.items.map(item => (
-                      <div key={item.supplement_id} className="py-3 grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center">
-                        <span className="text-sm font-medium text-text">{item.name}</span>
-                        <span className="w-16 text-center text-sm text-text tabular-nums">{item.qty}</span>
-                        <span className="w-20 text-sm text-text-sec">{item.unit || '—'}</span>
-                        <span className="w-32 text-sm text-text-sec truncate">{item.notes || '—'}</span>
-                      </div>
-                    ))}
+                  <div className="flex flex-col gap-4">
+                    {SUPPLEMENT_TIME_ORDER.map(slot => {
+                      const slotItems = currentPlan.items.filter(i => (i.time_of_day ?? 'breakfast') === slot);
+                      if (slotItems.length === 0) return null;
+                      return (
+                        <div key={slot} className="flex flex-col">
+                          <div className="text-sm font-semibold text-text-sec mb-1.5">
+                            {t(`suppl.time.${slot}`)}
+                          </div>
+                          <div className="flex flex-col divide-y divide-border/40">
+                            <div className="py-1.5 grid grid-cols-[1fr_auto_auto_auto] gap-3 text-xs font-medium text-text-sec uppercase tracking-wider">
+                              <span>{t('suppl.name')}</span>
+                              <span className="w-16 text-center">{t('suppl.qty')}</span>
+                              <span className="w-20">{t('suppl.unit')}</span>
+                              <span className="w-32">{t('suppl.notes')}</span>
+                            </div>
+                            {slotItems.map(item => (
+                              <div key={item.supplement_id} className="py-3 grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center">
+                                <span className="text-sm font-medium text-text">{item.name}</span>
+                                <span className="w-16 text-center text-sm text-text tabular-nums">{item.qty}</span>
+                                <span className="w-20 text-sm text-text-sec">{item.unit || '—'}</span>
+                                <span className="w-32 text-sm text-text-sec truncate">{item.notes || '—'}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </>

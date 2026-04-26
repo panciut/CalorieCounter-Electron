@@ -45,7 +45,7 @@ function registerTemplatesIpc() {
         'INSERT INTO template_items (template_id, food_id, grams, meal) VALUES (?, ?, ?, ?)'
       );
       for (const { food_id, grams, meal } of items) {
-        insertItem.run(lastInsertRowid, food_id, grams, meal || 'Snack');
+        insertItem.run(lastInsertRowid, food_id, grams, meal || 'AfternoonSnack');
       }
       return { id: lastInsertRowid };
     })();
