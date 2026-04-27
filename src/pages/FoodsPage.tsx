@@ -81,6 +81,7 @@ export default function FoodsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [barcodeStatus, setBarcodeStatus] = useState<'found'|'notFound'|null>(null);
+  const [barcodeImage, setBarcodeImage] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(true);
   const [detailMode, setDetailMode] = useState(false);
@@ -108,7 +109,7 @@ export default function FoodsPage() {
       const g = parseFloat(p.grams);
       if (g > 0) await api.foods.addPackage({ food_id: id, grams: g });
     }
-    setAddForm(emptyForm()); setAddPacks([{ grams: '' }]); setPackFromBarcode(null); setBarcodeInput(''); setBarcodeStatus(null); showToast(t('common.saved')); loadFoods();
+    setAddForm(emptyForm()); setAddPacks([{ grams: '' }]); setPackFromBarcode(null); setBarcodeInput(''); setBarcodeStatus(null); setBarcodeImage(null); showToast(t('common.saved')); loadFoods();
   }
 
   function updateAddPackGrams(i: number, grams: string) { setAddPacks(p => p.map((x, idx) => idx === i ? { grams } : x)); }
@@ -118,6 +119,7 @@ export default function FoodsPage() {
   function applyBarcodeResult(r: BarcodeResult, barcode: string) {
     setAddForm(barcodeToForm(r, barcode));
     setBarcodeStatus('found');
+    setBarcodeImage(r.image_url ?? null);
     setFormOpen(true);
     const allBlank = addPacks.every(p => !p.grams);
     if (r.pack_grams && allBlank) {
@@ -152,6 +154,7 @@ export default function FoodsPage() {
   async function handleBarcodeLookup() {
     if (!barcodeInput.trim()) return;
     setBarcodeStatus(null);
+    setBarcodeImage(null);
     setPackFromBarcode(null);
     const r = await api.barcode.lookup(barcodeInput.trim());
     if (r) applyBarcodeResult(r, barcodeInput.trim());
@@ -159,7 +162,7 @@ export default function FoodsPage() {
   }
 
   async function handleScanResult(barcode: string) {
-    setScannerOpen(false); setBarcodeInput(barcode); setBarcodeStatus(null); setPackFromBarcode(null);
+    setScannerOpen(false); setBarcodeInput(barcode); setBarcodeStatus(null); setBarcodeImage(null); setPackFromBarcode(null);
     const r = await api.barcode.lookup(barcode);
     if (r) applyBarcodeResult(r, barcode);
     else setBarcodeStatus('notFound');
@@ -264,14 +267,25 @@ export default function FoodsPage() {
               <input
                 type="text"
                 value={barcodeInput}
-                onChange={e=>{setBarcodeInput(e.target.value);setBarcodeStatus(null);}}
+                onChange={e=>{setBarcodeInput(e.target.value);setBarcodeStatus(null);setBarcodeImage(null);}}
                 onKeyDown={e=>e.key==='Enter'&&handleBarcodeLookup()}
                 placeholder={t('barcode.placeholder')}
                 className="bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-40"
               />
               <button type="button" onClick={handleBarcodeLookup} className="px-3 py-1.5 rounded-lg bg-accent text-white text-xs font-medium hover:opacity-90 cursor-pointer shrink-0">{t('barcode.lookup')}</button>
               <button type="button" onClick={()=>setScannerOpen(true)} className="px-2 py-1.5 rounded-lg border border-border text-text-sec hover:border-accent cursor-pointer shrink-0 text-sm">📷</button>
-              {barcodeStatus==='found' && <span className="text-xs text-accent">{t('barcode.found')}</span>}
+              {barcodeStatus==='found' && (
+                <span className="flex items-center gap-1.5">
+                  {barcodeImage && (
+                    <img
+                      src={barcodeImage}
+                      alt="product"
+                      className="h-10 w-10 rounded object-contain border border-border bg-card shrink-0"
+                    />
+                  )}
+                  <span className="text-xs text-accent">{t('barcode.found')}</span>
+                </span>
+              )}
               {barcodeStatus==='notFound' && <span className="text-xs text-red">{t('barcode.notFound')}</span>}
               {/* Presets */}
               <div className="ml-auto flex gap-1 flex-wrap justify-end">

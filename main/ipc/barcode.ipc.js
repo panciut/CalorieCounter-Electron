@@ -21,7 +21,7 @@ function parseGrams(str) {
 function registerBarcodeIpc() {
   ipcMain.handle('barcode:lookup', async (_, { barcode }) => {
     try {
-      const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}?fields=product_name,product_name_en,product_name_it,nutriments,quantity,serving_size,categories_tags`;
+      const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}?fields=product_name,product_name_en,product_name_it,nutriments,quantity,serving_size,categories_tags,image_front_small_url`;
       const resp = await fetch(url);
       const json = await resp.json();
       if (json.status !== 1 || !json.product) return null;
@@ -49,6 +49,7 @@ function registerBarcodeIpc() {
         fiber:    r2(n.fiber_100g),
         is_liquid: isLiquid,
         pack_grams: parseGrams(p.quantity),
+        image_url: p.image_front_small_url || null,
       };
     } catch (e) {
       console.error('Barcode lookup error:', e.message);

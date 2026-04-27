@@ -526,6 +526,7 @@ export interface BarcodeResult {
   fiber: number;
   is_liquid: number;
   pack_grams?: number | null;
+  image_url?: string | null;
 }
 
 // ── Page navigation ──────────────────────────────────────────────────────────
