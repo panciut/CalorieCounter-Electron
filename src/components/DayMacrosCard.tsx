@@ -9,7 +9,7 @@ import type { LogEntry } from '../types';
 const remColorMap: Record<string, string> = {
   'bar-green':  'text-green',
   'bar-yellow': 'text-yellow',
-  'bar-orange': 'text-orange-400',
+  'bar-orange': 'text-orange',
   'bar-red':    'text-red',
 };
 
@@ -79,11 +79,11 @@ export default function DayMacrosCard({ entries }: DayMacrosCardProps) {
       <div className="flex-1 min-w-0 flex flex-col gap-3">
         <div className="flex items-center gap-1.5 flex-wrap text-sm tabular-nums">
           <span className="text-text font-medium">{loggedRound}</span>
-          <span className="text-text-sec text-xs uppercase">logged</span>
+          <span className="text-text-sec text-xs uppercase">{t('dash.logged')}</span>
           {plannedRound > 0 && <>
             <span className="text-text-sec">+</span>
             <span className="text-accent font-medium">{plannedRound}</span>
-            <span className="text-text-sec text-xs uppercase">planned</span>
+            <span className="text-text-sec text-xs uppercase">{t('dash.planned')}</span>
           </>}
           <span className="text-text-sec">=</span>
           <span className="text-text font-semibold">{intakeSum}</span>

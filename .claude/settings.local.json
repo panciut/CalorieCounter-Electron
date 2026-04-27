@@ -15,7 +15,11 @@
       "Bash(npx electron-rebuild *)",
       "Bash(netstat -ano)",
       "Bash(taskkill *)",
-      "PowerShell(Stop-Process *)"
+      "PowerShell(Stop-Process *)",
+      "Bash(echo \"PID: $!\")",
+      "PowerShell(Get-NetTCPConnection *)",
+      "Bash(npm audit *)",
+      "Bash(npx vite *)"
     ]
   }
 }
