@@ -103,6 +103,43 @@ function registerPantryIpc() {
     return checkStock(db, food_id, grams, pantry_id);
   });
 
+  // Returns per-food pantry stock with pack breakdown for the given pantry.
+  // Shape: { [food_id]: { total_g, loose_g, packs: [{ grams, count }] } }
+  ipcMain.handle('pantry:getStockMap', (_, { pantry_id } = {}) => {
+    const db = getDb();
+    if (!isPantryEnabled(db)) return {};
+    const pid = pantry_id ?? getDefaultPantryId(db);
+    const rows = db.prepare(`
+      SELECT p.food_id, p.quantity_g, p.package_id, fp.grams AS package_grams
+      FROM pantry p
+      LEFT JOIN food_packages fp ON fp.id = p.package_id
+      WHERE p.pantry_id = ? AND p.quantity_g > 0
+    `).all(pid);
+
+    const byFood = {};
+    for (const r of rows) {
+      const f = byFood[r.food_id] ?? (byFood[r.food_id] = { total_g: 0, loose_g: 0, _packs: new Map() });
+      f.total_g += r.quantity_g;
+      if (r.package_id && r.package_grams && r.package_grams > 0) {
+        const cnt = r.quantity_g / r.package_grams;
+        f._packs.set(r.package_grams, (f._packs.get(r.package_grams) ?? 0) + cnt);
+      } else {
+        f.loose_g += r.quantity_g;
+      }
+    }
+    const out = {};
+    for (const [fid, f] of Object.entries(byFood)) {
+      out[fid] = {
+        total_g: Math.round(f.total_g * 10) / 10,
+        loose_g: Math.round(f.loose_g * 10) / 10,
+        packs: [...f._packs.entries()]
+          .map(([grams, count]) => ({ grams, count: Math.round(count * 10) / 10 }))
+          .sort((a, b) => a.grams - b.grams),
+      };
+    }
+    return out;
+  });
+
   // ── Shopping list ────────────────────────────────────────────────────────────
 
   ipcMain.handle('shopping:getAll', (_, { pantry_id } = {}) => {

@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Fuse from 'fuse.js';
+import { api } from '../api';
 import type { Food, Recipe } from '../types';
 
 export type SearchItem = (Food & { _freq?: number; isRecipe?: false }) | (Recipe & { _freq?: number; isRecipe: true });
@@ -13,9 +14,11 @@ interface FoodSearchProps {
   onClear?: () => void;
   clearAfterSelect?: boolean;
   showAllWhenEmpty?: boolean;
+  /** When set, each food row shows a small badge with the total grams currently in this pantry. */
+  pantryId?: number;
 }
 
-export default function FoodSearch({ items, onSelect, placeholder = 'Search…', value, onClear, clearAfterSelect = false, showAllWhenEmpty = false }: FoodSearchProps) {
+export default function FoodSearch({ items, onSelect, placeholder = 'Search…', value, onClear, clearAfterSelect = false, showAllWhenEmpty = false, pantryId }: FoodSearchProps) {
   const [query, setQuery] = useState(value ?? '');
   const [activeIdx, setActiveIdx] = useState(-1);
   const [open, setOpen] = useState(false);
@@ -44,6 +47,28 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
       .slice(0, 10)
       .map(r => r.item);
   }, [query, fuse]);
+
+  // Pantry stock map (food_id → { total, packs, loose }). Refetched when pantry changes or list opens.
+  type Stock = { total_g: number; loose_g: number; packs: { grams: number; count: number }[] };
+  const [stockMap, setStockMap] = useState<Record<number, Stock>>({});
+  useEffect(() => {
+    if (pantryId == null) { setStockMap({}); return; }
+    let cancelled = false;
+    api.pantry.getStockMap(pantryId).then(m => { if (!cancelled) setStockMap(m ?? {}); });
+    return () => { cancelled = true; };
+  }, [pantryId, open]);
+
+  function formatStock(s: Stock): string {
+    const fmtG = (g: number) => g >= 1000
+      ? `${(g / 1000).toFixed(g >= 10000 ? 0 : 1)}kg`
+      : `${Math.round(g)}g`;
+    const packParts = s.packs.map(p =>
+      `${p.count % 1 === 0 ? p.count : p.count.toFixed(1)}×${fmtG(p.grams)}`,
+    );
+    if (packParts.length === 0) return fmtG(s.loose_g);
+    if (s.loose_g <= 0) return packParts.join(' + ');
+    return [...packParts, fmtG(s.loose_g)].join(' + ');
+  }
 
   // Sync controlled value
   useEffect(() => {
@@ -149,6 +174,14 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
                   {!item.isRecipe && <span className="ml-1 opacity-60">/100g</span>}
                 </div>
               </div>
+              {!item.isRecipe && pantryId != null && stockMap[item.id]?.total_g > 0 && (
+                <span
+                  className="text-[11px] px-1.5 py-0.5 rounded bg-green/15 text-green tabular-nums shrink-0"
+                  title={`In pantry: ${Math.round(stockMap[item.id].total_g)}g`}
+                >
+                  {formatStock(stockMap[item.id])}
+                </span>
+              )}
               {item.isRecipe && (
                 <span className="text-xs px-1.5 py-0.5 rounded bg-accent/20 text-accent2 shrink-0">recipe</span>
               )}

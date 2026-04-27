@@ -936,7 +936,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       {/* Log food section */}
       <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-3">
         <h3 className="text-sm font-semibold text-text">{t('dash.logFood')}</h3>
-        <FoodSearch key={searchKey} items={searchItems} onSelect={handleSelect} onClear={handleClear} placeholder={t('dash.searchPlaceholder')} />
+        <FoodSearch key={searchKey} items={searchItems} onSelect={handleSelect} onClear={handleClear} placeholder={t('dash.searchPlaceholder')} pantryId={logPantryId} />
 
         {/* Food log form */}
         {selectedFood && (

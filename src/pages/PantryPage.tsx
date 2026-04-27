@@ -432,6 +432,7 @@ export default function PantryPage() {
                   onSelect={handleSelect}
                   onClear={() => { setSelFood(null); setQty(''); setUnit('g'); setExpiry(''); }}
                   placeholder="Search food…"
+                  pantryId={activePantryId}
                   clearAfterSelect
                 />
                 {selFood && (
@@ -786,6 +787,7 @@ export default function PantryPage() {
                   onSelect={item => { setShopFood(item as Food); setShopQty(''); }}
                   onClear={() => { setShopFood(null); setShopQty(''); }}
                   placeholder="Search food…"
+                  pantryId={activePantryId}
                   clearAfterSelect
                 />
                 {shopFood && (
