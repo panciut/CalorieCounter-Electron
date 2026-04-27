@@ -65,6 +65,7 @@ export interface Food {
   discard_threshold_pct?: number;
   price_per_100g?: number | null;
   is_bulk?: number; // 0 or 1 — Shape C (flour/rice/oil): default to grams when logging
+  image_url?: string | null;
 }
 
 export interface FrequentFood extends Food {

@@ -14,13 +14,13 @@ import { PRESETS, PresetKey, INPUT_CLASS, PRESET_LABELS } from '../lib/foodPrese
 interface FoodFormState {
   name: string; calories: string; protein: string; carbs: string;
   fat: string; fiber: string; piece_grams: string; is_liquid: boolean; is_bulk: boolean; barcode: string;
-  opened_days: string; discard_threshold_pct: string; price_per_100g: string;
+  opened_days: string; discard_threshold_pct: string; price_per_100g: string; image_url: string;
 }
 
-const emptyForm = (): FoodFormState => ({ name:'', calories:'', protein:'', carbs:'', fat:'', fiber:'', piece_grams:'', is_liquid: false, is_bulk: true, barcode: '', opened_days: '7', discard_threshold_pct: '5', price_per_100g: '' });
-const foodToForm = (f: Food): FoodFormState => ({ name:f.name, calories:String(f.calories), protein:String(f.protein), carbs:String(f.carbs), fat:String(f.fat), fiber:String(f.fiber), piece_grams:f.piece_grams!=null?String(f.piece_grams):'', is_liquid:f.is_liquid===1, is_bulk: f.is_bulk===1, barcode: f.barcode ?? '', opened_days: f.opened_days != null ? String(f.opened_days) : '', discard_threshold_pct: f.discard_threshold_pct != null ? String(f.discard_threshold_pct) : '5', price_per_100g: f.price_per_100g != null ? String(f.price_per_100g) : '' });
-const barcodeToForm = (r: BarcodeResult, barcode: string): FoodFormState => ({ name:r.name, calories:String(r.calories), protein:String(r.protein), carbs:String(r.carbs), fat:String(r.fat), fiber:String(r.fiber), piece_grams:'', is_liquid:r.is_liquid===1, is_bulk: false, barcode, opened_days: '7', discard_threshold_pct: '5', price_per_100g: '' });
-const formToData = (f: FoodFormState): Omit<Food,'id'> => ({ name:f.name.trim(), calories:parseFloat(f.calories)||0, protein:parseFloat(f.protein)||0, carbs:parseFloat(f.carbs)||0, fat:parseFloat(f.fat)||0, fiber:parseFloat(f.fiber)||0, piece_grams: f.is_bulk ? null : (f.piece_grams!==''?parseFloat(f.piece_grams):null), is_liquid:f.is_liquid?1:0, is_bulk: f.is_bulk?1:0, barcode: f.barcode.trim() || null, opened_days: f.opened_days !== '' ? parseInt(f.opened_days, 10) : null, discard_threshold_pct: parseFloat(f.discard_threshold_pct) || 5, price_per_100g: f.price_per_100g !== '' ? parseFloat(f.price_per_100g) : null });
+const emptyForm = (): FoodFormState => ({ name:'', calories:'', protein:'', carbs:'', fat:'', fiber:'', piece_grams:'', is_liquid: false, is_bulk: true, barcode: '', opened_days: '7', discard_threshold_pct: '5', price_per_100g: '', image_url: '' });
+const foodToForm = (f: Food): FoodFormState => ({ name:f.name, calories:String(f.calories), protein:String(f.protein), carbs:String(f.carbs), fat:String(f.fat), fiber:String(f.fiber), piece_grams:f.piece_grams!=null?String(f.piece_grams):'', is_liquid:f.is_liquid===1, is_bulk: f.is_bulk===1, barcode: f.barcode ?? '', opened_days: f.opened_days != null ? String(f.opened_days) : '', discard_threshold_pct: f.discard_threshold_pct != null ? String(f.discard_threshold_pct) : '5', price_per_100g: f.price_per_100g != null ? String(f.price_per_100g) : '', image_url: f.image_url ?? '' });
+const barcodeToForm = (r: BarcodeResult, barcode: string): FoodFormState => ({ name:r.name, calories:String(r.calories), protein:String(r.protein), carbs:String(r.carbs), fat:String(r.fat), fiber:String(r.fiber), piece_grams:'', is_liquid:r.is_liquid===1, is_bulk: false, barcode, opened_days: '7', discard_threshold_pct: '5', price_per_100g: '', image_url: r.image_url ?? '' });
+const formToData = (f: FoodFormState): Omit<Food,'id'> => ({ name:f.name.trim(), calories:parseFloat(f.calories)||0, protein:parseFloat(f.protein)||0, carbs:parseFloat(f.carbs)||0, fat:parseFloat(f.fat)||0, fiber:parseFloat(f.fiber)||0, piece_grams: f.is_bulk ? null : (f.piece_grams!==''?parseFloat(f.piece_grams):null), is_liquid:f.is_liquid?1:0, is_bulk: f.is_bulk?1:0, barcode: f.barcode.trim() || null, opened_days: f.opened_days !== '' ? parseInt(f.opened_days, 10) : null, discard_threshold_pct: parseFloat(f.discard_threshold_pct) || 5, price_per_100g: f.price_per_100g !== '' ? parseFloat(f.price_per_100g) : null, image_url: f.image_url.trim() || null });
 
 // ── FormFields for table edit row (multi-line) ────────────────────────────────
 
@@ -81,7 +81,6 @@ export default function FoodsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [barcodeStatus, setBarcodeStatus] = useState<'found'|'notFound'|null>(null);
-  const [barcodeImage, setBarcodeImage] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [formOpen, setFormOpen] = useState(true);
   const [detailMode, setDetailMode] = useState(false);
@@ -109,7 +108,7 @@ export default function FoodsPage() {
       const g = parseFloat(p.grams);
       if (g > 0) await api.foods.addPackage({ food_id: id, grams: g });
     }
-    setAddForm(emptyForm()); setAddPacks([{ grams: '' }]); setPackFromBarcode(null); setBarcodeInput(''); setBarcodeStatus(null); setBarcodeImage(null); showToast(t('common.saved')); loadFoods();
+    setAddForm(emptyForm()); setAddPacks([{ grams: '' }]); setPackFromBarcode(null); setBarcodeInput(''); setBarcodeStatus(null); showToast(t('common.saved')); loadFoods();
   }
 
   function updateAddPackGrams(i: number, grams: string) { setAddPacks(p => p.map((x, idx) => idx === i ? { grams } : x)); }
@@ -119,7 +118,6 @@ export default function FoodsPage() {
   function applyBarcodeResult(r: BarcodeResult, barcode: string) {
     setAddForm(barcodeToForm(r, barcode));
     setBarcodeStatus('found');
-    setBarcodeImage(r.image_url ?? null);
     setFormOpen(true);
     const allBlank = addPacks.every(p => !p.grams);
     if (r.pack_grams && allBlank) {
@@ -154,7 +152,6 @@ export default function FoodsPage() {
   async function handleBarcodeLookup() {
     if (!barcodeInput.trim()) return;
     setBarcodeStatus(null);
-    setBarcodeImage(null);
     setPackFromBarcode(null);
     const r = await api.barcode.lookup(barcodeInput.trim());
     if (r) applyBarcodeResult(r, barcodeInput.trim());
@@ -162,7 +159,7 @@ export default function FoodsPage() {
   }
 
   async function handleScanResult(barcode: string) {
-    setScannerOpen(false); setBarcodeInput(barcode); setBarcodeStatus(null); setBarcodeImage(null); setPackFromBarcode(null);
+    setScannerOpen(false); setBarcodeInput(barcode); setBarcodeStatus(null); setPackFromBarcode(null);
     const r = await api.barcode.lookup(barcode);
     if (r) applyBarcodeResult(r, barcode);
     else setBarcodeStatus('notFound');
@@ -267,7 +264,7 @@ export default function FoodsPage() {
               <input
                 type="text"
                 value={barcodeInput}
-                onChange={e=>{setBarcodeInput(e.target.value);setBarcodeStatus(null);setBarcodeImage(null);}}
+                onChange={e=>{setBarcodeInput(e.target.value);setBarcodeStatus(null);}}
                 onKeyDown={e=>e.key==='Enter'&&handleBarcodeLookup()}
                 placeholder={t('barcode.placeholder')}
                 className="bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-40"
@@ -276,9 +273,9 @@ export default function FoodsPage() {
               <button type="button" onClick={()=>setScannerOpen(true)} className="px-2 py-1.5 rounded-lg border border-border text-text-sec hover:border-accent cursor-pointer shrink-0 text-sm">📷</button>
               {barcodeStatus==='found' && (
                 <span className="flex items-center gap-1.5">
-                  {barcodeImage && (
+                  {addForm.image_url && (
                     <img
-                      src={barcodeImage}
+                      src={addForm.image_url}
                       alt="product"
                       className="h-10 w-10 rounded object-contain border border-border bg-card shrink-0"
                     />
@@ -477,6 +474,7 @@ export default function FoodsPage() {
               <thead className="sticky top-0 bg-card">
                 <tr className="text-text-sec text-xs uppercase tracking-wider border-b border-border">
                   <th className="px-2 py-3 w-8"></th>
+                  <th className="px-2 py-3 w-10"></th>
                   <th className="px-3 py-3 text-left">{t('th.food')}</th>
                   <th className="px-3 py-3 text-right">{t('th.kcal')}</th>
                   <th className="px-3 py-3 text-right">{t('th.fat')}</th>
@@ -604,6 +602,13 @@ export default function FoodsPage() {
                     <tr key={food.id} className="border-t border-border/50 hover:bg-card/30 transition-colors">
                       <td className="px-2 py-2.5">
                         <button type="button" onClick={()=>handleToggleFavorite(food.id)} className="text-base cursor-pointer hover:scale-110 transition-transform">{food.favorite===1?'⭐':'☆'}</button>
+                      </td>
+                      <td className="px-2 py-2.5">
+                        {food.image_url ? (
+                          <img src={food.image_url} alt="" className="h-8 w-8 rounded object-contain" />
+                        ) : (
+                          <div className="h-8 w-8" />
+                        )}
                       </td>
                       <td className="px-3 py-2.5 text-text font-medium">{food.name}</td>
                       <td className="px-3 py-2.5 text-right text-text tabular-nums">{food.calories}</td>

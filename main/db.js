@@ -327,6 +327,7 @@ function initDb() {
     "ALTER TABLE daily_energy ADD COLUMN steps INTEGER NOT NULL DEFAULT 0",
     "UPDATE log SET meal = 'AfternoonSnack' WHERE meal = 'Snack'",
     "UPDATE template_items SET meal = 'AfternoonSnack' WHERE meal = 'Snack'",
+    "ALTER TABLE foods ADD COLUMN image_url TEXT",
   ];
   for (const stmt of migrations) {
     try { database.exec(stmt); } catch (_) {}
