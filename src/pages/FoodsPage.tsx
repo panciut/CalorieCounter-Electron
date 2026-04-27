@@ -497,7 +497,7 @@ export default function FoodsPage() {
                       <td className="px-2 py-2">
                         <button type="button" onClick={()=>handleToggleFavorite(food.id)} className="text-base cursor-pointer">{food.favorite===1?'⭐':'☆'}</button>
                       </td>
-                      <td colSpan={detailMode ? 9 : 8} className="px-3 py-2">
+                      <td colSpan={detailMode ? 13 : 9} className="px-3 py-2">
                         <FormFields form={editForm} patch={patchEdit} />
                         {detailMode && (
                           <div className="flex flex-wrap gap-3 mt-2">

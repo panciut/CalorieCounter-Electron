@@ -563,6 +563,9 @@ export default function PantryPage() {
                         aggIdx % 2 === 0 ? 'bg-card hover:bg-card-hover' : 'bg-card/60 hover:bg-card-hover',
                       ].join(' ')}
                     >
+                      {foodData?.image_url && (
+                        <img src={foodData.image_url} alt="" className="h-9 w-9 rounded object-contain shrink-0" />
+                      )}
                       <div className="flex flex-col flex-1 min-w-0">
                         <span className="text-sm font-medium text-text">{agg.food_name}</span>
                         {foodData && (
