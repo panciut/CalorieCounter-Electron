@@ -9,19 +9,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import FoodSearch from '../components/FoodSearch';
 import type { SearchItem } from '../components/FoodSearch';
 import type { Food, BarcodeResult, FoodPackage } from '../types';
-
-const INPUT_CLASS =
-  'bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-full';
-
-// Calorie share per macro (must sum to 1.0); fiber added as g/100kcal
-const PRESETS = {
-  balanced:    { proteinPct: 0.25, carbsPct: 0.50, fatPct: 0.25, fiberPer100: 2.5 },
-  highProtein: { proteinPct: 0.40, carbsPct: 0.20, fatPct: 0.40, fiberPer100: 1.0 },
-  highCarb:    { proteinPct: 0.10, carbsPct: 0.80, fatPct: 0.10, fiberPer100: 3.0 },
-  highFat:     { proteinPct: 0.20, carbsPct: 0.05, fatPct: 0.75, fiberPer100: 1.0 },
-  vegetable:   { proteinPct: 0.15, carbsPct: 0.65, fatPct: 0.20, fiberPer100: 6.0 },
-} as const;
-type PresetKey = keyof typeof PRESETS;
+import { PRESETS, PresetKey, INPUT_CLASS, PRESET_LABELS } from '../lib/foodPresets';
 
 interface FoodFormState {
   name: string; calories: string; protein: string; carbs: string;
@@ -40,7 +28,6 @@ interface FormFieldsProps { form: FoodFormState; patch: (p: Partial<FoodFormStat
 
 function FormFields({ form, patch }: FormFieldsProps) {
   const { t } = useT();
-  const FIELD_CLS = 'bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-full';
   const macros: { key: keyof FoodFormState; label: string }[] = [
     { key: 'calories', label: 'kcal' },
     { key: 'fat',      label: t('th.fat') },
@@ -51,12 +38,12 @@ function FormFields({ form, patch }: FormFieldsProps) {
   ];
   return (
     <div className="flex flex-col gap-2">
-      <input type="text" value={form.name} onChange={e => patch({ name: e.target.value })} placeholder={t('foods.namePlaceholder')} className={FIELD_CLS} />
+      <input type="text" value={form.name} onChange={e => patch({ name: e.target.value })} placeholder={t('foods.namePlaceholder')} className={INPUT_CLASS} />
       <div className="grid grid-cols-6 gap-2">
         {macros.map(({ key, label }) => (
           <div key={key} className="flex flex-col gap-0.5">
             <label className="text-xs text-text-sec">{label}</label>
-            <input type="text" inputMode="decimal" value={(form as unknown as Record<string,string>)[key]} onChange={e => patch({ [key]: e.target.value })} placeholder="0" className={FIELD_CLS} />
+            <input type="text" inputMode="decimal" value={(form as unknown as Record<string,string>)[key]} onChange={e => patch({ [key]: e.target.value })} placeholder="0" className={INPUT_CLASS} />
           </div>
         ))}
       </div>
@@ -230,13 +217,7 @@ export default function FoodsPage() {
     return filtered.sort((a, b) => a.food.name.localeCompare(b.food.name) || a.pkg.grams - b.pkg.grams);
   }, [foods, searchQuery]);
 
-  const presetLabels: Record<PresetKey, string> = {
-    balanced:    'foods.balanced',
-    highProtein: 'foods.highProtein',
-    highCarb:    'foods.highCarb',
-    highFat:     'foods.highFat',
-    vegetable:   'foods.vegetable',
-  };
+  const presetLabels = PRESET_LABELS;
 
   function applyPreset(key: PresetKey) {
     const kcal = parseFloat(addForm.calories);

@@ -204,16 +204,16 @@ export default function Nav({ activePage }: NavProps) {
     <nav className="flex flex-col w-48 shrink-0 bg-nav-bg border-r border-border py-4 overflow-y-auto">
       {/* Header */}
       <div className="flex items-center justify-between px-4 pb-4 gap-2">
-        <span className="text-accent font-bold text-lg tracking-tight select-none">CC</span>
+        <span className="text-accent font-bold text-lg tracking-tight select-none">FoodBuddy</span>
         <div className="flex items-center gap-1">
           <NotificationBell />
           <button
           onClick={() => setEditing(v => !v)}
           title={editing ? t('nav.done') : t('nav.reorderHide')}
           className={[
-            'text-xs px-2 py-1 rounded border cursor-pointer transition-colors',
+            'text-xs px-2 py-1 rounded border cursor-pointer transition-all',
             editing
-              ? 'border-accent bg-accent/10 text-accent'
+              ? 'border-accent bg-accent text-white font-medium shadow-sm'
               : 'border-border text-text-sec hover:border-accent/50 hover:text-text',
           ].join(' ')}
         >

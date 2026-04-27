@@ -64,14 +64,13 @@ function BarcodeScannerInner({ onResult, onError }: BarcodeScannerProps) {
       .then(devices => {
         if (devices.length) {
           setCameras(devices);
-          // Default: prefer Mac built-in camera
           const mac = devices.find(d => classifyCamera(d.label) === 'mac') ?? devices[0];
           setSelectedCamera(mac.id);
         } else {
           setError('No cameras found');
         }
       })
-      .catch(() => setError('Camera access denied'));
+      .catch(err => { console.error('[BarcodeScanner] getCameras error:', err); setError('Camera access denied'); });
   }, []);
 
   useEffect(() => {
@@ -88,7 +87,10 @@ function BarcodeScannerInner({ onResult, onError }: BarcodeScannerProps) {
         Html5QrcodeSupportedFormats.UPC_E,
         Html5QrcodeSupportedFormats.CODE_128,
         Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.ITF,
+        Html5QrcodeSupportedFormats.DATA_MATRIX,
       ],
+      useBarCodeDetectorIfSupported: true,
       verbose: false,
     });
     scannerRef.current = scanner;
@@ -97,7 +99,7 @@ function BarcodeScannerInner({ onResult, onError }: BarcodeScannerProps) {
     scanner
       .start(
         selectedCamera,
-        { fps: 10, qrbox: { width: 240, height: 160 } },
+        { fps: 10, qrbox: { width: 300, height: 200 } },
         (decodedText) => {
           if (scannedRef.current) return;
           scannedRef.current = true;
@@ -109,13 +111,11 @@ function BarcodeScannerInner({ onResult, onError }: BarcodeScannerProps) {
       )
       .then(() => {
         started = true;
-        if (cancelled) {
-          safeStop(scanner);
-          return;
-        }
+        if (cancelled) { safeStop(scanner); return; }
         setScanning(true);
       })
       .catch(err => {
+        console.error('[BarcodeScanner] start failed:', err);
         if (cancelled) return;
         setError(typeof err === 'string' ? err : 'Failed to start camera');
         onError?.(String(err));

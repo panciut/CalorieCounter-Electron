@@ -69,14 +69,16 @@ app.whenReady().then(async () => {
   initDb();
   seedDev();
 
-  // Grant camera (and mic) for barcode scanner. Electron denies media by default.
+  // Grant camera for barcode scanner. Electron 41+ uses 'camera' separately from 'media'.
+  const ALLOWED_PERMISSIONS = new Set(['media', 'camera', 'microphone', 'mediaKeySystem']);
   session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
-    if (permission === 'media' || permission === 'mediaKeySystem') return callback(true);
-    callback(false);
+    callback(ALLOWED_PERMISSIONS.has(permission));
   });
   session.defaultSession.setPermissionCheckHandler((_wc, permission) => {
-    if (permission === 'media') return true;
-    return false;
+    return ALLOWED_PERMISSIONS.has(permission);
+  });
+  session.defaultSession.setDevicePermissionHandler((details) => {
+    return details.deviceType === 'camera';
   });
 
   // macOS: ensure TCC camera access for the running process.
