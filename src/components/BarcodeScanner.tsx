@@ -64,13 +64,16 @@ function BarcodeScannerInner({ onResult, onError }: BarcodeScannerProps) {
       .then(devices => {
         if (devices.length) {
           setCameras(devices);
-          const mac = devices.find(d => classifyCamera(d.label) === 'mac') ?? devices[0];
-          setSelectedCamera(mac.id);
+          const saved = localStorage.getItem('barcode:lastCamera');
+          const preferred = (saved && devices.find(d => d.id === saved))
+            ?? devices.find(d => classifyCamera(d.label) === 'mac')
+            ?? devices[0];
+          setSelectedCamera(preferred.id);
         } else {
           setError('No cameras found');
         }
       })
-      .catch(err => { console.error('[BarcodeScanner] getCameras error:', err); setError('Camera access denied'); });
+      .catch(() => setError('Camera access denied'));
   }, []);
 
   useEffect(() => {
@@ -138,7 +141,7 @@ function BarcodeScannerInner({ onResult, onError }: BarcodeScannerProps) {
           {macCameras.map(c => (
             <button
               key={c.id}
-              onClick={() => setSelectedCamera(c.id)}
+              onClick={() => { setSelectedCamera(c.id); localStorage.setItem('barcode:lastCamera', c.id); }}
               className={[
                 'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border cursor-pointer transition-colors',
                 selectedCamera === c.id
@@ -152,7 +155,7 @@ function BarcodeScannerInner({ onResult, onError }: BarcodeScannerProps) {
           {iphoneCameras.map(c => (
             <button
               key={c.id}
-              onClick={() => setSelectedCamera(c.id)}
+              onClick={() => { setSelectedCamera(c.id); localStorage.setItem('barcode:lastCamera', c.id); }}
               className={[
                 'flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border cursor-pointer transition-colors',
                 selectedCamera === c.id
