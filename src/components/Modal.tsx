@@ -27,16 +27,16 @@ export default function Modal({ isOpen, onClose, title, children, width = 'max-w
   return createPortal(
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.65)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
       onMouseDown={e => { if (e.target === overlayRef.current) onClose(); }}
     >
-      <div className={`bg-card border border-border rounded-lg shadow-DEFAULT w-full mx-4 ${width} max-h-[90vh] flex flex-col`}>
+      <div className={`bg-card border border-border rounded-2xl shadow w-full mx-4 ${width} max-h-[90vh] flex flex-col`}>
         {title && (
           <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
             <h2 className="text-xl font-semibold text-text">{title}</h2>
             <button
               onClick={onClose}
+              aria-label="Close"
               className="text-text-sec hover:text-text text-xl leading-none cursor-pointer transition-colors"
             >✕</button>
           </div>

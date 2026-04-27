@@ -7,6 +7,7 @@ import { today, fmtDate, formatShortDate, MS_PER_DAY } from "../lib/dateUtil";
 import { copyToClipboard } from "../lib/exportText";
 import { useToast } from "../components/Toast";
 import LineChartCard from "../components/LineChartCard";
+import RangePicker from "../components/ui/RangePicker";
 import Modal from "../components/Modal";
 import type { WeightEntry, Scale } from "../types";
 
@@ -262,21 +263,13 @@ export default function WeightPage() {
 
           {chartData.length > 0 && (
             <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
-              <div className="flex items-center justify-end gap-1">
-                {([30, 90, 180, 365, 'all'] as const).map(r => (
-                  <button
-                    key={r}
-                    onClick={() => setRange(r)}
-                    className={[
-                      'text-xs px-3 py-1.5 rounded-lg border cursor-pointer transition-colors',
-                      range === r
-                        ? 'border-accent bg-accent/10 text-accent'
-                        : 'border-border text-text-sec hover:border-accent/50',
-                    ].join(' ')}
-                  >
-                    {r === 'all' ? (t('meas.rangeAll') ?? 'All') : `${r}d`}
-                  </button>
-                ))}
+              <div className="flex items-center justify-end">
+                <RangePicker
+                  value={range}
+                  options={[30, 90, 180, 365, 'all'] as const}
+                  onChange={setRange}
+                  formatLabel={r => r === 'all' ? (t('meas.rangeAll') ?? 'All') : `${r}d`}
+                />
               </div>
               <LineChartCard data={chartData} goalValue={settings.weight_goal || undefined} showTrend={true} unit=" kg" height={250} />
               {scales.length > 1 && (

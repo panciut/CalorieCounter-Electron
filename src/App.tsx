@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { SettingsProvider, useSettings } from './hooks/useSettings';
 import { NavigationProvider, useNavigate } from './hooks/useNavigate';
+import { PantryProvider } from './hooks/usePantry';
 import { ToastProvider, useToast } from './components/Toast';
 import { useUndo } from './hooks/useUndo';
 import { useT } from './i18n/useT';
@@ -80,9 +81,11 @@ export default function App() {
   return (
     <SettingsProvider>
       <ToastProvider>
-        <NavigationProvider>
-          <AppInner />
-        </NavigationProvider>
+        <PantryProvider>
+          <NavigationProvider>
+            <AppInner />
+          </NavigationProvider>
+        </PantryProvider>
       </ToastProvider>
     </SettingsProvider>
   );

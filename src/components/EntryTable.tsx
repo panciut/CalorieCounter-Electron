@@ -2,6 +2,7 @@ import { useState, Fragment } from 'react';
 import { useT } from '../i18n/useT';
 import { api } from '../api';
 import { useToast } from './Toast';
+import Modal from './Modal';
 import { MEAL_ORDER, type LogEntry, type Food, type Meal } from '../types';
 
 interface EntryTableProps {
@@ -397,9 +398,8 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
           return !isNaN(g) && g > 0;
         }).length;
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-            <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg mx-4 space-y-4">
-              <h2 className="font-semibold text-text text-lg">{t('entry.saveAsBundle')}</h2>
+          <Modal isOpen onClose={closeSaveMeal} title={t('entry.saveAsBundle')} width="max-w-lg">
+            <div className="space-y-4">
               <input
                 autoFocus
                 className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none focus:border-accent"
@@ -427,7 +427,7 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                       type="button"
                       onClick={() => setBundleItems(items => items.filter((_, i) => i !== idx))}
                       className="text-text-sec hover:text-red px-1 cursor-pointer"
-                      title={t('common.delete') || 'Remove'}
+                      aria-label={t('common.delete') || 'Remove'}
                     >✕</button>
                   </div>
                 ))}
@@ -456,7 +456,7 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                 >{t('common.save')}</button>
               </div>
             </div>
-          </div>
+          </Modal>
         );
       })()}
     </div>

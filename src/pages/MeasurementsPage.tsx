@@ -4,6 +4,7 @@ import { useToast } from '../components/Toast';
 import { api } from '../api';
 import { today, fmtDate, formatShortDate, toLocalISO, MS_PER_DAY } from '../lib/dateUtil';
 import LineChartCard from '../components/LineChartCard';
+import RangePicker from '../components/ui/RangePicker';
 import type { Measurement } from '../types';
 
 type MeasurementField = 'waist' | 'chest' | 'arms' | 'thighs' | 'hips' | 'neck';
@@ -109,21 +110,13 @@ export default function MeasurementsPage() {
       {/* Charts */}
       {measurements.length > 0 && (
         <>
-          <div className="flex items-center justify-end gap-1 mb-3">
-            {RANGES.map(r => (
-              <button
-                key={r}
-                onClick={() => setRange(r)}
-                className={[
-                  'text-xs px-3 py-1.5 rounded-lg border cursor-pointer transition-colors',
-                  range === r
-                    ? 'border-accent bg-accent/10 text-accent'
-                    : 'border-border text-text-sec hover:border-accent/50',
-                ].join(' ')}
-              >
-                {r === 'all' ? t('meas.rangeAll') ?? 'All' : `${r}d`}
-              </button>
-            ))}
+          <div className="flex items-center justify-end mb-3">
+            <RangePicker<Range>
+              value={range}
+              options={RANGES}
+              onChange={setRange}
+              formatLabel={r => r === 'all' ? (t('meas.rangeAll') ?? 'All') : `${r}d`}
+            />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             {FIELDS.map(field => {

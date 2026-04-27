@@ -7,6 +7,9 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
 } from 'recharts';
 import type { CalorieTrendPoint } from '../types';
+import PageHeader from '../components/ui/PageHeader';
+import RangePicker from '../components/ui/RangePicker';
+import StatCard from '../components/ui/StatCard';
 
 type Range = 7 | 30 | 90;
 
@@ -52,49 +55,21 @@ export default function NetPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto flex flex-col gap-6">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-xl font-bold text-text">Net Calories</h1>
-        <div className="flex gap-1">
-          {([7, 30, 90] as Range[]).map(r => (
-            <button
-              key={r}
-              onClick={() => setRange(r)}
-              className={[
-                'text-xs px-3 py-1.5 rounded-lg border cursor-pointer transition-colors',
-                range === r
-                  ? 'border-accent bg-accent/10 text-accent'
-                  : 'border-border text-text-sec hover:border-accent/50',
-              ].join(' ')}
-            >
-              {r}d
-            </button>
-          ))}
-        </div>
-      </div>
+      <PageHeader
+        title="Net Calories"
+        action={<RangePicker<Range> value={range} options={[7, 30, 90]} onChange={setRange} />}
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-card border border-border rounded-xl p-4">
-          <div className="text-xs text-text-sec mb-1">Avg food in</div>
-          <div className="text-lg font-bold text-accent tabular-nums">{avgIn} kcal</div>
-        </div>
-        <div className="bg-card border border-border rounded-xl p-4">
-          <div className="text-xs text-text-sec mb-1">Avg energy out (Apple Watch)</div>
-          <div className="text-lg font-bold text-green tabular-nums">{avgOut > 0 ? `−${avgOut}` : '—'} kcal</div>
-        </div>
-        <div className="bg-card border border-border rounded-xl p-4">
-          <div className="text-xs text-text-sec mb-1">Avg net</div>
-          <div className={`text-lg font-bold tabular-nums ${avgNet > 0 && avgNet <= calRec ? 'text-green' : avgNet > calRec ? 'text-red' : 'text-text'}`}>
-            {avgIn > 0 ? `${avgNet} kcal` : '—'}
-          </div>
-        </div>
-        <div className="bg-card border border-border rounded-xl p-4">
-          <div className="text-xs text-text-sec mb-1">Avg steps</div>
-          <div className="text-lg font-bold text-text tabular-nums">
-            {avgSteps > 0 ? avgSteps.toLocaleString() : '—'}
-          </div>
-        </div>
+        <StatCard label="Avg food in" value={`${avgIn} kcal`} valueClass="text-accent text-lg" />
+        <StatCard label="Avg energy out (Apple Watch)" value={`${avgOut > 0 ? `−${avgOut}` : '—'} kcal`} valueClass="text-green text-lg" />
+        <StatCard
+          label="Avg net"
+          value={avgIn > 0 ? `${avgNet} kcal` : '—'}
+          valueClass={`text-lg ${avgNet > 0 && avgNet <= calRec ? 'text-green' : avgNet > calRec ? 'text-red' : ''}`}
+        />
+        <StatCard label="Avg steps" value={avgSteps > 0 ? avgSteps.toLocaleString() : '—'} valueClass="text-lg" />
       </div>
 
       {/* Chart */}

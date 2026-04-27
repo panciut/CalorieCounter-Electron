@@ -6,8 +6,9 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import AddFoodRow from '../components/AddFoodRow';
 import { today } from '../lib/dateUtil';
 import { scaleNutrients } from '../lib/macroCalc';
-import { MEAL_ORDER, type Recipe, type RecipeIngredient, type ActualRecipe, type ActualRecipeIngredient, type Food, type Meal, type PantryIngredientCheck, type PantryLocation } from '../types';
+import { MEAL_ORDER, type Recipe, type RecipeIngredient, type ActualRecipe, type ActualRecipeIngredient, type Food, type Meal, type PantryIngredientCheck } from '../types';
 import { useDeductionEvents } from '../hooks/useDeductionEvents';
+import { usePantry } from '../hooks/usePantry';
 import DeductionEventModal from '../components/DeductionEventModal';
 
 type PantryCheckResult = { can_make: boolean; missing: PantryIngredientCheck[] };
@@ -37,8 +38,8 @@ function BundlesTab() {
   const [canMakeMap, setCanMakeMap]       = useState<Map<number, { can_make: boolean; missing_count: number }>>(new Map());
   const [logPantryCheck, setLogPantryCheck] = useState<PantryCheckResult | null>(null);
   const [deductOnLog, setDeductOnLog]     = useState(false);
-  const [pantries, setPantries]           = useState<PantryLocation[]>([]);
-  const [pantryId, setPantryId]           = useState<number | undefined>(undefined);
+  const { activeId, setActiveId, pantries } = usePantry();
+  const pantryId = activeId ?? undefined;
 
   const loadBundles = useCallback(async (pid?: number) => {
     const [b, m] = await Promise.all([
@@ -50,15 +51,13 @@ function BundlesTab() {
   }, []);
 
   useEffect(() => {
-    api.pantries.getAll().then(ps => {
-      setPantries(ps);
-      const def = ps.find(p => p.is_default) ?? ps[0];
-      const pid = def?.id;
-      setPantryId(pid);
-      loadBundles(pid);
-    });
+    if (pantryId == null) return;
+    loadBundles(pantryId);
+  }, [pantryId, loadBundles]);
+
+  useEffect(() => {
     api.foods.getAll().then(setFoods);
-  }, [loadBundles]);
+  }, []);
 
   async function openDetail(id: number) {
     const r = await api.recipes.get(id);
@@ -144,7 +143,7 @@ function BundlesTab() {
           {pantries.length > 1 && (
             <select
               value={pantryId ?? ''}
-              onChange={e => { const pid = Number(e.target.value); setPantryId(pid); loadBundles(pid); }}
+              onChange={e => setActiveId(Number(e.target.value))}
               className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-text outline-none focus:border-accent cursor-pointer"
             >
               {pantries.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -499,8 +498,8 @@ function RecipesTab() {
   const [canMakeMap, setCanMakeMap]       = useState<Map<number, { can_make: boolean; missing_count: number }>>(new Map());
   const [logPantryCheck, setLogPantryCheck] = useState<PantryCheckResult | null>(null);
   const [deductOnLog, setDeductOnLog]     = useState(false);
-  const [pantries, setPantries]           = useState<PantryLocation[]>([]);
-  const [pantryId, setPantryId]           = useState<number | undefined>(undefined);
+  const { activeId: rActiveId, setActiveId: rSetActiveId, pantries } = usePantry();
+  const pantryId = rActiveId ?? undefined;
 
   const loadRecipes = useCallback(async (pid?: number) => {
     const [r, m] = await Promise.all([
@@ -512,15 +511,13 @@ function RecipesTab() {
   }, []);
 
   useEffect(() => {
-    api.pantries.getAll().then(ps => {
-      setPantries(ps);
-      const def = ps.find(p => p.is_default) ?? ps[0];
-      const pid = def?.id;
-      setPantryId(pid);
-      loadRecipes(pid);
-    });
+    if (pantryId == null) return;
+    loadRecipes(pantryId);
+  }, [pantryId, loadRecipes]);
+
+  useEffect(() => {
     api.foods.getAll().then(setFoods);
-  }, [loadRecipes]);
+  }, []);
 
   async function openDetail(id: number) {
     const r = await api.actualRecipes.get(id);
@@ -624,7 +621,7 @@ function RecipesTab() {
           {pantries.length > 1 && (
             <select
               value={pantryId ?? ''}
-              onChange={e => { const pid = Number(e.target.value); setPantryId(pid); loadRecipes(pid); }}
+              onChange={e => rSetActiveId(Number(e.target.value))}
               className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-text outline-none focus:border-accent cursor-pointer"
             >
               {pantries.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}

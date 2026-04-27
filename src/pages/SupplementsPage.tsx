@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
+import Modal from '../components/Modal';
 import { api } from '../api';
 import {
   SUPPLEMENT_TIME_ORDER,
@@ -183,73 +184,63 @@ function SupplementDetailModal({ supplement, onSave, onDelete, onClose, t }: Sup
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-card rounded-2xl shadow-xl w-full max-w-md flex flex-col" onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 className="text-base font-semibold text-text">
-            {editing ? t('suppl.editSupplement') : supplement.name}
-          </h2>
-          <button onClick={onClose} className="text-text-sec hover:text-text cursor-pointer text-lg px-1">✕</button>
-        </div>
-
-        <div className="p-5 flex flex-col gap-4">
-          {editing ? (
-            <>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-text-sec uppercase tracking-wide">{t('suppl.name')}</label>
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={e => setEditName(e.target.value)}
-                  autoFocus
-                  className={inputCls}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-text-sec uppercase tracking-wide">{t('suppl.description')}</label>
-                <textarea
-                  value={editDesc}
-                  onChange={e => setEditDesc(e.target.value)}
-                  rows={3}
-                  placeholder={t('suppl.descPlaceholder')}
-                  className={`${inputCls} resize-none`}
-                />
-              </div>
-              <div className="flex gap-2 justify-end pt-1">
-                <button
-                  onClick={() => { setEditing(false); setEditName(supplement.name); setEditDesc(supplement.description ?? ''); }}
-                  className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer"
-                >{t('common.cancel')}</button>
-                <button
-                  onClick={handleSave}
-                  disabled={!editName.trim()}
-                  className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer disabled:opacity-40"
-                >{t('common.save')}</button>
-              </div>
-            </>
-          ) : (
-            <>
-              {supplement.description ? (
-                <p className="text-sm text-text-sec leading-relaxed">{supplement.description}</p>
-              ) : (
-                <p className="text-sm text-text-sec/50 italic">{t('suppl.descPlaceholder')}</p>
-              )}
-              <div className="flex gap-2 justify-between pt-1">
-                <button
-                  onClick={() => onDelete(supplement)}
-                  className="px-3 py-2 rounded-xl text-sm text-red border border-red/30 hover:bg-red/10 cursor-pointer transition-colors"
-                >{t('common.delete')}</button>
-                <button
-                  onClick={() => setEditing(true)}
-                  className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer"
-                >{t('suppl.editSupplement')}</button>
-              </div>
-            </>
-          )}
-        </div>
+    <Modal isOpen onClose={onClose} title={editing ? t('suppl.editSupplement') : supplement.name} width="max-w-md">
+      <div className="flex flex-col gap-4">
+        {editing ? (
+          <>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-text-sec uppercase tracking-wide">{t('suppl.name')}</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                autoFocus
+                className={inputCls}
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-text-sec uppercase tracking-wide">{t('suppl.description')}</label>
+              <textarea
+                value={editDesc}
+                onChange={e => setEditDesc(e.target.value)}
+                rows={3}
+                placeholder={t('suppl.descPlaceholder')}
+                className={`${inputCls} resize-none`}
+              />
+            </div>
+            <div className="flex gap-2 justify-end pt-1">
+              <button
+                onClick={() => { setEditing(false); setEditName(supplement.name); setEditDesc(supplement.description ?? ''); }}
+                className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer"
+              >{t('common.cancel')}</button>
+              <button
+                onClick={handleSave}
+                disabled={!editName.trim()}
+                className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer disabled:opacity-40"
+              >{t('common.save')}</button>
+            </div>
+          </>
+        ) : (
+          <>
+            {supplement.description ? (
+              <p className="text-sm text-text-sec leading-relaxed">{supplement.description}</p>
+            ) : (
+              <p className="text-sm text-text-sec/50 italic">{t('suppl.descPlaceholder')}</p>
+            )}
+            <div className="flex gap-2 justify-between pt-1">
+              <button
+                onClick={() => onDelete(supplement)}
+                className="px-3 py-2 rounded-xl text-sm text-red border border-red/30 hover:bg-red/10 cursor-pointer transition-colors"
+              >{t('common.delete')}</button>
+              <button
+                onClick={() => setEditing(true)}
+                className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer"
+              >{t('suppl.editSupplement')}</button>
+            </div>
+          </>
+        )}
       </div>
-    </div>
+    </Modal>
   );
 }
 

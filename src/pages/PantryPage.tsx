@@ -1,10 +1,17 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { evalExpr, resolveExpr } from '../lib/evalExpr';
-import { today, daysUntil, formatDMY, MS_PER_DAY } from '../lib/dateUtil';
 import { scaleNutrients } from '../lib/macroCalc';
+import {
+  compareExpiry, expiryPillClass, expiryLabel,
+  openedLabel, openedPillClass,
+  seedExpiry, resolveExpiry,
+  formatQty, groupBatches, defaultUnit, unitToGrams, unitToPackageId,
+  type PantryUnit,
+} from '../lib/pantryUtils';
 import { api } from '../api';
 import { useToast } from '../components/Toast';
 import { useSettings } from '../hooks/useSettings';
+import { usePantry } from '../hooks/usePantry';
 import { useT } from '../i18n/useT';
 import FoodSearch from '../components/FoodSearch';
 import type { SearchItem } from '../components/FoodSearch';
@@ -14,133 +21,6 @@ import type { Food, PantryItem, PantryAggregate, PantryLocation, ShoppingItem } 
 
 type Tab = 'pantry' | 'shopping';
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function compareExpiry(a: string | null, b: string | null): number {
-  if (a === null && b === null) return 0;
-  if (a === null) return 1;
-  if (b === null) return -1;
-  return a.localeCompare(b);
-}
-
-function expiryPillClass(iso: string | null, warn: number, urgent: number): string {
-  if (!iso) return 'text-text-sec';
-  const d = daysUntil(iso);
-  if (d < 0) return 'text-red font-semibold';
-  if (d <= urgent) return 'text-red';
-  if (d <= warn) return 'text-yellow';
-  return 'text-text-sec';
-}
-
-function expiryLabel(iso: string | null, warn: number): string {
-  if (!iso) return '';
-  const d = daysUntil(iso);
-  if (d < 0) return `Expired ${Math.abs(d)}d ago`;
-  if (d === 0) return 'Expires today';
-  if (d <= warn) return `Exp. in ${d}d`;
-  return formatDMY(iso);
-}
-
-function openedLabel(batch: PantryItem): string | null {
-  if (!batch.opened_at || !batch.opened_days) return null;
-  const dueMs = new Date(batch.opened_at).getTime() + batch.opened_days * MS_PER_DAY;
-  const daysLeft = Math.ceil((dueMs - Date.now()) / MS_PER_DAY);
-  if (daysLeft < 0)   return `Opened, ${-daysLeft}d past`;
-  if (daysLeft === 0) return 'Opened, today';
-  return `Opened, ${daysLeft}d left`;
-}
-
-function openedPillClass(batch: PantryItem): string {
-  if (!batch.opened_at || !batch.opened_days) return 'text-text-sec';
-  const dueMs = new Date(batch.opened_at).getTime() + batch.opened_days * MS_PER_DAY;
-  const daysLeft = Math.ceil((dueMs - Date.now()) / MS_PER_DAY);
-  if (daysLeft < 0)  return 'text-red font-semibold';
-  if (daysLeft <= 1) return 'text-red';
-  if (daysLeft <= 3) return 'text-yellow';
-  return 'text-text-sec';
-}
-
-/** On focus of an empty date field, seed it with today so the user only needs to change the day. */
-function seedExpiry(current: string): string {
-  return current || today();
-}
-
-/**
- * After the user finishes typing, if the resulting date is strictly in the past,
- * advance it by one month (so typing "5" when today is the 14th gives next month's 5th).
- */
-function resolveExpiry(iso: string): string {
-  if (!iso) return iso;
-  if (daysUntil(iso) >= 0) return iso; // today or future — keep as-is
-  const [y, m, d] = iso.split('-').map(Number);
-  const nextMonth = m === 12 ? 1 : m + 1;
-  const nextYear  = m === 12 ? y + 1 : y;
-  return `${nextYear}-${String(nextMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-}
-
-type PantryUnit = 'g' | 'pcs' | `pkg-${number}`;
-
-function formatQty(quantity_g: number, piece_grams: number | null, package_grams: number | null, count = 1): string {
-  const totalG = Math.round(quantity_g * count);
-  // Shape B — pieces inside a container pack: show pcs and grams, each as remaining/total when partial
-  if (piece_grams && piece_grams > 0) {
-    const pcs = Math.round(totalG / piece_grams);
-    if (package_grams && package_grams > 0 && count === 1) {
-      const pkgG = Math.round(package_grams);
-      const pkgPcs = Math.round(pkgG / piece_grams);
-      if (Math.abs(totalG - pkgG) < 1) return `${pcs} pcs · ${pkgG}g`;
-      return `${pcs}/${pkgPcs} pcs · ${totalG}/${pkgG}g`;
-    }
-    return `${pcs} pcs (${totalG}g)`;
-  }
-  // Shape A — sealed pack, no pieces
-  if (package_grams && package_grams > 0) {
-    const pkgG = Math.round(package_grams);
-    if (count > 1) return `${count} × ${pkgG}g (${totalG}g)`;
-    if (Math.abs(totalG - pkgG) < 1) return `${pkgG}g`;
-    return `${totalG}g / ${pkgG}g`;
-  }
-  return `${totalG}g`;
-}
-
-// Group consecutive sealed batches with the same package + expiry into one display row
-interface BatchGroup { batches: PantryItem[]; }
-
-function groupBatches(batches: PantryItem[]): BatchGroup[] {
-  const groups: BatchGroup[] = [];
-  for (const batch of batches) {
-    const isSealed = !batch.opened_at;
-    const last = groups[groups.length - 1];
-    const rep = last?.batches[0];
-    const canMerge = last && isSealed && rep && !rep.opened_at &&
-      rep.package_id != null && rep.package_id === batch.package_id &&
-      rep.expiry_date === batch.expiry_date;
-    if (canMerge) last.batches.push(batch);
-    else groups.push({ batches: [batch] });
-  }
-  return groups;
-}
-
-function defaultUnit(food: Food): PantryUnit {
-  if ((food.packages?.length ?? 0) > 0) return `pkg-${food.packages![0].id}`;
-  if (food.piece_grams) return 'pcs';
-  return 'g';
-}
-
-function unitToGrams(unit: PantryUnit, val: number, food: Food): number {
-  if (unit === 'pcs' && food.piece_grams) return val * food.piece_grams;
-  if (unit.startsWith('pkg-')) {
-    const id = Number(unit.slice(4));
-    const pkg = food.packages?.find(p => p.id === id);
-    return pkg ? val * pkg.grams : val;
-  }
-  return val;
-}
-
-function unitToPackageId(unit: PantryUnit): number | null {
-  return unit.startsWith('pkg-') ? Number(unit.slice(4)) : null;
-}
-
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function PantryPage() {
@@ -149,9 +29,9 @@ export default function PantryPage() {
   const { t } = useT();
   const [tab, setTab] = useState<Tab>('pantry');
 
-  // Pantry location state
-  const [pantries, setPantries]             = useState<PantryLocation[]>([]);
-  const [activePantryId, setActivePantryId] = useState<number | undefined>(undefined);
+  // Pantry location state — comes from the shared PantryContext.
+  const { activeId, setActiveId, pantries, refresh: refreshPantries } = usePantry();
+  const activePantryId = activeId ?? undefined;
   const [showManageModal, setShowManageModal] = useState(false);
 
   // Pantry state
@@ -186,23 +66,12 @@ export default function PantryPage() {
     setShopping(await api.shopping.getAll(pid));
   }, []);
 
-  const loadPantries = useCallback(async () => {
-    const ps = await api.pantries.getAll();
-    setPantries(ps);
-    return ps;
-  }, []);
-
+  // Load pantry data whenever the active pantry id (from context) changes.
   useEffect(() => {
-    async function init() {
-      const ps = await api.pantries.getAll();
-      setPantries(ps);
-      const def = ps.find(p => p.is_default) ?? ps[0];
-      const pid = def?.id;
-      setActivePantryId(pid);
-      await Promise.all([loadPantry(pid), loadShopping(pid)]);
-    }
-    init();
-  }, [loadPantry, loadShopping]);
+    if (activePantryId == null) return;
+    loadPantry(activePantryId);
+    loadShopping(activePantryId);
+  }, [activePantryId, loadPantry, loadShopping]);
 
   // ── Aggregation ─────────────────────────────────────────────────────────────
 
@@ -359,9 +228,8 @@ export default function PantryPage() {
   }
 
   function handleSwitchPantry(id: number) {
-    setActivePantryId(id);
-    loadPantry(id);
-    loadShopping(id);
+    setActiveId(id);
+    // loadPantry / loadShopping run automatically via the activePantryId effect.
   }
 
   // ── Styles ───────────────────────────────────────────────────────────────────
@@ -864,17 +732,7 @@ export default function PantryPage() {
           pantries={pantries}
           activePantryId={activePantryId}
           onClose={() => setShowManageModal(false)}
-          onChanged={async () => {
-            const ps = await loadPantries();
-            const stillActive = ps.find(p => p.id === activePantryId);
-            const def = ps.find(p => p.is_default) ?? ps[0];
-            const pid = stillActive ? activePantryId : def?.id;
-            if (pid !== activePantryId) {
-              setActivePantryId(pid);
-              loadPantry(pid);
-              loadShopping(pid);
-            }
-          }}
+          onChanged={refreshPantries}
         />
       )}
     </div>
