@@ -1,24 +1,20 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 import ExerciseSection from './ExerciseSection';
-import { today, fmtDate } from '../lib/dateUtil';
-import type { Exercise, WeightEntry } from '../types';
+import { today, fmtDate, toLocalISO } from '../lib/dateUtil';
+import type { Exercise } from '../types';
 
 function getNDaysAgo(n: number): string {
   const d = new Date();
   d.setDate(d.getDate() - n);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return toLocalISO(d);
 }
 
 export default function ExerciseLog() {
-  const [dateStr, setDateStr]               = useState(today());
-  const [weightKg, setWeightKg]             = useState(0);
+  const [dateStr, setDateStr]                 = useState(today());
   const [recentExercises, setRecentExercises] = useState<Exercise[]>([]);
 
   useEffect(() => {
-    api.weight.getAll().then((entries: WeightEntry[]) => {
-      if (entries.length > 0) setWeightKg(entries[entries.length - 1].weight);
-    });
     loadHistory();
   }, []);
 
@@ -65,7 +61,6 @@ export default function ExerciseLog() {
       {/* Exercise section */}
       <ExerciseSection
         date={dateStr}
-        weightKg={weightKg}
         onCaloriesChange={() => loadHistory()}
       />
 

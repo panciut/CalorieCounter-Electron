@@ -18,7 +18,7 @@ import ExerciseSection from '../components/ExerciseSection';
 import {
   SUPPLEMENT_TIME_ORDER,
   type LogEntry, type Food, type Recipe, type RecipeIngredient, type Meal,
-  type WaterEntry, type SupplementDay, type FrequentFood, type WeightEntry, type DailyEnergy,
+  type WaterEntry, type SupplementDay, type FrequentFood, type DailyEnergy,
 } from '../types';
 import { useDeductionEvents } from '../hooks/useDeductionEvents';
 import DeductionEventModal from '../components/DeductionEventModal';
@@ -328,7 +328,6 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const [waterTotal, setWaterTotal] = useState(0);
   const [waterEntries, setWaterEntries] = useState<WaterEntry[]>([]);
   const [supplements, setSupplements] = useState<SupplementDay[]>([]);
-  const [weightKg, setWeightKg]     = useState(0);
   const [note, setNote]             = useState('');
 
   // Apple Watch energy
@@ -406,9 +405,6 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   useEffect(() => {
     load();
     api.supplements.getDay(dateStr).then(setSupplements);
-    api.weight.getAll().then((entries: WeightEntry[]) => {
-      if (entries.length > 0) setWeightKg(entries[entries.length - 1].weight);
-    });
     // Load Apple Watch energy for this date
     api.dailyEnergy.get(dateStr).then((rec: DailyEnergy) => {
       if (rec.resting_kcal > 0 || rec.active_kcal > 0 || rec.extra_kcal > 0 || (rec.steps ?? 0) > 0) {
@@ -905,7 +901,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       </div>
 
       {/* Exercise */}
-      <ExerciseSection date={dateStr} weightKg={weightKg} onCaloriesChange={() => {}} />
+      <ExerciseSection date={dateStr} onCaloriesChange={() => {}} />
 
       {/* Favorites + frequent */}
       {favorites.length > 0 && (

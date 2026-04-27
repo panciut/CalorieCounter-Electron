@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
 import { api } from '../api';
-import { today, fmtDate, formatShortDate } from '../lib/dateUtil';
+import { today, fmtDate, formatShortDate, toLocalISO, MS_PER_DAY } from '../lib/dateUtil';
 import LineChartCard from '../components/LineChartCard';
 import type { Measurement } from '../types';
 
@@ -56,7 +56,7 @@ export default function MeasurementsPage() {
 
   const cutoff = range === 'all'
     ? '0000-00-00'
-    : new Date(Date.now() - range * 86_400_000).toISOString().slice(0, 10);
+    : toLocalISO(new Date(Date.now() - range * MS_PER_DAY));
 
   const getChartData = (field: MeasurementField) =>
     measurements

@@ -1,6 +1,6 @@
 import type {
-  Food, FoodPackage, FrequentFood, LogEntry, Meal, Recipe, ActualRecipe, Exercise, ExerciseType, Settings,
-  WeightEntry, WaterDay, WaterEntry, DailyNote, Streak,
+  Food, FrequentFood, LogEntry, Meal, Recipe, ActualRecipe, Exercise, ExerciseType, Settings,
+  WeightEntry, WaterDay, DailyNote, Streak,
   Supplement, SupplementDay, SupplementAdherence,
   SupplementPlanWithItems,
   Measurement,

@@ -3,7 +3,7 @@ import { useSettings } from "../hooks/useSettings";
 import { useT } from "../i18n/useT";
 import { api } from "../api";
 import { linearRegression } from "../lib/macroCalc";
-import { today, fmtDate, formatShortDate } from "../lib/dateUtil";
+import { today, fmtDate, formatShortDate, MS_PER_DAY } from "../lib/dateUtil";
 import { copyToClipboard } from "../lib/exportText";
 import { useToast } from "../components/Toast";
 import LineChartCard from "../components/LineChartCard";
@@ -127,7 +127,7 @@ export default function WeightPage() {
   const currentWeight = entries.length > 0 ? entries[0].weight : null;
   const goalWeight    = settings.weight_goal || null;
 
-  const cutoffMs = range === 'all' ? 0 : Date.now() - range * 86_400_000;
+  const cutoffMs = range === 'all' ? 0 : Date.now() - range * MS_PER_DAY;
   const inRange = (d: string) => new Date(d).getTime() >= cutoffMs;
 
   function getPrediction(): string {

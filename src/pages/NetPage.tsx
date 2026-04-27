@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 import { useSettings } from '../hooks/useSettings';
-import { formatShortDate, buildDateRange } from '../lib/dateUtil';
+import { formatShortDate, buildDateRange, today } from '../lib/dateUtil';
 import {
   ResponsiveContainer, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine,
@@ -37,7 +37,7 @@ export default function NetPage() {
     };
   });
 
-  const todayStr  = new Date().toISOString().slice(0, 10);
+  const todayStr  = today();
   const chart     = filled.filter(d => d.date < todayStr);
   const withData  = chart.filter(d => d.calories_in > 0);
   const avgIn     = withData.length ? Math.round(withData.reduce((s, d) => s + d.calories_in,  0) / withData.length) : 0;

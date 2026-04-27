@@ -1,6 +1,27 @@
 const Database = require('better-sqlite3');
+const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
+
+// SQLite errors that are expected when re-running an idempotent migration on a DB that
+// already has the change applied. These are not real failures — silently ignore them.
+const BENIGN_MIGRATION_ERRORS = [
+  /duplicate column name/i,
+  /already exists/i,
+];
+
+function isBenignMigrationError(err) {
+  const msg = err && err.message ? err.message : String(err);
+  return BENIGN_MIGRATION_ERRORS.some(re => re.test(msg));
+}
+
+function logMigrationError(stmt, err) {
+  const line = `[${new Date().toISOString()}] migration failed: ${err.message}\n  stmt: ${stmt}\n`;
+  console.error(line);
+  try {
+    fs.appendFileSync(path.join(app.getPath('userData'), 'db_errors.log'), line);
+  } catch (_) { /* best-effort: don't crash startup if we can't write the log */ }
+}
 
 let db;
 
@@ -327,9 +348,21 @@ function initDb() {
     "ALTER TABLE daily_energy ADD COLUMN steps INTEGER NOT NULL DEFAULT 0",
     "UPDATE log SET meal = 'AfternoonSnack' WHERE meal = 'Snack'",
     "UPDATE template_items SET meal = 'AfternoonSnack' WHERE meal = 'Snack'",
+    "CREATE INDEX IF NOT EXISTS idx_log_date            ON log(date)",
+    "CREATE INDEX IF NOT EXISTS idx_log_status          ON log(status)",
+    "CREATE INDEX IF NOT EXISTS idx_log_food_id         ON log(food_id)",
+    "CREATE INDEX IF NOT EXISTS idx_exercises_date      ON exercises(date)",
+    "CREATE INDEX IF NOT EXISTS idx_weight_log_date     ON weight_log(date)",
+    "CREATE INDEX IF NOT EXISTS idx_daily_energy_date   ON daily_energy(date)",
+    "CREATE INDEX IF NOT EXISTS idx_supplement_log_date ON supplement_log(date)",
+    "CREATE INDEX IF NOT EXISTS idx_pantry_food_id      ON pantry(food_id)",
   ];
   for (const stmt of migrations) {
-    try { database.exec(stmt); } catch (_) {}
+    try {
+      database.exec(stmt);
+    } catch (err) {
+      if (!isBenignMigrationError(err)) logMigrationError(stmt, err);
+    }
   }
 
   // Bootstrap the pantries table — create default "Home" pantry and backfill existing rows

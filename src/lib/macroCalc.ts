@@ -1,4 +1,28 @@
-import type { Settings } from '../types';
+import type { Settings, Food } from '../types';
+
+/** Round n to `decimals` decimal places. Defaults to 1. */
+export function roundTo(n: number, decimals = 1): number {
+  const f = 10 ** decimals;
+  return Math.round(n * f) / f;
+}
+
+/**
+ * Scale a food's per-100g nutrients to an arbitrary gram amount.
+ * Returns calories, protein, carbs, fat, fiber. fiber falls back to 0 when missing.
+ */
+export function scaleNutrients<T extends Pick<Food, 'calories' | 'protein' | 'carbs' | 'fat'> & { fiber?: number | null }>(
+  food: T,
+  grams: number,
+): { calories: number; protein: number; carbs: number; fat: number; fiber: number } {
+  const r = grams / 100;
+  return {
+    calories: food.calories * r,
+    protein:  food.protein  * r,
+    carbs:    food.carbs    * r,
+    fat:      food.fat      * r,
+    fiber:    (food.fiber ?? 0) * r,
+  };
+}
 
 export type BarColorClass = 'bar-green' | 'bar-yellow' | 'bar-orange' | 'bar-red';
 

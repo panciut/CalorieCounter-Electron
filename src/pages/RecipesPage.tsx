@@ -5,6 +5,7 @@ import { useT } from '../i18n/useT';
 import ConfirmDialog from '../components/ConfirmDialog';
 import AddFoodRow from '../components/AddFoodRow';
 import { today } from '../lib/dateUtil';
+import { scaleNutrients } from '../lib/macroCalc';
 import { MEAL_ORDER, type Recipe, type RecipeIngredient, type ActualRecipe, type ActualRecipeIngredient, type Food, type Meal, type PantryIngredientCheck, type PantryLocation } from '../types';
 import { useDeductionEvents } from '../hooks/useDeductionEvents';
 import DeductionEventModal from '../components/DeductionEventModal';
@@ -346,8 +347,7 @@ function BundleDetailModal({ detail, foods, onClose, onSave, onChange }: {
   function addIng(food: Food, g: number) {
     const newIng: RecipeIngredient = {
       id: 0, food_id: food.id, name: food.name, grams: g, editGrams: g,
-      calories: food.calories * g / 100, protein: food.protein * g / 100,
-      carbs: food.carbs * g / 100, fat: food.fat * g / 100, fiber: food.fiber * g / 100,
+      ...scaleNutrients(food, g),
     };
     onChange({ ...detail, ingredients: [...(detail.ingredients ?? []), newIng] });
   }
@@ -841,13 +841,8 @@ function RecipeDetailModal({ detail: initialDetail, foods, onClose, onSave }: {
     const g = parseFloat(val) || 0;
     const ings = [...(detail.ingredients ?? [])];
     const f = foodsById.get(ings[idx].food_id);
-    ings[idx] = { ...ings[idx], grams: g,
-      calories: f ? f.calories * g / 100 : 0,
-      protein:  f ? f.protein  * g / 100 : 0,
-      carbs:    f ? f.carbs    * g / 100 : 0,
-      fat:      f ? f.fat      * g / 100 : 0,
-      fiber:    f ? f.fiber    * g / 100 : 0,
-    };
+    const scaled = f ? scaleNutrients(f, g) : { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
+    ings[idx] = { ...ings[idx], grams: g, ...scaled };
     setDetail(d => ({ ...d, ingredients: ings }));
   }
 
@@ -858,8 +853,7 @@ function RecipeDetailModal({ detail: initialDetail, foods, onClose, onSave }: {
   function addIng(food: Food, g: number) {
     const newIng: ActualRecipeIngredient = {
       id: 0, food_id: food.id, name: food.name, grams: g,
-      calories: food.calories * g / 100, protein: food.protein * g / 100,
-      carbs: food.carbs * g / 100, fat: food.fat * g / 100, fiber: food.fiber * g / 100,
+      ...scaleNutrients(food, g),
     };
     setDetail(d => ({ ...d, ingredients: [...(d.ingredients ?? []), newIng] }));
   }

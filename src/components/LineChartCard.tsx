@@ -9,6 +9,7 @@ import {
   ReferenceLine,
 } from 'recharts';
 import { linearRegression } from '../lib/macroCalc';
+import { MS_PER_DAY } from '../lib/dateUtil';
 
 interface DataPoint {
   label: string;
@@ -62,7 +63,7 @@ export default function LineChartCard({
 
   const minTs = useTimeScale ? Math.min(...xs) : 0;
   const maxTs = useTimeScale ? Math.max(...xs) : 0;
-  const spanDays = useTimeScale ? Math.max(1, (maxTs - minTs) / 86_400_000) : 0;
+  const spanDays = useTimeScale ? Math.max(1, (maxTs - minTs) / MS_PER_DAY) : 0;
 
   return (
     <ResponsiveContainer width="100%" height={height}>

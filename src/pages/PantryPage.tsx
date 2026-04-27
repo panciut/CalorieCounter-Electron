@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { evalExpr, resolveExpr } from '../lib/evalExpr';
-import { today, daysUntil, formatDMY } from '../lib/dateUtil';
+import { today, daysUntil, formatDMY, MS_PER_DAY } from '../lib/dateUtil';
+import { scaleNutrients } from '../lib/macroCalc';
 import { api } from '../api';
 import { useToast } from '../components/Toast';
 import { useSettings } from '../hooks/useSettings';
@@ -31,7 +32,7 @@ function expiryPillClass(iso: string | null, warn: number, urgent: number): stri
   return 'text-text-sec';
 }
 
-function expiryLabel(iso: string | null, warn: number, urgent: number): string {
+function expiryLabel(iso: string | null, warn: number): string {
   if (!iso) return '';
   const d = daysUntil(iso);
   if (d < 0) return `Expired ${Math.abs(d)}d ago`;
@@ -42,8 +43,8 @@ function expiryLabel(iso: string | null, warn: number, urgent: number): string {
 
 function openedLabel(batch: PantryItem): string | null {
   if (!batch.opened_at || !batch.opened_days) return null;
-  const dueMs = new Date(batch.opened_at).getTime() + batch.opened_days * 86400_000;
-  const daysLeft = Math.ceil((dueMs - Date.now()) / 86400_000);
+  const dueMs = new Date(batch.opened_at).getTime() + batch.opened_days * MS_PER_DAY;
+  const daysLeft = Math.ceil((dueMs - Date.now()) / MS_PER_DAY);
   if (daysLeft < 0)   return `Opened, ${-daysLeft}d past`;
   if (daysLeft === 0) return 'Opened, today';
   return `Opened, ${daysLeft}d left`;
@@ -51,8 +52,8 @@ function openedLabel(batch: PantryItem): string | null {
 
 function openedPillClass(batch: PantryItem): string {
   if (!batch.opened_at || !batch.opened_days) return 'text-text-sec';
-  const dueMs = new Date(batch.opened_at).getTime() + batch.opened_days * 86400_000;
-  const daysLeft = Math.ceil((dueMs - Date.now()) / 86400_000);
+  const dueMs = new Date(batch.opened_at).getTime() + batch.opened_days * MS_PER_DAY;
+  const daysLeft = Math.ceil((dueMs - Date.now()) / MS_PER_DAY);
   if (daysLeft < 0)  return 'text-red font-semibold';
   if (daysLeft <= 1) return 'text-red';
   if (daysLeft <= 3) return 'text-yellow';
@@ -549,10 +550,10 @@ export default function PantryPage() {
             <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
               {visible.map((agg, aggIdx) => {
                 const collapsed = collapsedFoods.has(agg.food_id);
-                const expiryLbl = expiryLabel(agg.earliest_expiry, warn, urgent);
+                const expiryLbl = expiryLabel(agg.earliest_expiry, warn);
                 const expiryColor = expiryPillClass(agg.earliest_expiry, warn, urgent);
                 const foodData = foodMap.get(agg.food_id);
-                const totalKcal = foodData ? Math.round(foodData.calories * agg.total_g / 100) : null;
+                const totalKcal = foodData ? Math.round(scaleNutrients(foodData, agg.total_g).calories) : null;
                 return (
                   <div key={agg.food_id}>
                     {/* Aggregate header */}
@@ -605,7 +606,7 @@ export default function PantryPage() {
                           const count = group.batches.length;
                           const groupKey = rep.id;
                           const isExpanded = expandedGroups.has(groupKey);
-                          const bExpiryLabel = expiryLabel(rep.expiry_date, warn, urgent);
+                          const bExpiryLabel = expiryLabel(rep.expiry_date, warn);
                           const bExpiryColor = expiryPillClass(rep.expiry_date, warn, urgent);
 
                           // Rows to actually render: merged header, or individual batches when expanded
@@ -616,7 +617,7 @@ export default function PantryPage() {
 
                           return rowsToRender.map(({ batch, showIndividual }, rIdx) => {
                             const isEditing = editingBatch?.id === batch.id;
-                            const rowExpiryLabel = showIndividual ? expiryLabel(batch.expiry_date, warn, urgent) : bExpiryLabel;
+                            const rowExpiryLabel = showIndividual ? expiryLabel(batch.expiry_date, warn) : bExpiryLabel;
                             const rowExpiryColor = showIndividual ? expiryPillClass(batch.expiry_date, warn, urgent) : bExpiryColor;
                             const displayCount = showIndividual ? 1 : count;
                             const rowIdx = gIdx * 10 + rIdx;
@@ -818,7 +819,7 @@ export default function PantryPage() {
               {unchecked.length > 0 && (
                 <div className="flex flex-col divide-y divide-border/40">
                   {unchecked.map(item => (
-                    <ShoppingRow key={item.id} item={item} onToggle={() => api.shopping.toggle(item.id).then(loadShopping)} onDelete={() => api.shopping.delete(item.id).then(loadShopping)} />
+                    <ShoppingRow key={item.id} item={item} onToggle={() => api.shopping.toggle(item.id).then(() => loadShopping(activePantryId))} onDelete={() => api.shopping.delete(item.id).then(() => loadShopping(activePantryId))} />
                   ))}
                 </div>
               )}
@@ -830,7 +831,7 @@ export default function PantryPage() {
                   </div>
                   <div className="flex flex-col divide-y divide-border/40">
                     {checked.map(item => (
-                      <ShoppingRow key={item.id} item={item} onToggle={() => api.shopping.toggle(item.id).then(loadShopping)} onDelete={() => api.shopping.delete(item.id).then(loadShopping)} />
+                      <ShoppingRow key={item.id} item={item} onToggle={() => api.shopping.toggle(item.id).then(() => loadShopping(activePantryId))} onDelete={() => api.shopping.delete(item.id).then(() => loadShopping(activePantryId))} />
                     ))}
                   </div>
                 </>

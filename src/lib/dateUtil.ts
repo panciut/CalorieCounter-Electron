@@ -1,4 +1,6 @@
-function toLocalISO(d: Date): string {
+export const MS_PER_DAY = 86_400_000;
+
+export function toLocalISO(d: Date): string {
   const yy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
@@ -43,10 +45,7 @@ export function getMondayOf(iso: string): string {
   const day = date.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   date.setDate(date.getDate() + diff);
-  const yy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
-  return `${yy}-${mm}-${dd}`;
+  return toLocalISO(date);
 }
 
 export function getThisMonday(): string {
@@ -54,10 +53,7 @@ export function getThisMonday(): string {
   const day = d.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   d.setDate(d.getDate() + diff);
-  const yy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yy}-${mm}-${dd}`;
+  return toLocalISO(d);
 }
 
 export function addDays(iso: string, n: number): string {
@@ -88,7 +84,7 @@ export function parseDMY(s: string): string | null {
 export function daysUntil(iso: string): number {
   const t = new Date(iso + 'T00:00:00').getTime();
   const now = new Date(today() + 'T00:00:00').getTime();
-  return Math.round((t - now) / 86400000);
+  return Math.round((t - now) / MS_PER_DAY);
 }
 
 export function buildDateRange(days: number): string[] {

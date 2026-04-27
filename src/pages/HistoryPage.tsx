@@ -6,7 +6,7 @@ import { useSettings } from '../hooks/useSettings';
 import { api } from '../api';
 import BarChartCard from '../components/BarChartCard';
 import { MACRO_COLORS } from '../lib/macroColors';
-import { formatShortDate, formatDMY, getMondayOf, today, addDays, buildDateRange } from '../lib/dateUtil';
+import { formatShortDate, formatDMY, getMondayOf, today, addDays, buildDateRange, MS_PER_DAY } from '../lib/dateUtil';
 import { buildHistoryMarkdown, copyToClipboard } from '../lib/exportText';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
@@ -146,7 +146,7 @@ export default function HistoryPage() {
   const hasWeightFatPct = filteredWeight.some(w => w.fat_pct != null);
   const weightMinTs = filteredWeight.length ? filteredWeight[0].ts : 0;
   const weightMaxTs = filteredWeight.length ? filteredWeight[filteredWeight.length - 1].ts : 0;
-  const weightSpanDays = Math.max(1, (weightMaxTs - weightMinTs) / 86_400_000);
+  const weightSpanDays = Math.max(1, (weightMaxTs - weightMinTs) / MS_PER_DAY);
   const weightTickFmt = (ms: number) => {
     const d = new Date(ms);
     return weightSpanDays > 180

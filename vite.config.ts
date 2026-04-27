@@ -12,5 +12,18 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: (id: string) => {
+          if (!id.includes('node_modules')) return undefined;
+          if (id.includes('react'))         return 'react';
+          if (id.includes('recharts') || id.includes('d3-')) return 'charts';
+          if (id.includes('fuse.js'))       return 'fuse';
+          if (id.includes('html5-qrcode'))  return 'qr';
+          return undefined;
+        },
+      },
+    },
   },
 });

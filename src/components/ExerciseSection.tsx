@@ -9,13 +9,12 @@ import type { Exercise, ExerciseType, WorkoutPlan } from '../types';
 
 interface Props {
   date: string;
-  weightKg: number;
   onCaloriesChange: (kcal: number) => void;
 }
 
 interface SetRow { reps: string; weight_kg: string; }
 
-export default function ExerciseSection({ date, weightKg, onCaloriesChange }: Props) {
+export default function ExerciseSection({ date, onCaloriesChange }: Props) {
   const { t } = useT();
   const { showToast } = useToast();
 

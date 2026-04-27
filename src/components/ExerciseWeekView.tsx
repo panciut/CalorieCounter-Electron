@@ -217,8 +217,6 @@ interface DayEntryProps {
 }
 
 function DayEntry({ entry, statusStyles, onDragStart, onSetStatus, onClear, t }: DayEntryProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
-
   const style = statusStyles[entry.status] ?? 'border-l-4 border-l-border';
 
   return (
