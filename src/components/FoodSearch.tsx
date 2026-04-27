@@ -63,11 +63,11 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
       ? `${(g / 1000).toFixed(g >= 10000 ? 0 : 1)}kg`
       : `${Math.round(g)}g`;
     const packParts = s.packs.map(p =>
-      `${p.count % 1 === 0 ? p.count : p.count.toFixed(1)}×${fmtG(p.grams)}`,
+      p.count === 1 ? fmtG(p.grams) : `${p.count}×${fmtG(p.grams)}`,
     );
     if (packParts.length === 0) return fmtG(s.loose_g);
     if (s.loose_g <= 0) return packParts.join(' + ');
-    return [...packParts, fmtG(s.loose_g)].join(' + ');
+    return [fmtG(s.loose_g), ...packParts].join(' + ');
   }
 
   // Sync controlled value

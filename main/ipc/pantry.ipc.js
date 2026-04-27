@@ -110,7 +110,7 @@ function registerPantryIpc() {
     if (!isPantryEnabled(db)) return {};
     const pid = pantry_id ?? getDefaultPantryId(db);
     const rows = db.prepare(`
-      SELECT p.food_id, p.quantity_g, p.package_id, fp.grams AS package_grams
+      SELECT p.food_id, p.quantity_g, p.package_id, p.opened_at, fp.grams AS package_grams
       FROM pantry p
       LEFT JOIN food_packages fp ON fp.id = p.package_id
       WHERE p.pantry_id = ? AND p.quantity_g > 0
@@ -120,10 +120,17 @@ function registerPantryIpc() {
     for (const r of rows) {
       const f = byFood[r.food_id] ?? (byFood[r.food_id] = { total_g: 0, loose_g: 0, _packs: new Map() });
       f.total_g += r.quantity_g;
-      if (r.package_id && r.package_grams && r.package_grams > 0) {
-        const cnt = r.quantity_g / r.package_grams;
-        f._packs.set(r.package_grams, (f._packs.get(r.package_grams) ?? 0) + cnt);
+      const isSealed = r.package_id && r.package_grams && r.package_grams > 0 && !r.opened_at;
+      if (isSealed) {
+        // Sealed batches: count whole packs (and any awkward leftover as loose, just in case).
+        const whole = Math.floor(r.quantity_g / r.package_grams + 1e-6);
+        const remainder = r.quantity_g - whole * r.package_grams;
+        if (whole > 0) {
+          f._packs.set(r.package_grams, (f._packs.get(r.package_grams) ?? 0) + whole);
+        }
+        if (remainder > 0.5) f.loose_g += remainder;
       } else {
+        // Opened (or unpackaged) → leftover grams.
         f.loose_g += r.quantity_g;
       }
     }
