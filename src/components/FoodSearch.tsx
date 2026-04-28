@@ -145,13 +145,13 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
         onFocus={() => (query || showAllWhenEmpty) && setOpen(true)}
         onKeyDown={handleKeyDown}
         placeholder={placeholder}
-        className="w-full bg-bg border border-border rounded-md px-3 py-2 text-md text-text placeholder:text-text-sec outline-none focus:border-accent transition-colors"
+        className="w-full bg-bg border border-border rounded-lg px-3 py-2 text-md text-text placeholder:text-text-sec outline-none focus:border-accent transition-colors"
       />
       {open && results.length > 0 && rect && createPortal(
         <ul
           ref={listRef}
           style={{ position: 'fixed', top: rect.top, left: rect.left, width: rect.width }}
-          className="z-[100] bg-card border border-border rounded-md shadow-lg max-h-72 overflow-y-auto"
+          className="z-[100] bg-card border border-border rounded-lg shadow-lg max-h-72 overflow-y-auto"
         >
           {results.map((item, i) => (
             <li

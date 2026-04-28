@@ -44,7 +44,7 @@ export default function AddFoodRow({ foods, onAdd }: AddFoodRowProps) {
     setSearchKey(k => k + 1);
   }
 
-  const inputCls = 'bg-card border border-border rounded-md px-3 py-2 text-sm text-text outline-none focus:border-accent';
+  const inputCls = 'bg-card border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent';
 
   return (
     <div className="flex flex-col gap-2">

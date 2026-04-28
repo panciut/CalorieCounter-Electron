@@ -90,7 +90,7 @@ export default function NetPage() {
               tickLine={false}
             />
             <Tooltip
-              contentStyle={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)' }}
+              contentStyle={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, color: 'var(--text)' }}
               formatter={((v: unknown, name: unknown) => [`${Number(v)} kcal`, String(name)]) as never}
             />
             <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12, color: 'var(--text-sec)' }} />

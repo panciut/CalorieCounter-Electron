@@ -17,7 +17,7 @@ class ScannerErrorBoundary extends Component<{ children: ReactNode }, { msg: str
   render() {
     if (this.state.msg) {
       return (
-        <div className="p-4 border border-red/40 bg-red/10 rounded-md text-sm text-red whitespace-pre-wrap">
+        <div className="p-4 border border-red/40 bg-red/10 rounded-lg text-sm text-red whitespace-pre-wrap">
           Scanner crashed: {this.state.msg}
         </div>
       );
@@ -169,7 +169,7 @@ function BarcodeScannerInner({ onResult, onError }: BarcodeScannerProps) {
       <div
         id="barcode-reader"
         ref={containerRef}
-        className="w-full rounded-md overflow-hidden"
+        className="w-full rounded-lg overflow-hidden"
         style={{ minHeight: 220 }}
       />
       {error && <p className="text-red text-sm">{error}</p>}

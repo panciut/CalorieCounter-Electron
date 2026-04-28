@@ -14,7 +14,7 @@ const btn = (variant: 'default' | 'danger' = 'default') => [
     : 'bg-card border-border text-text hover:border-accent/60',
 ].join(' ');
 
-const card = 'bg-card border border-border rounded-xl p-5 space-y-3';
+const card = 'bg-card border border-border rounded-xl p-4 space-y-3';
 const sectionTitle = 'text-base font-semibold text-text';
 const desc = 'text-sm text-text-sec';
 
@@ -166,7 +166,7 @@ export default function DataPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
-      <h1 className="text-2xl font-bold text-text">{t('data.title')}</h1>
+      <h1 className="text-xl font-bold text-text">{t('data.title')}</h1>
 
       {/* ── Export ─────────────────────────────────────────────────────────── */}
       <section className="space-y-3">

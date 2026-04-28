@@ -104,7 +104,7 @@ export default function QuickFoodDialog({ isOpen, onClose, date, meal, onLogged 
             type="button"
             onClick={() => setMode('preset')}
             className={[
-              'flex-1 text-xs px-3 py-1.5 rounded-md cursor-pointer transition-colors',
+              'flex-1 text-xs px-3 py-1.5 rounded-lg cursor-pointer transition-colors',
               mode === 'preset' ? 'bg-accent/15 text-accent font-medium' : 'text-text-sec hover:text-text',
             ].join(' ')}
           >
@@ -114,7 +114,7 @@ export default function QuickFoodDialog({ isOpen, onClose, date, meal, onLogged 
             type="button"
             onClick={() => setMode('detailed')}
             className={[
-              'flex-1 text-xs px-3 py-1.5 rounded-md cursor-pointer transition-colors',
+              'flex-1 text-xs px-3 py-1.5 rounded-lg cursor-pointer transition-colors',
               mode === 'detailed' ? 'bg-accent/15 text-accent font-medium' : 'text-text-sec hover:text-text',
             ].join(' ')}
           >

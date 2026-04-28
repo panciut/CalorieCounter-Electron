@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
 import ExerciseSection from './ExerciseSection';
+import EmptyState from './ui/EmptyState';
 import { today, fmtDate, toLocalISO } from '../lib/dateUtil';
 import type { Exercise } from '../types';
 
@@ -93,7 +94,7 @@ export default function ExerciseLog() {
       )}
 
       {recentExercises.length === 0 && (
-        <p className="text-text-sec text-sm text-center py-4">No exercises logged in the last 30 days.</p>
+        <EmptyState message="No exercises logged in the last 30 days." className="py-4" />
       )}
     </div>
   );

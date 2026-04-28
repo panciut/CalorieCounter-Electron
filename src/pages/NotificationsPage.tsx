@@ -118,7 +118,7 @@ export default function NotificationsPage() {
       <div className="max-w-3xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-text">{t('notifications.title')}</h1>
+          <h1 className="text-xl font-bold text-text">{t('notifications.title')}</h1>
           {tab === 'active' && (
             <div className="flex items-center gap-2">
               <button

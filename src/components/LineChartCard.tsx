@@ -97,7 +97,7 @@ export default function LineChartCard({
           domain={['auto', 'auto']}
         />
         <Tooltip
-          contentStyle={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)' }}
+          contentStyle={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, color: 'var(--text)' }}
           formatter={((v: unknown) => [`${Number(v)}${unit}`, '']) as never}
           labelFormatter={useTimeScale
             ? ((v: unknown) => new Date(Number(v)).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }))

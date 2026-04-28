@@ -132,10 +132,10 @@ export default function GoalsPage() {
 
   return (
     <div className="max-w-6xl mx-auto p-6 space-y-6">
-      <h1 className="text-2xl font-bold text-text">{t("settings.title")}</h1>
+      <h1 className="text-xl font-bold text-text">{t("settings.title")}</h1>
 
       {/* ── TDEE / Goal Intelligence ─────────────────────────────────────── */}
-      <div className="bg-card rounded-2xl p-5 space-y-4 border border-border">
+      <div className="bg-card rounded-xl p-4 space-y-3 border border-border">
         <div>
           <h2 className="text-lg font-semibold text-text">Goal Intelligence</h2>
           <p className="text-sm text-text-sec mt-0.5">Estimate your TDEE from logged data and get smart calorie targets.</p>
@@ -223,7 +223,7 @@ export default function GoalsPage() {
       </div>
 
       {/* Macro Calculator */}
-      <div className="bg-card rounded-2xl p-5 space-y-4 border border-border">
+      <div className="bg-card rounded-xl p-4 space-y-3 border border-border">
         <div>
           <h2 className="text-lg font-semibold text-text">{t("goals.calcTitle")}</h2>
           <p className="text-sm text-text-sec mt-0.5">{t("goals.calcNote")}</p>
@@ -276,7 +276,7 @@ export default function GoalsPage() {
       </div>
 
       {/* Goals Form */}
-      <div className="bg-card rounded-2xl p-5 space-y-5 border border-border">
+      <div className="bg-card rounded-xl p-4 space-y-3 border border-border">
         {/* Calories */}
         <div className="space-y-2">
           <h3 className="text-sm font-semibold text-text">{t("settings.dailyCal")}</h3>

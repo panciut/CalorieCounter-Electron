@@ -3,6 +3,7 @@ import { useT } from '../i18n/useT';
 import { api } from '../api';
 import { useToast } from './Toast';
 import Modal from './Modal';
+import EmptyState from './ui/EmptyState';
 import { MEAL_ORDER, type LogEntry, type Food, type Meal } from '../types';
 
 interface EntryTableProps {
@@ -109,7 +110,7 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
   }
 
   if (!entries.length) {
-    return <p className="text-text-sec text-sm py-4">{t('dash.nothingLogged')}</p>;
+    return <EmptyState message={t('dash.nothingLogged')} className="py-4" />;
   }
 
   const groups: Record<Meal, LogEntry[]> = Object.fromEntries(

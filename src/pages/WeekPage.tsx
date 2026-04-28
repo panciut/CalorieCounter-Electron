@@ -153,7 +153,7 @@ export default function WeekPage({ weekStart }: WeekPageProps) {
             className="text-text-sec hover:text-accent border border-border hover:border-accent/50 rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer transition-colors"
             title="Previous week"
           >‹</button>
-          <h1 className="text-2xl font-bold text-text">
+          <h1 className="text-xl font-bold text-text">
             {formatDMY(weekStart)} – {formatDMY(weekEnd)}
           </h1>
           <button

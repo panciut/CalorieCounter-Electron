@@ -5,6 +5,7 @@ import { api } from '../api';
 import { today, fmtDate, formatShortDate, toLocalISO, MS_PER_DAY } from '../lib/dateUtil';
 import LineChartCard from '../components/LineChartCard';
 import RangePicker from '../components/ui/RangePicker';
+import EmptyState from '../components/ui/EmptyState';
 import type { Measurement } from '../types';
 
 type MeasurementField = 'waist' | 'chest' | 'arms' | 'thighs' | 'hips' | 'neck';
@@ -71,7 +72,7 @@ export default function MeasurementsPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      <h1 className="text-2xl font-bold text-text mb-6">{t('meas.title')}</h1>
+      <h1 className="text-xl font-bold text-text mb-6">{t('meas.title')}</h1>
 
       {/* Add form */}
       <div className="bg-card border border-border rounded-xl p-4 mb-6">
@@ -152,7 +153,7 @@ export default function MeasurementsPage() {
 
       {/* Table */}
       {sortedMeasurements.length === 0 ? (
-        <p className="text-text-sec text-center py-8">{t('meas.noEntries')}</p>
+        <EmptyState message={t('meas.noEntries')} />
       ) : (
         <div className="bg-card border border-border rounded-xl overflow-x-auto">
           <table className="w-full min-w-max text-sm">

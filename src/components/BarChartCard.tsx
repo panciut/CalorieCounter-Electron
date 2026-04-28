@@ -56,7 +56,7 @@ export default function BarChartCard({
           domain={yDomain}
         />
         <Tooltip
-          contentStyle={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)' }}
+          contentStyle={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, color: 'var(--text)' }}
           cursor={false}
           formatter={((v: unknown, name: unknown) => [`${Number(v)}${unit}`, name === 'planned' ? 'planned' : 'logged']) as never}
         />

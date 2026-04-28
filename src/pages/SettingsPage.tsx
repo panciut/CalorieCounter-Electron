@@ -43,7 +43,7 @@ export default function SettingsPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <h1 className="text-2xl font-bold text-text">{t('nav.settings')}</h1>
+      <h1 className="text-xl font-bold text-text">{t('nav.settings')}</h1>
 
       {/* ── Language ───────────────────────────────────────────────────────── */}
       <section>
@@ -54,7 +54,7 @@ export default function SettingsPage() {
               key={lang}
               onClick={() => updateSettings({ language: lang })}
               className={[
-                'px-4 py-2 rounded-md text-sm font-medium border transition-all cursor-pointer',
+                'px-4 py-2 rounded-lg text-sm font-medium border transition-all cursor-pointer',
                 currentLang === lang
                   ? 'bg-accent text-white border-accent'
                   : 'bg-transparent text-text-sec border-border hover:border-accent/50 hover:text-text',
@@ -75,7 +75,7 @@ export default function SettingsPage() {
               key={theme}
               onClick={() => updateSettings({ theme })}
               className={[
-                'px-4 py-2 rounded-md text-sm font-medium border transition-all cursor-pointer',
+                'px-4 py-2 rounded-lg text-sm font-medium border transition-all cursor-pointer',
                 currentTheme === theme
                   ? 'bg-accent text-white border-accent'
                   : 'bg-transparent text-text-sec border-border hover:border-accent/50 hover:text-text',
@@ -233,7 +233,7 @@ export default function SettingsPage() {
             Sync workouts, active calories, and body fat% from Apple Health to CalorieCounter.
           </p>
           <div className="flex items-center gap-3">
-            <button disabled className="px-4 py-2 rounded-md text-sm font-medium bg-card border border-border text-text-sec opacity-50 cursor-not-allowed">
+            <button disabled className="px-4 py-2 rounded-lg text-sm font-medium bg-card border border-border text-text-sec opacity-50 cursor-not-allowed">
               Connect Apple Health
             </button>
             <span className="text-xs text-text-sec bg-border/50 px-2 py-0.5 rounded-full">Coming soon</span>

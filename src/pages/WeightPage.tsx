@@ -217,7 +217,7 @@ export default function WeightPage() {
       {tab === 'weight' && (
         <>
           {/* Log form */}
-          <div className="bg-card rounded-2xl p-5 border border-border space-y-3">
+          <div className="bg-card rounded-xl p-4 border border-border space-y-3">
             <h2 className="text-base font-semibold text-text">{t("weight.logWeight")}</h2>
             <div className="flex gap-3 items-end flex-wrap">
               <input type="date" className={`${inputCls} flex-1 min-w-[140px]`} value={date} onChange={e => setDate(e.target.value)} />
@@ -254,7 +254,7 @@ export default function WeightPage() {
               { label: t("weight.goal"),           value: goalWeight != null ? `${goalWeight} kg` : "—" },
               { label: t("weight.predictedDate"),  value: prediction },
             ].map(stat => (
-              <div key={stat.label} className="bg-card rounded-2xl p-4 border border-border flex flex-col gap-1">
+              <div key={stat.label} className="bg-card rounded-xl p-4 border border-border flex flex-col gap-1">
                 <span className="text-xs text-text-sec">{stat.label}</span>
                 <span className="text-sm font-semibold text-text truncate">{stat.value}</span>
               </div>
@@ -262,7 +262,7 @@ export default function WeightPage() {
           </div>
 
           {chartData.length > 0 && (
-            <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
+            <div className="bg-card rounded-xl border border-border p-4 space-y-3">
               <div className="flex items-center justify-end">
                 <RangePicker
                   value={range}
@@ -295,7 +295,7 @@ export default function WeightPage() {
             </button>
           </div>
 
-          <div className="bg-card rounded-2xl border border-border overflow-hidden">
+          <div className="bg-card rounded-xl border border-border overflow-hidden">
             {entries.length === 0 ? (
               <p className="text-sm text-text-sec text-center py-8">{t("weight.noEntries")}</p>
             ) : (
@@ -379,7 +379,7 @@ export default function WeightPage() {
       {tab === 'body' && (
         <>
           {/* Log form */}
-          <div className="bg-card rounded-2xl p-5 border border-border space-y-3">
+          <div className="bg-card rounded-xl p-4 border border-border space-y-3">
             <h2 className="text-base font-semibold text-text">Log body composition</h2>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -445,19 +445,19 @@ export default function WeightPage() {
 
           {/* Charts */}
           {fatData.length > 0 && (
-            <div className="bg-card rounded-2xl border border-border p-4">
+            <div className="bg-card rounded-xl border border-border p-4">
               <p className="text-xs font-semibold text-text-sec uppercase tracking-wider mb-3">Body fat %</p>
               <LineChartCard data={fatData} unit="%" height={200} showTrend={fatData.length >= 3} />
             </div>
           )}
           {muscleData.length > 0 && (
-            <div className="bg-card rounded-2xl border border-border p-4">
+            <div className="bg-card rounded-xl border border-border p-4">
               <p className="text-xs font-semibold text-text-sec uppercase tracking-wider mb-3">Muscle mass</p>
               <LineChartCard data={muscleData} unit=" kg" height={200} showTrend={muscleData.length >= 3} />
             </div>
           )}
           {waterData.length > 0 && (
-            <div className="bg-card rounded-2xl border border-border p-4">
+            <div className="bg-card rounded-xl border border-border p-4">
               <p className="text-xs font-semibold text-text-sec uppercase tracking-wider mb-3">Body water %</p>
               <LineChartCard data={waterData} unit="%" height={200} showTrend={waterData.length >= 3} />
             </div>

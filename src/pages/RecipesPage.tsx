@@ -1180,7 +1180,7 @@ export default function RecipesPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-5">
-      <h1 className="text-2xl font-bold text-text">Recipes</h1>
+      <h1 className="text-xl font-bold text-text">Recipes</h1>
 
       <div className="flex gap-1 border-b border-border">
         {([

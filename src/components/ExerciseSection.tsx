@@ -3,6 +3,7 @@ import { api } from '../api';
 import ConfirmDialog from './ConfirmDialog';
 import ExerciseSearch from './ExerciseSearch';
 import Modal from './Modal';
+import EmptyState from './ui/EmptyState';
 import { useT } from '../i18n/useT';
 import { useToast } from './Toast';
 import type { Exercise, ExerciseType, WorkoutPlan } from '../types';
@@ -151,7 +152,7 @@ export default function ExerciseSection({ date, onCaloriesChange }: Props) {
       </div>
 
       {exercises.length === 0 && !open && (
-        <p className="text-xs text-text-sec">No exercise logged today.</p>
+        <EmptyState message={t('exercise.empty') ?? 'No exercise logged today.'} className="py-2" />
       )}
 
       {exercises.length > 0 && (

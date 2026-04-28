@@ -157,7 +157,7 @@ export default function HistoryPage() {
   const xInterval = aRange === 7 ? 0 : aRange === 30 ? 4 : aRange === 90 ? 12 : 20;
 
   const tooltipStyle = {
-    background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)',
+    background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, color: 'var(--text)',
   };
 
   const tabBtn = (v: Tab) => [
@@ -197,7 +197,7 @@ export default function HistoryPage() {
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold text-text">{t('history.title')}</h1>
+        <h1 className="text-xl font-bold text-text">{t('history.title')}</h1>
         <button onClick={handleCopy} className="text-sm text-text-sec border border-border rounded-lg px-3 py-1.5 hover:border-accent/50 hover:text-text cursor-pointer transition-colors">
           📋 {t('export.copyHistory')}
         </button>
