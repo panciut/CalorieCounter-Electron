@@ -479,51 +479,61 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const hasEnergyData  = energyOut > 0 || caloriesIn > 0 || stepCount > 0;
 
   return (
-    <div className="p-6 max-w-6xl mx-auto flex flex-col gap-6">
-      {/* Header */}
+    <div className="p-6 max-w-6xl mx-auto flex flex-col gap-7">
+
+      {/* Back */}
       {fromWeek && (
-        <button className="text-accent text-sm hover:opacity-80 cursor-pointer self-start" onClick={() => navigate('week', { weekStart: fromWeek })}>
+        <button
+          className="group flex items-center gap-1.5 text-text-sec hover:text-accent text-sm cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] self-start"
+          onClick={() => navigate('week', { weekStart: fromWeek })}
+        >
+          <span className="transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:-translate-x-0.5">‹</span>
           {t('day.back')}
         </button>
       )}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setDateStr(addDays(dateStr, -1))}
-            className="text-text-sec hover:text-accent border border-border hover:border-accent/50 rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer transition-colors"
-            title="Previous day"
-          >‹</button>
-          <h1 className="text-xl font-bold text-text">{fmtDateWithWeekday(dateStr)}</h1>
-          <button
-            onClick={() => setDateStr(addDays(dateStr, 1))}
-            className="text-text-sec hover:text-accent border border-border hover:border-accent/50 rounded-lg w-7 h-7 flex items-center justify-center cursor-pointer transition-colors"
-            title="Next day"
-          >›</button>
-          <input
-            type="date"
-            value={dateStr}
-            onChange={e => setDateStr(e.target.value)}
-            className="text-xs bg-card border border-border rounded-lg px-2 py-1 text-text-sec focus:outline-none focus:border-accent cursor-pointer ml-1"
-          />
-          {dateStr !== today() && (
+
+      {/* ── HEADER ─────────────────────────────────────────────────── */}
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-text-sec/40">
+            {dateStr === today() ? 'Today' : 'Day View'}
+          </span>
+          <div className="flex items-center gap-2.5">
             <button
-              onClick={() => setDateStr(today())}
-              className="text-xs text-accent border border-accent/40 rounded-lg px-2 py-1 hover:bg-accent/10 cursor-pointer transition-colors ml-1"
-            >
-              {t('week.today')}
-            </button>
-          )}
+              onClick={() => setDateStr(addDays(dateStr, -1))}
+              className="w-8 h-8 flex items-center justify-center rounded-full border border-border text-text-sec hover:border-accent/50 hover:text-accent cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-95"
+            >‹</button>
+            <h1 className="text-3xl font-black text-text tracking-tight">{fmtDateWithWeekday(dateStr)}</h1>
+            <button
+              onClick={() => setDateStr(addDays(dateStr, 1))}
+              className="w-8 h-8 flex items-center justify-center rounded-full border border-border text-text-sec hover:border-accent/50 hover:text-accent cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-95"
+            >›</button>
+            <input
+              type="date"
+              value={dateStr}
+              onChange={e => setDateStr(e.target.value)}
+              className="text-xs bg-card border border-border rounded-full px-3 py-1.5 text-text-sec focus:outline-none focus:border-accent cursor-pointer transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
+            />
+            {dateStr !== today() && (
+              <button
+                onClick={() => setDateStr(today())}
+                className="text-xs text-accent border border-accent/30 rounded-full px-3 py-1.5 hover:bg-accent/8 cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]"
+              >
+                {t('week.today')}
+              </button>
+            )}
+          </div>
           {pantries.length > 1 && (
-            <div className="flex gap-1 ml-3">
+            <div className="flex gap-1.5 mt-0.5">
               {pantries.map(p => (
                 <button
                   key={p.id}
                   onClick={() => selectPantry(p.id)}
                   className={[
-                    'text-xs px-3 py-1 rounded-lg border cursor-pointer transition-colors',
+                    'text-xs px-3 py-1 rounded-full border cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]',
                     logPantryId === p.id
                       ? 'border-accent bg-accent/10 text-accent'
-                      : 'border-border text-text-sec hover:border-accent/50',
+                      : 'border-border text-text-sec hover:border-accent/40',
                   ].join(' ')}
                 >
                   {p.name}
@@ -532,83 +542,99 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={()=>setQuickFoodOpen(true)} className="text-sm bg-accent text-white rounded-lg px-4 py-1.5 hover:opacity-90 cursor-pointer transition-colors font-medium">
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setQuickFoodOpen(true)}
+            className="group flex items-center gap-2 text-sm bg-accent text-white rounded-full px-5 py-2 hover:opacity-90 cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] font-medium"
+          >
             {t('dash.quickAdd')}
+            <span className="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center text-xs transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-0.5 group-hover:-translate-y-px">+</span>
           </button>
           <button
             onClick={() => setPlanMode(v => !v)}
             className={[
-              'text-sm border rounded-lg px-3 py-1.5 cursor-pointer transition-colors',
+              'text-sm border rounded-full px-4 py-2 cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]',
               planMode
-                ? 'bg-accent/15 border-accent text-accent font-medium'
-                : 'border-border text-text-sec hover:border-accent/50 hover:text-text',
+                ? 'bg-accent/12 border-accent text-accent font-medium'
+                : 'border-border text-text-sec hover:border-accent/40 hover:text-text',
             ].join(' ')}
           >
             {planMode ? t('dash.planned') : t('dash.plan')}
           </button>
-          <button onClick={handleCopyDay} title={t('export.copyDay')} className="text-sm text-text-sec border border-border rounded-lg px-3 py-1.5 hover:border-accent/50 hover:text-text cursor-pointer transition-colors">
+          <button
+            onClick={handleCopyDay}
+            className="text-sm text-text-sec border border-border rounded-full px-4 py-2 hover:border-accent/40 hover:text-text cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]"
+          >
             {t('export.copyDay')}
           </button>
-          <button onClick={()=>setSwapOpen(true)} title={t('dash.swapDays')} className="text-sm text-text-sec border border-border rounded-lg px-3 py-1.5 hover:border-accent/50 hover:text-text cursor-pointer transition-colors">
+          <button
+            onClick={() => setSwapOpen(true)}
+            className="text-sm text-text-sec border border-border rounded-full px-4 py-2 hover:border-accent/40 hover:text-text cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]"
+          >
             {t('dash.swapDays')}
           </button>
         </div>
       </div>
 
-      {/* Confirm all planned banner */}
+      {/* Planned banner */}
       {plannedEntries.length > 0 && (
-        <div className="flex items-center justify-between gap-3 bg-accent/8 border border-accent/25 rounded-xl px-4 py-2.5">
+        <div className="flex items-center justify-between gap-3 bg-accent/6 border border-accent/20 rounded-2xl px-5 py-3">
           <div className="text-sm text-text">
-            <span className="font-medium text-accent">{plannedEntries.length}</span> {plannedEntries.length === 1 ? 'planned entry' : 'planned entries'} ·{' '}
+            <span className="font-semibold text-accent">{plannedEntries.length}</span>{' '}
+            {plannedEntries.length === 1 ? 'planned entry' : 'planned entries'} ·{' '}
             <span className="text-text-sec">{plannedKcalSum} kcal {t('dash.planned')}</span>
           </div>
           <button
             onClick={() => setConfirmAllOpen(true)}
-            className="text-sm font-medium text-accent border border-accent/40 rounded-lg px-3 py-1 hover:bg-accent/10 cursor-pointer transition-colors"
+            className="text-sm font-medium text-accent border border-accent/30 rounded-full px-4 py-1.5 hover:bg-accent/8 cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]"
           >
             {t('dash.confirmAll')}
           </button>
         </div>
       )}
 
-      {/* Log food section - PROMINENT AT TOP */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider">{t('dash.logFood')}</h3>
-          </div>
+      {/* ── LOG FOOD — double-bezel ─────────────────────────────────── */}
+      <div className="p-1.5 rounded-[1.75rem] ring-1 ring-border/50 bg-card/30">
+        <div className="bg-card rounded-[calc(1.75rem-6px)] p-5 flex flex-col gap-4">
+          <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-text-sec/40">{t('dash.logFood')}</span>
+
           <FoodSearch key={searchKey} items={searchItems} onSelect={handleSelect} onClear={handleClear} placeholder={t('dash.searchPlaceholder')} pantryId={logPantryId} />
 
-          {/* Quick actions (Favorites + Frequent) right below search */}
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {favorites.length > 0 ? (
-              favorites.map(f=>(
-                <button key={f.id} onClick={()=>quickLog(f)} className="text-xs px-2.5 py-1.5 rounded-lg bg-card border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors">
+              favorites.map(f => (
+                <button
+                  key={f.id}
+                  onClick={() => quickLog(f)}
+                  className="text-xs px-3 py-1.5 rounded-full bg-bg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]"
+                >
                   ★ {f.name}
                 </button>
               ))
             ) : (
-              <div className="text-xs text-text-sec/60 italic px-1 py-1">
+              <div className="text-xs text-text-sec/40 italic px-1">
                 {t('dash.noFavorites')} — {t('dash.addFromFoods')} ★
               </div>
             )}
-            {frequent.length > 0 && (
-              frequent.slice(0, 4).map(f=>(
-                <button key={f.id} onClick={()=>quickLog(f)} title={`${f.use_count}× · ${f.calories} kcal/100g`} className="text-xs px-2.5 py-1.5 rounded-lg bg-card border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors">
-                  {f.name}
-                </button>
-              ))
-            )}
+            {frequent.slice(0, 4).map(f => (
+              <button
+                key={f.id}
+                onClick={() => quickLog(f)}
+                title={`${f.use_count}× · ${f.calories} kcal/100g`}
+                className="text-xs px-3 py-1.5 rounded-full bg-bg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]"
+              >
+                {f.name}
+              </button>
+            ))}
           </div>
 
-          {/* Food log form */}
+          {/* Food form */}
           {selectedFood && (
-            <div className="flex flex-col gap-3 p-4 bg-card border border-border rounded-xl">
-              {/* Food preview */}
-              <div className="flex flex-col gap-1.5 text-xs bg-bg rounded-lg px-3 py-2">
+            <div className="flex flex-col gap-3 p-4 bg-bg rounded-2xl ring-1 ring-border/40">
+              <div className="flex flex-col gap-1.5 text-xs">
                 <div className="flex flex-wrap gap-3 text-text-sec">
-                  <span className="text-text font-medium">{selectedFood.name}</span>
+                  <span className="text-text font-semibold">{selectedFood.name}</span>
                   <span>{t('common.per100g')}:</span>
                   <span><span className="text-text font-medium">{selectedFood.calories}</span> kcal</span>
                   <span><span className="text-text font-medium">{selectedFood.fat}</span>g {t('macro.fat')}</span>
@@ -619,8 +645,8 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                 {effectiveGrams > 0 && (() => {
                   const r = effectiveGrams / 100;
                   return (
-                    <div className="flex flex-wrap gap-3 text-text-sec border-t border-border pt-1.5">
-                      <span className="text-text font-medium">{Math.round(effectiveGrams * 10) / 10}g =</span>
+                    <div className="flex flex-wrap gap-3 text-text-sec border-t border-border/50 pt-1.5">
+                      <span className="text-text font-semibold">{Math.round(effectiveGrams * 10) / 10}g =</span>
                       <span><span className="text-text font-semibold">{Math.round(selectedFood.calories * r)}</span> kcal</span>
                       <span><span className="text-text font-semibold">{Math.round(selectedFood.fat * r * 10) / 10}</span>g {t('macro.fat')}</span>
                       <span><span className="text-text font-semibold">{Math.round(selectedFood.carbs * r * 10) / 10}</span>g {t('macro.carbs')}</span>
@@ -634,7 +660,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                 <input
                   type="text" inputMode="decimal"
                   value={amount}
-                  onChange={e=>setAmount(e.target.value)}
+                  onChange={e => setAmount(e.target.value)}
                   onBlur={() => setAmount(v => resolveExpr(v))}
                   placeholder={
                     usePieces
@@ -646,10 +672,8 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                   className={`w-32 ${inputCls}`}
                 />
                 {(selectedFood.piece_grams || (selectedFood.packages?.length ?? 0) > 0) && (
-                  <button type="button" onClick={()=>{ setUsePieces(v=>!v); setAmount(''); }} className="text-xs text-accent underline cursor-pointer">
-                    {usePieces
-                      ? t('dash.switchToGrams')
-                      : (selectedFood.piece_grams ? t('dash.switchToPieces') : t('dash.switchToPacks'))}
+                  <button type="button" onClick={() => { setUsePieces(v => !v); setAmount(''); }} className="text-xs text-accent underline cursor-pointer">
+                    {usePieces ? t('dash.switchToGrams') : (selectedFood.piece_grams ? t('dash.switchToPieces') : t('dash.switchToPacks'))}
                   </button>
                 )}
               </div>
@@ -661,10 +685,8 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                       key={pkg.id}
                       type="button"
                       onClick={() => setSelectedPackId(pkg.id)}
-                      className={`px-2 py-1 rounded border cursor-pointer ${
-                        selectedPackId === pkg.id
-                          ? 'border-accent text-accent bg-accent/10'
-                          : 'border-border text-text-sec hover:text-text'
+                      className={`px-3 py-1 rounded-full border cursor-pointer transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] ${
+                        selectedPackId === pkg.id ? 'border-accent text-accent bg-accent/10' : 'border-border text-text-sec hover:text-text'
                       }`}
                     >
                       {Math.round(pkg.grams)}g
@@ -679,16 +701,14 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                     key={status}
                     onClick={() => handleLogFood(status as 'logged' | 'planned')}
                     disabled={!effectiveGrams}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer disabled:opacity-40 transition-colors ${
-                      i === 0
-                        ? 'bg-accent text-white hover:opacity-90'
-                        : 'border border-border text-text-sec hover:text-text'
+                    className={`px-5 py-2 rounded-full text-sm font-medium cursor-pointer disabled:opacity-40 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] ${
+                      i === 0 ? 'bg-accent text-white hover:opacity-90' : 'border border-border text-text-sec hover:text-text'
                     }`}
                   >
                     {status === 'logged' ? t('common.add') : t('dash.addToPlan')}
                   </button>
                 ))}
-                <button onClick={handleClear} className="border border-border text-text-sec px-4 py-2 rounded-lg text-sm cursor-pointer hover:text-text">{t('common.cancel')}</button>
+                <button onClick={handleClear} className="border border-border text-text-sec px-5 py-2 rounded-full text-sm cursor-pointer hover:text-text transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]">{t('common.cancel')}</button>
               </div>
             </div>
           )}
@@ -697,361 +717,278 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
           {selectedRecipe && (() => {
             const recipeTotals = selectedRecipe.ingredients.reduce((acc, ing) => {
               const r = ing.editGrams / ing.grams;
-              return {
-                cal:     acc.cal     + ing.calories * r,
-                protein: acc.protein + ing.protein  * r,
-                carbs:   acc.carbs   + ing.carbs    * r,
-                fat:     acc.fat     + ing.fat      * r,
-                fiber:   acc.fiber   + (ing.fiber || 0) * r,
-              };
+              return { cal: acc.cal + ing.calories * r, protein: acc.protein + ing.protein * r, carbs: acc.carbs + ing.carbs * r, fat: acc.fat + ing.fat * r, fiber: acc.fiber + (ing.fiber || 0) * r };
             }, { cal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
-            const rt = { cal: Math.round(recipeTotals.cal), protein: Math.round(recipeTotals.protein*10)/10, carbs: Math.round(recipeTotals.carbs*10)/10, fat: Math.round(recipeTotals.fat*10)/10, fiber: Math.round(recipeTotals.fiber*10)/10 };
-
+            const rt = { cal: Math.round(recipeTotals.cal), protein: Math.round(recipeTotals.protein * 10) / 10, carbs: Math.round(recipeTotals.carbs * 10) / 10, fat: Math.round(recipeTotals.fat * 10) / 10, fiber: Math.round(recipeTotals.fiber * 10) / 10 };
             return (
-            <div className="flex flex-col gap-3 p-4 bg-card border border-border rounded-xl">
-              <div>
-                <h4 className="text-sm font-semibold text-text">{selectedRecipe.name}</h4>
-                <p className="text-xs text-text-sec tabular-nums mt-0.5">
-                  {rt.cal} kcal · F {rt.fat}g · C {rt.carbs}g{rt.fiber > 0 ? ` · Fi ${rt.fiber}g` : ''} · P {rt.protein}g
-                </p>
-              </div>
-              <div className="flex flex-col gap-2 max-h-56 overflow-y-auto">
-                {selectedRecipe.ingredients.map((ing, i) => {
-                  const ratio = ing.editGrams / ing.grams;
-                  const ingCal = Math.round(ing.calories * ratio);
-                  const ingP   = Math.round(ing.protein  * ratio * 10) / 10;
-                  const ingC   = Math.round(ing.carbs    * ratio * 10) / 10;
-                  const ingF   = Math.round(ing.fat      * ratio * 10) / 10;
-                  return (
-                    <div key={ing.id} className="flex items-center gap-2 bg-bg rounded-lg px-3 py-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm text-text truncate">{ing.name}</div>
-                        <div className="text-[11px] text-text-sec tabular-nums">{ingCal} kcal · F {ingF} · C {ingC} · P {ingP}</div>
+              <div className="flex flex-col gap-3 p-4 bg-bg rounded-2xl ring-1 ring-border/40">
+                <div>
+                  <h4 className="text-sm font-semibold text-text">{selectedRecipe.name}</h4>
+                  <p className="text-xs text-text-sec tabular-nums mt-0.5">{rt.cal} kcal · F {rt.fat}g · C {rt.carbs}g{rt.fiber > 0 ? ` · Fi ${rt.fiber}g` : ''} · P {rt.protein}g</p>
+                </div>
+                <div className="flex flex-col gap-2 max-h-56 overflow-y-auto">
+                  {selectedRecipe.ingredients.map((ing, i) => {
+                    const ratio = ing.editGrams / ing.grams;
+                    const ingCal = Math.round(ing.calories * ratio);
+                    const ingP = Math.round(ing.protein * ratio * 10) / 10;
+                    const ingC = Math.round(ing.carbs * ratio * 10) / 10;
+                    const ingF = Math.round(ing.fat * ratio * 10) / 10;
+                    return (
+                      <div key={ing.id} className="flex items-center gap-2 bg-card rounded-xl px-3 py-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm text-text truncate">{ing.name}</div>
+                          <div className="text-[11px] text-text-sec tabular-nums">{ingCal} kcal · F {ingF} · C {ingC} · P {ingP}</div>
+                        </div>
+                        <input
+                          type="text" inputMode="decimal" value={ing.editGrams} min={0} step={0.1}
+                          onChange={e => { const val = parseFloat(e.target.value) || 0; setSelectedRecipe(r => r ? { ...r, ingredients: r.ingredients.map((x, j) => j === i ? { ...x, editGrams: val } : x) } : r); }}
+                          className={`w-20 ${inputCls}`}
+                        />
+                        <span className="text-xs text-text-sec">g</span>
                       </div>
-                      <input
-                        type="text" inputMode="decimal"
-                        value={ing.editGrams}
-                        min={0}
-                        step={0.1}
-                        onChange={e=>{
-                          const val = parseFloat(e.target.value)||0;
-                          setSelectedRecipe(r=>r ? { ...r, ingredients: r.ingredients.map((x,j)=>j===i?{...x,editGrams:val}:x) } : r);
-                        }}
-                        className={`w-20 ${inputCls}`}
-                      />
-                      <span className="text-xs text-text-sec">g</span>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+                <MealPills selected={meal} onChange={setMeal} />
+                <div className="flex gap-2 flex-wrap">
+                  {(planMode ? ['planned', 'logged'] : ['logged', 'planned'] as const).map((status, i) => (
+                    <button key={status} onClick={() => handleLogRecipe(status as 'logged' | 'planned')}
+                      className={`px-5 py-2 rounded-full text-sm font-medium cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] ${i === 0 ? 'bg-accent text-white hover:opacity-90' : 'border border-border text-text-sec hover:text-text'}`}>
+                      {status === 'logged' ? t('dash.logRecipe') : t('dash.addToPlan')}
+                    </button>
+                  ))}
+                  <button onClick={handleClear} className="border border-border text-text-sec px-5 py-2 rounded-full text-sm cursor-pointer hover:text-text transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]">{t('common.cancel')}</button>
+                </div>
               </div>
-              <MealPills selected={meal} onChange={setMeal} />
-              <div className="flex gap-2 flex-wrap">
-                {(planMode ? ['planned', 'logged'] : ['logged', 'planned'] as const).map((status, i) => (
-                  <button
-                    key={status}
-                    onClick={() => handleLogRecipe(status as 'logged' | 'planned')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
-                      i === 0
-                        ? 'bg-accent text-white hover:opacity-90'
-                        : 'border border-border text-text-sec hover:text-text'
-                    }`}
-                  >
-                    {status === 'logged' ? t('dash.logRecipe') : t('dash.addToPlan')}
-                  </button>
-                ))}
-                <button onClick={handleClear} className="border border-border text-text-sec px-4 py-2 rounded-lg text-sm cursor-pointer hover:text-text">{t('common.cancel')}</button>
-              </div>
-            </div>
             );
           })()}
         </div>
       </div>
 
-      {/* Entries table - VEDI RISULTATO */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider">{t('dash.todayEntries')}</h3>
-          {plannedEntries.some(e => e.meal === 'Lunch' || e.meal === 'Dinner') && (
-            <button
-              onClick={handleSwapLunchDinner}
-              title={t('dash.swapLunchDinner')}
-              className="text-xs text-text-sec border border-border rounded-lg px-2 py-1 hover:border-accent/50 hover:text-text cursor-pointer transition-colors"
-            >
-              {t('dash.swapLunchDinner')}
-            </button>
-          )}
-        </div>
-        {entries.length === 0
-          ? <p className="text-text-sec text-sm">{t('dash.nothingLogged')}</p>
-          : <EntryTable entries={entries} foods={foods} onRefresh={load} onConfirm={handleConfirmPlanned} />}
-      </div>
-
-      {/* Macros summary card - ALTRI DATI */}
-      <DayMacrosCard entries={entries} />
-
-      {/* Energy (Apple Watch) + Water */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Energy card */}
-        <div className="bg-card border border-border rounded-xl p-4 flex flex-col gap-3">
+      {/* ── ENTRY TABLE — double-bezel ──────────────────────────────── */}
+      <div className="p-1.5 rounded-[1.75rem] ring-1 ring-border/50 bg-card/30">
+        <div className="bg-card rounded-[calc(1.75rem-6px)] p-5 flex flex-col gap-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider">{t('energy.title')}</h3>
-            <span className="text-xs text-text-sec/60">{t('energy.appleWatch')}</span>
-          </div>
-
-          {/* Net display */}
-          <div className="flex items-baseline gap-2">
-            <span className={`text-2xl font-bold tabular-nums ${
-              !hasEnergyData ? 'text-text-sec' :
-              netKcal < 0 ? 'text-green' : 'text-accent'
-            }`}>
-              {hasEnergyData ? `${netKcal > 0 ? '+' : ''}${netKcal}` : '—'}
-            </span>
-            {hasEnergyData && <span className="text-xs text-text-sec">kcal {t('energy.net')}</span>}
-          </div>
-
-          {/* Food in / Energy out summary */}
-          {hasEnergyData && (
-            <div className="flex gap-4 text-xs text-text-sec flex-wrap">
-              <span>{t('energy.foodIn')}: <span className="text-text tabular-nums">{caloriesIn}</span></span>
-              <span>{t('energy.out')}: <span className="text-text tabular-nums">
-                {(() => {
-                  const parts = [
-                    energyResting > 0 ? String(energyResting) : null,
-                    energyActive  > 0 ? String(energyActive)  : null,
-                    energyExtra   > 0 ? String(energyExtra)   : null,
-                  ].filter(Boolean) as string[];
-                  if (parts.length === 0) return '0';
-                  if (parts.length === 1) return parts[0];
-                  return `${energyOut} (${parts.join(' + ')})`;
-                })()}
-              </span></span>
-              {stepCount > 0 && (
-                <span>{t('energy.steps')}: <span className="text-text tabular-nums">{stepCount.toLocaleString()}</span></span>
-              )}
-            </div>
-          )}
-
-          {/* Inputs */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-text-sec text-center">{t('energy.resting')}</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={restingKcal}
-                onChange={e => { setRestingKcal(e.target.value); setRestingFromYest(false); }}
-                onBlur={handleEnergySave}
-                placeholder="0"
-                className={numInputCls}
-              />
-              {restingFromYest && <span className="text-xs text-text-sec/60 text-center">{t('energy.fromYest')}</span>}
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-text-sec text-center">{t('energy.active')}</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={activeKcal}
-                onChange={e => setActiveKcal(e.target.value)}
-                onBlur={handleEnergySave}
-                placeholder="0"
-                className={numInputCls}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-text-sec text-center" title={t('energy.extraHint')}>{t('energy.extra')}</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={extraKcal}
-                onChange={e => setExtraKcal(e.target.value)}
-                onBlur={handleEnergySave}
-                placeholder="0"
-                className={numInputCls}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-text-sec text-center">{t('energy.steps')}</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={steps}
-                onChange={e => setSteps(e.target.value.replace(/[^0-9]/g, ''))}
-                onBlur={handleEnergySave}
-                placeholder="0"
-                className={numInputCls}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Water card */}
-        <div className="bg-card border border-border rounded-xl p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider">{t('dash.water')}</h3>
-            <span className="text-xs text-text-sec tabular-nums">{Math.round(waterTotal)} / {waterGoal} ml</span>
-          </div>
-          <div className="w-full h-2 rounded-full mb-3" style={{ background: 'var(--border)' }}>
-            <div className="h-full rounded-full bg-accent transition-[width] duration-400" style={{ width: `${waterPct}%` }} />
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            <button onClick={()=>addWater(250)}  className="text-xs px-3 py-1.5 rounded-lg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors">+250ml</button>
-            <button onClick={()=>addWater(500)}  className="text-xs px-3 py-1.5 rounded-lg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors">+500ml</button>
-            <button onClick={()=>addWater(1000)} className="text-xs px-3 py-1.5 rounded-lg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors">+1L</button>
-            <button onClick={()=>setWaterCustomOpen(true)} className="text-xs px-3 py-1.5 rounded-lg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors">{t('dash.custom')}</button>
-            {waterEntries.length > 0 && (
-              <button onClick={()=>setWaterExpanded(e=>!e)} className="text-xs px-3 py-1.5 rounded-lg border border-border text-text-sec cursor-pointer ml-auto flex items-center gap-1">
-                {t('dash.history')} {waterExpanded ? '▲' : '▼'}
+            <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-text-sec/40">{t('dash.todayEntries')}</span>
+            {plannedEntries.some(e => e.meal === 'Lunch' || e.meal === 'Dinner') && (
+              <button
+                onClick={handleSwapLunchDinner}
+                className="text-xs text-text-sec border border-border rounded-full px-3 py-1.5 hover:border-accent/40 hover:text-text cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]"
+              >
+                {t('dash.swapLunchDinner')}
               </button>
             )}
           </div>
-          {waterExpanded && waterEntries.length > 0 && (
-            <div className="flex flex-col gap-1 mt-2">
-              {waterEntries.map(e=>(
-                <div key={e.id} className="flex items-center gap-2 text-xs text-text-sec">
-                  <span className="tabular-nums">{Math.round(e.ml)}ml</span>
-                  <span className="text-text-sec/60">{e.source === 'manual' ? t('water.manual') : `↩ ${e.source}`}</span>
-                  <button onClick={()=>deleteWater(e.id)} className="ml-auto text-text-sec hover:text-red cursor-pointer">✕</button>
-                </div>
-              ))}
-            </div>
-          )}
+          {entries.length === 0
+            ? <p className="text-text-sec/50 text-sm py-6 text-center">{t('dash.nothingLogged')}</p>
+            : <EntryTable entries={entries} foods={foods} onRefresh={load} onConfirm={handleConfirmPlanned} />}
         </div>
       </div>
 
-      {/* Secondary sections - COLLAPSIBLE */}
-      <div className="flex flex-col gap-4">
-        {/* Supplements */}
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <button
-            onClick={() => setSupplementsCollapsed(v => !v)}
-            className="w-full flex items-center justify-between px-4 py-3 hover:bg-card-hover transition-colors cursor-pointer"
-          >
-            <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider">{t('suppl.dashTitle')}</h3>
-            <span className="text-xs text-text-sec">{supplementsCollapsed ? '▼' : '▲'}</span>
-          </button>
-          {!supplementsCollapsed && (
-            <div className="px-4 pb-4 flex flex-col gap-3">
-              {supplements.length > 0 ? (
-                SUPPLEMENT_TIME_ORDER.map(slot => {
-                  const group = supplements.filter(s => (s.time_of_day ?? 'breakfast') === slot);
-                  if (group.length === 0) return null;
-                  return (
-                    <div key={slot} className="flex flex-col gap-1">
-                      <div className="text-[10px] uppercase tracking-wider text-text-sec/50">
-                        {t(`suppl.time.${slot}`)}
-                      </div>
-                      {group.map(s => {
-                        const done = s.taken >= s.qty;
-                        return (
-                          <div key={s.id} className="flex items-center justify-between gap-2">
-                            <span className={`text-sm ${done ? 'text-text-sec line-through' : 'text-text'}`}>{s.name}</span>
-                            <button
-                              disabled={done}
-                              onClick={()=>handleTakeSuppl(s.id)}
-                              className={`text-xs px-2 py-0.5 rounded cursor-pointer transition-colors ${done?'text-text-sec':'text-accent border border-accent/40 hover:bg-accent/10'}`}
-                            >
-                              {s.taken}/{s.qty}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="text-xs text-text-sec/60 italic">
-                  {t('suppl.noSupplements')} — <button onClick={() => navigate('supplements')} className="text-accent underline cursor-pointer">{t('suppl.manage')}</button>
+      {/* ── MACROS ─────────────────────────────────────────────────── */}
+      <DayMacrosCard entries={entries} />
+
+      {/* ── ENERGY + WATER — 2-col bento ───────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Energy — double-bezel */}
+        <div className="p-1.5 rounded-[1.75rem] ring-1 ring-border/50 bg-card/30">
+          <div className="bg-card rounded-[calc(1.75rem-6px)] p-5 flex flex-col gap-4 h-full">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-text-sec/40">{t('energy.title')}</span>
+              <span className="text-[10px] text-text-sec/30">{t('energy.appleWatch')}</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className={`text-4xl font-black tabular-nums tracking-tight transition-colors duration-500 ${
+                !hasEnergyData ? 'text-text-sec/20' : netKcal < 0 ? 'text-green' : 'text-accent'
+              }`}>
+                {hasEnergyData ? `${netKcal > 0 ? '+' : ''}${netKcal}` : '—'}
+              </span>
+              {hasEnergyData && <span className="text-xs text-text-sec/60">kcal {t('energy.net')}</span>}
+            </div>
+            {hasEnergyData && (
+              <div className="flex gap-4 text-xs text-text-sec flex-wrap">
+                <span>{t('energy.foodIn')}: <span className="text-text tabular-nums font-medium">{caloriesIn}</span></span>
+                <span>{t('energy.out')}: <span className="text-text tabular-nums font-medium">
+                  {(() => {
+                    const parts = [energyResting > 0 ? String(energyResting) : null, energyActive > 0 ? String(energyActive) : null, energyExtra > 0 ? String(energyExtra) : null].filter(Boolean) as string[];
+                    if (parts.length === 0) return '0';
+                    if (parts.length === 1) return parts[0];
+                    return `${energyOut} (${parts.join(' + ')})`;
+                  })()}
+                </span></span>
+                {stepCount > 0 && <span>{t('energy.steps')}: <span className="text-text tabular-nums font-medium">{stepCount.toLocaleString()}</span></span>}
+              </div>
+            )}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-auto">
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] uppercase tracking-wider text-text-sec/40 text-center">{t('energy.resting')}</label>
+                <input type="text" inputMode="decimal" value={restingKcal} onChange={e => { setRestingKcal(e.target.value); setRestingFromYest(false); }} onBlur={handleEnergySave} placeholder="0" className={numInputCls} />
+                {restingFromYest && <span className="text-[10px] text-text-sec/40 text-center">{t('energy.fromYest')}</span>}
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] uppercase tracking-wider text-text-sec/40 text-center">{t('energy.active')}</label>
+                <input type="text" inputMode="decimal" value={activeKcal} onChange={e => setActiveKcal(e.target.value)} onBlur={handleEnergySave} placeholder="0" className={numInputCls} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] uppercase tracking-wider text-text-sec/40 text-center" title={t('energy.extraHint')}>{t('energy.extra')}</label>
+                <input type="text" inputMode="decimal" value={extraKcal} onChange={e => setExtraKcal(e.target.value)} onBlur={handleEnergySave} placeholder="0" className={numInputCls} />
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] uppercase tracking-wider text-text-sec/40 text-center">{t('energy.steps')}</label>
+                <input type="text" inputMode="numeric" value={steps} onChange={e => setSteps(e.target.value.replace(/[^0-9]/g, ''))} onBlur={handleEnergySave} placeholder="0" className={numInputCls} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Water — double-bezel */}
+        <div className="p-1.5 rounded-[1.75rem] ring-1 ring-border/50 bg-card/30">
+          <div className="bg-card rounded-[calc(1.75rem-6px)] p-5 flex flex-col gap-4 h-full">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-text-sec/40">{t('dash.water')}</span>
+              <span className="text-xs text-text-sec/60 tabular-nums">{Math.round(waterTotal)} / {waterGoal} ml</span>
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-0.5 h-1.5">
+                {Array.from({ length: 10 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={`flex-1 rounded-full transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${(i + 1) * 10 <= waterPct ? 'bg-accent' : 'bg-border'}`}
+                  />
+                ))}
+              </div>
+              <span className="text-xs text-text-sec/50">{waterPct}%{waterPct >= 100 ? ' 🎯' : ''}</span>
+            </div>
+            <div className="flex gap-2 flex-wrap mt-auto">
+              {[250, 500, 1000].map(ml => (
+                <button key={ml} onClick={() => addWater(ml)} className="text-xs px-3 py-1.5 rounded-full border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]">
+                  +{ml >= 1000 ? '1L' : `${ml}ml`}
+                </button>
+              ))}
+              <button onClick={() => setWaterCustomOpen(true)} className="text-xs px-3 py-1.5 rounded-full border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]">{t('dash.custom')}</button>
+              {waterEntries.length > 0 && (
+                <button onClick={() => setWaterExpanded(e => !e)} className="text-xs px-3 py-1.5 rounded-full border border-border text-text-sec cursor-pointer ml-auto transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]">
+                  {t('dash.history')} {waterExpanded ? '▲' : '▼'}
+                </button>
+              )}
+            </div>
+            {waterExpanded && waterEntries.length > 0 && (
+              <div className="flex flex-col gap-1">
+                {waterEntries.map(e => (
+                  <div key={e.id} className="flex items-center gap-2 text-xs text-text-sec">
+                    <span className="tabular-nums">{Math.round(e.ml)}ml</span>
+                    <span className="text-text-sec/40">{e.source === 'manual' ? t('water.manual') : `↩ ${e.source}`}</span>
+                    <button onClick={() => deleteWater(e.id)} className="ml-auto text-text-sec/40 hover:text-red cursor-pointer transition-colors duration-300">✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── SECONDARY SECTIONS — collapsible double-bezel ──────────── */}
+      <div className="flex flex-col gap-3">
+        {[
+          {
+            key: 'supplements',
+            title: t('suppl.dashTitle'),
+            collapsed: supplementsCollapsed,
+            toggle: () => setSupplementsCollapsed(v => !v),
+            content: supplements.length > 0 ? (
+              SUPPLEMENT_TIME_ORDER.map(slot => {
+                const group = supplements.filter(s => (s.time_of_day ?? 'breakfast') === slot);
+                if (group.length === 0) return null;
+                return (
+                  <div key={slot} className="flex flex-col gap-1.5">
+                    <div className="text-[10px] uppercase tracking-[0.15em] text-text-sec/40">{t(`suppl.time.${slot}`)}</div>
+                    {group.map(s => {
+                      const done = s.taken >= s.qty;
+                      return (
+                        <div key={s.id} className="flex items-center justify-between gap-2">
+                          <span className={`text-sm ${done ? 'text-text-sec line-through' : 'text-text'}`}>{s.name}</span>
+                          <button disabled={done} onClick={() => handleTakeSuppl(s.id)}
+                            className={`text-xs px-3 py-1 rounded-full cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] ${done ? 'text-text-sec/40' : 'text-accent border border-accent/30 hover:bg-accent/8'}`}>
+                            {s.taken}/{s.qty}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-xs text-text-sec/40 italic">
+                {t('suppl.noSupplements')} — <button onClick={() => navigate('supplements')} className="text-accent underline cursor-pointer">{t('suppl.manage')}</button>
+              </div>
+            ),
+          },
+          {
+            key: 'exercise',
+            title: t('exercise.title'),
+            collapsed: exerciseCollapsed,
+            toggle: () => setExerciseCollapsed(v => !v),
+            content: <ExerciseSection date={dateStr} weightKg={weightKg} onCaloriesChange={() => {}} />,
+          },
+          {
+            key: 'notes',
+            title: t('dash.notes'),
+            collapsed: notesCollapsed,
+            toggle: () => setNotesCollapsed(v => !v),
+            content: (
+              <textarea
+                value={note}
+                onChange={e => handleNoteChange(e.target.value)}
+                placeholder={t('dash.notesPlaceholder')}
+                rows={3}
+                className="w-full bg-bg border border-border/40 rounded-2xl px-4 py-3 text-sm text-text outline-none focus:border-accent resize-none placeholder:text-text-sec/30 transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
+              />
+            ),
+          },
+        ].map(({ key, title, collapsed, toggle, content }) => (
+          <div key={key} className="p-1.5 rounded-[1.75rem] ring-1 ring-border/50 bg-card/30">
+            <div className="bg-card rounded-[calc(1.75rem-6px)] overflow-hidden">
+              <button
+                onClick={toggle}
+                className="w-full flex items-center justify-between px-5 py-4 hover:bg-card-hover transition-colors duration-300 cursor-pointer"
+              >
+                <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-text-sec/40">{title}</span>
+                <span className={`text-text-sec/30 text-xs transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${collapsed ? '' : 'rotate-180'}`}>▼</span>
+              </button>
+              {!collapsed && (
+                <div className="px-5 pb-5 flex flex-col gap-3 border-t border-border/20 pt-4">
+                  {content}
                 </div>
               )}
             </div>
-          )}
-        </div>
-
-        {/* Exercise */}
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <button
-            onClick={() => setExerciseCollapsed(v => !v)}
-            className="w-full flex items-center justify-between px-4 py-3 hover:bg-card-hover transition-colors cursor-pointer"
-          >
-            <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider">{t('exercise.title')}</h3>
-            <span className="text-xs text-text-sec">{exerciseCollapsed ? '▼' : '▲'}</span>
-          </button>
-          {!exerciseCollapsed && (
-            <div className="px-4 pb-4">
-              <ExerciseSection date={dateStr} weightKg={weightKg} onCaloriesChange={() => {}} />
-            </div>
-          )}
-        </div>
-
-        {/* Notes */}
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <button
-            onClick={() => setNotesCollapsed(v => !v)}
-            className="w-full flex items-center justify-between px-4 py-3 hover:bg-card-hover transition-colors cursor-pointer"
-          >
-            <h3 className="text-xs font-semibold text-text-sec uppercase tracking-wider">{t('dash.notes')}</h3>
-            <span className="text-xs text-text-sec">{notesCollapsed ? '▼' : '▲'}</span>
-          </button>
-          {!notesCollapsed && (
-            <div className="px-4 pb-4">
-              <textarea
-                value={note}
-                onChange={e=>handleNoteChange(e.target.value)}
-                placeholder={t('dash.notesPlaceholder')}
-                rows={3}
-                className="w-full bg-bg border border-border rounded-xl px-3 py-2 text-sm text-text outline-none focus:border-accent resize-none placeholder:text-text-sec"
-              />
-            </div>
-          )}
-        </div>
+          </div>
+        ))}
       </div>
 
-      {/* Dialogs */}
-      <QuickFoodDialog
-        isOpen={quickFoodOpen}
-        onClose={()=>setQuickFoodOpen(false)}
-        date={dateStr}
-        meal={meal}
-        onLogged={load}
-      />
+      {/* ── DIALOGS ─────────────────────────────────────────────────── */}
+      <QuickFoodDialog isOpen={quickFoodOpen} onClose={() => setQuickFoodOpen(false)} date={dateStr} meal={meal} onLogged={load} />
 
       <SwapDaysModal
         isOpen={swapOpen}
         initialDate={dateStr}
-        onClose={()=>setSwapOpen(false)}
-        onSwapped={(n) => {
-          showToast(t('swap.toastSwapped').replace('{n}', String(n)), 'success');
-          load();
-        }}
+        onClose={() => setSwapOpen(false)}
+        onSwapped={(n) => { showToast(t('swap.toastSwapped').replace('{n}', String(n)), 'success'); load(); }}
       />
 
-      <Modal isOpen={waterCustomOpen} onClose={()=>setWaterCustomOpen(false)} title={t('water.addWater')}>
+      <Modal isOpen={waterCustomOpen} onClose={() => setWaterCustomOpen(false)} title={t('water.addWater')}>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-xs text-text-sec">{t('water.amountMl')}</label>
-            <input
-              type="text" inputMode="decimal"
-              value={waterCustomMl}
-              onChange={e=>setWaterCustomMl(e.target.value)}
-              onKeyDown={e=>e.key==='Enter'&&handleWaterCustom()}
-              autoFocus
-              className={`w-full ${inputCls}`}
-            />
+            <input type="text" inputMode="decimal" value={waterCustomMl} onChange={e => setWaterCustomMl(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleWaterCustom()} autoFocus className={`w-full ${inputCls}`} />
           </div>
           <div className="flex justify-end gap-2">
-            <button onClick={()=>setWaterCustomOpen(false)} className="px-4 py-2 text-sm text-text-sec border border-border rounded-lg cursor-pointer">{t('common.cancel')}</button>
-            <button onClick={handleWaterCustom} disabled={!waterCustomMl} className="px-4 py-2 text-sm bg-accent text-white rounded-lg cursor-pointer hover:opacity-90 disabled:opacity-40 font-medium">{t('common.add')}</button>
+            <button onClick={() => setWaterCustomOpen(false)} className="px-4 py-2 text-sm text-text-sec border border-border rounded-full cursor-pointer transition-colors duration-300">{t('common.cancel')}</button>
+            <button onClick={handleWaterCustom} disabled={!waterCustomMl} className="px-4 py-2 text-sm bg-accent text-white rounded-full cursor-pointer hover:opacity-90 disabled:opacity-40 font-medium transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]">{t('common.add')}</button>
           </div>
         </div>
       </Modal>
 
-      <DeductionEventModal
-        event={deductionEvent}
-        onDone={nextDeduction}
-        pushMore={pushDeduction}
-        onPantryChanged={load}
-      />
+      <DeductionEventModal event={deductionEvent} onDone={nextDeduction} pushMore={pushDeduction} onPantryChanged={load} />
 
       {confirmAllOpen && (
         <ConfirmDialog
