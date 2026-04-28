@@ -238,7 +238,7 @@ function DayEntry({ entry, statusStyles, onDragStart, onSetStatus, onClear, t }:
         {entry.status !== 'skipped' && entry.status !== 'rest' && (
           <button onClick={() => onSetStatus('skipped')} className="text-text-sec hover:text-text cursor-pointer leading-none">–</button>
         )}
-        <button onClick={onClear} className="text-text-sec/60 hover:text-red cursor-pointer leading-none ml-auto">✕</button>
+        <button onClick={onClear} aria-label={t('common.delete')} className="text-text-sec/60 hover:text-red cursor-pointer leading-none ml-auto">✕</button>
       </div>
     </div>
   );

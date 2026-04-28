@@ -123,7 +123,7 @@ export default function WorkoutPlans() {
       {deleteTarget && (
         <ConfirmDialog
           message={t('exercise.plans.deleteConfirm')}
-          confirmLabel="Delete"
+          confirmLabel={t("common.delete")}
           dangerous
           onConfirm={handleDelete}
           onCancel={() => setDeleteTarget(null)}
@@ -173,6 +173,7 @@ function PlanCard({ plan, onEdit, onDuplicate, onDelete, t }: PlanCardProps) {
         </button>
         <button
           onClick={onDelete}
+          aria-label={t('common.delete')}
           className="text-xs px-2.5 py-1.5 rounded-lg border border-border text-text-sec hover:border-red/50 hover:text-red cursor-pointer transition-colors"
         >
           ✕

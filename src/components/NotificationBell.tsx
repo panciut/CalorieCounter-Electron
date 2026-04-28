@@ -196,6 +196,7 @@ export default function NotificationBell() {
                     type="button"
                     onClick={() => dismiss(n.key)}
                     title={t('notifications.dismiss')}
+                    aria-label={t('notifications.dismiss')}
                     className="text-text-sec hover:text-red cursor-pointer text-sm px-1"
                   >
                     ✕

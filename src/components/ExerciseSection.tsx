@@ -166,7 +166,7 @@ export default function ExerciseSection({ date, onCaloriesChange }: Props) {
               <button onClick={() => startEdit(ex)} className="text-text-sec hover:text-text px-1 cursor-pointer text-xs">
                 <span style={{ display: 'inline-block', transform: 'scaleX(-1) rotate(15deg)' }}>✎</span>
               </button>
-              <button onClick={() => setDeleteTarget(ex)} className="text-text-sec hover:text-red px-1 cursor-pointer text-xs">✕</button>
+              <button onClick={() => setDeleteTarget(ex)} aria-label={t('common.delete')} className="text-text-sec hover:text-red px-1 cursor-pointer text-xs">✕</button>
             </div>
           ))}
         </div>
@@ -213,7 +213,7 @@ export default function ExerciseSection({ date, onCaloriesChange }: Props) {
                   <span className="text-xs text-text-sec w-8">#{i + 1}</span>
                   <input type="text" inputMode="decimal" className="w-20 rounded-lg border border-border bg-bg px-2 py-1 text-sm text-text focus:outline-none focus:border-accent" placeholder="Reps" value={s.reps} onChange={e => setSets(ss => ss.map((x, j) => j === i ? { ...x, reps: e.target.value } : x))} />
                   <input type="text" inputMode="decimal" className="w-20 rounded-lg border border-border bg-bg px-2 py-1 text-sm text-text focus:outline-none focus:border-accent" placeholder="kg" value={s.weight_kg} onChange={e => setSets(ss => ss.map((x, j) => j === i ? { ...x, weight_kg: e.target.value } : x))} />
-                  {sets.length > 1 && <button onClick={() => setSets(ss => ss.filter((_, j) => j !== i))} className="text-red text-xs cursor-pointer">✕</button>}
+                  {sets.length > 1 && <button onClick={() => setSets(ss => ss.filter((_, j) => j !== i))} aria-label={t('common.delete')} className="text-red text-xs cursor-pointer">✕</button>}
                 </div>
               ))}
               <button onClick={() => setSets(ss => [...ss, { reps: '', weight_kg: '' }])} className="text-xs text-accent hover:opacity-75 cursor-pointer">+ Add set</button>
@@ -232,7 +232,7 @@ export default function ExerciseSection({ date, onCaloriesChange }: Props) {
       {deleteTarget && (
         <ConfirmDialog
           message={`Delete "${deleteTarget.type}"?`}
-          confirmLabel="Delete"
+          confirmLabel={t("common.delete")}
           dangerous
           onConfirm={doDelete}
           onCancel={() => setDeleteTarget(null)}

@@ -42,7 +42,7 @@ export default function SettingsPage() {
   const sectionTitle = 'text-sm font-semibold text-text-sec uppercase tracking-wider mb-3';
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-10">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
       <h1 className="text-2xl font-bold text-text">{t('nav.settings')}</h1>
 
       {/* ── Language ───────────────────────────────────────────────────────── */}

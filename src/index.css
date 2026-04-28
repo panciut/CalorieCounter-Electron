@@ -16,8 +16,15 @@
   --yellow:     #d46c14;
   --red:        #b83a10;
   --shadow:     0 2px 12px rgba(0,0,0,0.65);
+  --overlay:    rgba(0,0,0,0.65);
   --radius:     12px;
   --ease:       cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Macro chart palette — keeps light/dark themes in sync */
+  --macro-protein: #f0921e;
+  --macro-carbs:   #c45c00;
+  --macro-fat:     #a84a10;
+  --macro-fiber:   #6b2f08;
 }
 
 body.light {
@@ -36,6 +43,13 @@ body.light {
   --yellow:     #a85210;
   --red:        #8c300c;
   --shadow:     0 2px 10px rgba(0,0,0,0.08);
+  --overlay:    rgba(0,0,0,0.4);
+
+  /* Macro chart palette — slightly muted for light theme */
+  --macro-protein: #d8861a;
+  --macro-carbs:   #b35200;
+  --macro-fat:     #944008;
+  --macro-fiber:   #5e2c0a;
 
   /* Tailwind color tokens — for utility classes like bg-bg, text-text etc. */
   --color-bg:         #f5f5f7;
@@ -120,3 +134,32 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ── Barcode scanner: mirror preview only (raw frame stays normal for decoding) ── */
 #barcode-reader video { transform: scaleX(-1); }
+
+/* ── Reusable component classes (apply via `className`) ── */
+@layer components {
+  /* Card surface */
+  .card-primary {
+    @apply bg-card border border-border rounded-xl p-4;
+  }
+
+  /* Buttons */
+  .btn-accent {
+    @apply px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer disabled:opacity-40 transition-opacity;
+  }
+  .btn-ghost {
+    @apply px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover hover:text-text cursor-pointer transition-colors;
+  }
+  .btn-danger {
+    @apply px-4 py-2 rounded-xl text-sm text-red border border-red/30 hover:bg-red/10 cursor-pointer transition-colors;
+  }
+
+  /* Inputs */
+  .input-base {
+    @apply bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent;
+  }
+
+  /* Modal shell — use only outside `<Modal>`; <Modal> already provides this. */
+  .modal-shell {
+    @apply bg-card border border-border rounded-2xl shadow w-full max-w-md mx-4;
+  }
+}

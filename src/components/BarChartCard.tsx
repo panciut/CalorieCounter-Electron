@@ -24,7 +24,7 @@ export default function BarChartCard({
   goalValue,
   height = 220,
   unit = '',
-  color = '#c45c00',
+  color = 'var(--accent)',
   yDomain,
   onBarClick,
 }: BarChartCardProps) {

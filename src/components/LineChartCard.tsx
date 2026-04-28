@@ -41,7 +41,7 @@ export default function LineChartCard({
   height = 220,
   unit = '',
   showTrend = false,
-  color = '#c45c00',
+  color = 'var(--accent)',
 }: LineChartCardProps) {
   const useTimeScale = data.length > 0 && data.every(d => d.date);
 

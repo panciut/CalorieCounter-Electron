@@ -22,7 +22,7 @@ function nf(v: unknown) { return Math.round((Number(v) || 0) * 10) / 10; }
 
 function BundlesTab() {
   const { showToast } = useToast();
-  const { tMeal } = useT();
+  const { t, tMeal } = useT();
   const { current: deductionEvent, next: nextDeduction, push: pushDeduction } = useDeductionEvents();
   const [bundles, setBundles]           = useState<Recipe[]>([]);
   const [foods, setFoods]               = useState<Food[]>([]);
@@ -308,7 +308,7 @@ function BundlesTab() {
       {deleteTarget && (
         <ConfirmDialog
           message={`Delete bundle "${deleteTarget.name}"?`}
-          confirmLabel="Delete"
+          confirmLabel={t("common.delete")}
           dangerous
           onConfirm={doDelete}
           onCancel={() => setDeleteTarget(null)}
@@ -482,7 +482,7 @@ function BundleCreateModal({ foods, onClose, onCreate, initial }: {
 
 function RecipesTab() {
   const { showToast } = useToast();
-  const { tMeal } = useT();
+  const { t, tMeal } = useT();
   const { current: deductionEvent, next: nextDeduction, push: pushDeduction } = useDeductionEvents();
   const [recipes, setRecipes]           = useState<ActualRecipe[]>([]);
   const [foods, setFoods]               = useState<Food[]>([]);
@@ -797,7 +797,7 @@ function RecipesTab() {
       {deleteTarget && (
         <ConfirmDialog
           message={`Delete recipe "${deleteTarget.name}"?`}
-          confirmLabel="Delete"
+          confirmLabel={t("common.delete")}
           dangerous
           onConfirm={doDelete}
           onCancel={() => setDeleteTarget(null)}

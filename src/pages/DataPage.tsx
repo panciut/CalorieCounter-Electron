@@ -3,6 +3,7 @@ import { api } from '../api';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { copyToClipboard } from '../lib/exportText';
+import { useT } from '../i18n/useT';
 
 // ── Shared styles ─────────────────────────────────────────────────────────────
 
@@ -51,6 +52,7 @@ Now generate foods for: [DESCRIBE YOUR FOODS HERE]`;
 
 export default function DataPage() {
   const { showToast } = useToast();
+  const { t } = useT();
 
   const [importing, setImporting]         = useState(false);
   const [pasteText, setPasteText]         = useState('');
@@ -164,81 +166,77 @@ export default function DataPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
-      <h1 className="text-2xl font-bold text-text">Data</h1>
+      <h1 className="text-2xl font-bold text-text">{t('data.title')}</h1>
 
       {/* ── Export ─────────────────────────────────────────────────────────── */}
       <section className="space-y-3">
-        <h2 className="text-xs font-semibold text-text-sec uppercase tracking-wider">Export</h2>
+        <h2 className="text-xs font-semibold text-text-sec uppercase tracking-wider">{t('data.export')}</h2>
 
         <div className={card}>
-          <p className={sectionTitle}>Export data</p>
-          <p className={desc}>Food log, weight, exercises, water and supplements. Use JSON to re-import later; CSV for spreadsheets.</p>
+          <p className={sectionTitle}>{t('data.exportData')}</p>
+          <p className={desc}>{t('data.exportDataDesc')}</p>
           <div className="flex gap-3 flex-wrap">
-            <button onClick={() => handleExportData('json')} className={btn()}>Export JSON</button>
-            <button onClick={() => handleExportData('csv')}  className={btn()}>Export CSV</button>
+            <button onClick={() => handleExportData('json')} className={btn()}>{t('data.exportJson')}</button>
+            <button onClick={() => handleExportData('csv')}  className={btn()}>{t('data.exportCsv')}</button>
           </div>
         </div>
 
         <div className={card}>
-          <p className={sectionTitle}>Export food database</p>
-          <p className={desc}>Save your entire food database as a JSON file. Can be imported back via "Import foods" on another device or after a fresh install.</p>
+          <p className={sectionTitle}>{t('data.exportFoods')}</p>
+          <p className={desc}>{t('data.exportFoodsDesc')}</p>
           <div className="flex gap-3 flex-wrap">
-            <button onClick={handleExportFoods} className={btn()}>Export foods (.json)</button>
+            <button onClick={handleExportFoods} className={btn()}>{t('data.exportFoodsBtn')}</button>
             <button onClick={handleCopyFoods} className={btn()}>
-              {foodsCopied ? '✓ Copied' : 'Copy to clipboard'}
+              {foodsCopied ? t('data.copied') : t('data.copyToClipboard')}
             </button>
           </div>
         </div>
 
         <div className={card}>
-          <p className={sectionTitle}>Export pantry</p>
-          <p className={desc}>Save your current pantry (all batches with quantities, expiry dates, and package info) as a JSON snapshot.</p>
+          <p className={sectionTitle}>{t('data.exportPantry')}</p>
+          <p className={desc}>{t('data.exportPantryDesc')}</p>
           <div className="flex gap-3 flex-wrap">
-            <button onClick={handleExportPantry} className={btn()}>Export pantry (.json)</button>
+            <button onClick={handleExportPantry} className={btn()}>{t('data.exportPantryBtn')}</button>
             <button onClick={handleCopyPantry} className={btn()}>
-              {pantryCopied ? '✓ Copied' : 'Copy to clipboard'}
+              {pantryCopied ? t('data.copied') : t('data.copyToClipboard')}
             </button>
           </div>
         </div>
 
         <div className={card}>
-          <p className={sectionTitle}>Database backup</p>
-          <p className={desc}>Save a complete copy of the raw database file (.db). Use this to move data between machines or keep a full snapshot.</p>
-          <button onClick={handleExportBackup} className={btn()}>Save backup (.db)</button>
+          <p className={sectionTitle}>{t('data.exportBackup')}</p>
+          <p className={desc}>{t('data.exportBackupDesc')}</p>
+          <button onClick={handleExportBackup} className={btn()}>{t('data.exportBackupBtn')}</button>
         </div>
       </section>
 
       {/* ── Import ─────────────────────────────────────────────────────────── */}
       <section className="space-y-3">
-        <h2 className="text-xs font-semibold text-text-sec uppercase tracking-wider">Import</h2>
+        <h2 className="text-xs font-semibold text-text-sec uppercase tracking-wider">{t('data.import')}</h2>
 
         {/* Foods — paste or file */}
         <div className={card}>
-          <p className={sectionTitle}>Import foods</p>
-          <p className={desc}>
-            Add foods to your database from a file or by pasting JSON. Existing foods (matched by name) are skipped — safe to run multiple times.
-          </p>
+          <p className={sectionTitle}>{t('data.importFoods')}</p>
+          <p className={desc}>{t('data.importFoodsDesc')}</p>
 
           {/* AI guide */}
           <div className="rounded-lg border border-border bg-bg p-4 space-y-3">
-            <p className="text-sm font-medium text-text">Generate with AI</p>
-            <p className="text-sm text-text-sec">
-              Copy the prompt below, paste it into any AI (ChatGPT, Claude, Gemini…), describe the foods you want, and paste the result back here.
-            </p>
+            <p className="text-sm font-medium text-text">{t('data.aiGenerate')}</p>
+            <p className="text-sm text-text-sec">{t('data.aiGenerateDesc')}</p>
             <div className="relative">
               <pre className="text-xs text-text-sec font-mono bg-card border border-border rounded-lg p-3 whitespace-pre-wrap overflow-x-auto max-h-40 overflow-y-auto">{AI_PROMPT}</pre>
               <button
                 onClick={copyPrompt}
                 className="absolute top-2 right-2 text-xs px-2 py-1 rounded border border-border bg-bg text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors"
               >
-                {promptCopied ? '✓ Copied' : 'Copy'}
+                {promptCopied ? t('data.copied') : t('data.copy')}
               </button>
             </div>
           </div>
 
           {/* Format reference */}
           <details className="group">
-            <summary className="text-xs text-text-sec cursor-pointer hover:text-text select-none">JSON format reference ▸</summary>
+            <summary className="text-xs text-text-sec cursor-pointer hover:text-text select-none">{t('data.formatRef')}</summary>
             <div className="mt-2 rounded-lg border border-border bg-bg p-3 space-y-2">
               <p className="text-xs text-text-sec">A plain JSON array. Only <code className="text-accent">name</code> and <code className="text-accent">calories</code> are required. All values are per 100g (or 100ml for liquids).</p>
               <pre className="text-xs font-mono text-text-sec overflow-x-auto">{`[
@@ -260,7 +258,7 @@ export default function DataPage() {
 
           {/* Paste area */}
           <div className="space-y-2">
-            <p className="text-sm font-medium text-text">Paste JSON or import from file</p>
+            <p className="text-sm font-medium text-text">{t('data.pasteOrFile')}</p>
             <textarea
               value={pasteText}
               onChange={e => { setPasteText(e.target.value); setPasteError(''); }}
@@ -271,10 +269,10 @@ export default function DataPage() {
             {pasteError && <p className="text-xs text-red">{pasteError}</p>}
             <div className="flex gap-3 flex-wrap">
               <button onClick={handlePasteImport} disabled={importing || !pasteText.trim()} className={btn()}>
-                {importing ? 'Importing…' : 'Import pasted JSON'}
+                {importing ? t('data.importing') : t('data.importPasted')}
               </button>
               <button onClick={handleImportFoods} disabled={importing} className={btn()}>
-                {importing ? 'Importing…' : 'Import from file'}
+                {importing ? t('data.importing') : t('data.importFile')}
               </button>
             </div>
           </div>
@@ -282,33 +280,29 @@ export default function DataPage() {
 
         {/* Full JSON export re-import */}
         <div className={card}>
-          <p className={sectionTitle}>Import full export (JSON)</p>
-          <p className={desc}>
-            Re-import a full JSON export — restores foods, food log, weight records, and exercises.
-            Records that already exist are skipped.
-          </p>
+          <p className={sectionTitle}>{t('data.importFullJson')}</p>
+          <p className={desc}>{t('data.importFullDesc')}</p>
           <button onClick={handleImportFullJson} disabled={importing} className={btn()}>
-            {importing ? 'Importing…' : 'Import full JSON export'}
+            {importing ? t('data.importing') : t('data.importFullBtn')}
           </button>
         </div>
 
         {/* Restore DB */}
         <div className={card}>
-          <p className={sectionTitle}>Restore database backup</p>
+          <p className={sectionTitle}>{t('data.restoreBackup')}</p>
           <p className={desc}>
-            Restore from a <code>.db</code> backup file.{' '}
-            <span className="text-red font-medium">This replaces all current data</span> and restarts the app.
+            <span className="text-red font-medium">{t('data.restoreReplaces')}</span>
           </p>
           <button onClick={handlePickRestoreFile} className={btn('danger')}>
-            Restore from backup…
+            {t('data.restoreFromBackup')}
           </button>
         </div>
       </section>
 
       {confirmRestore && (
         <ConfirmDialog
-          message="Restore database from backup? All current data will be replaced and the app will restart."
-          confirmLabel="Restore & Restart"
+          message={t('data.restoreConfirm')}
+          confirmLabel={t('data.restoreAndRestart')}
           dangerous
           onConfirm={handleConfirmRestore}
           onCancel={() => setConfirmRestore(false)}
@@ -337,6 +331,7 @@ const KIND_COLOR: Record<string, string> = {
 };
 
 function ActionLog() {
+  const { t } = useT();
   const [rows, setRows] = useState<{ id: number; kind: string; food_name: string | null; grams: number | null; details: string | null; ts: string }[]>([]);
   const [open, setOpen] = useState(false);
 
@@ -346,12 +341,12 @@ function ActionLog() {
 
   return (
     <section className="space-y-3">
-      <h2 className="text-xs font-semibold text-text-sec uppercase tracking-wider">Action log</h2>
+      <h2 className="text-xs font-semibold text-text-sec uppercase tracking-wider">{t('data.actionLog')}</h2>
       <div className={card}>
         <div className="flex items-center justify-between">
-          <p className={sectionTitle}>Recent actions</p>
+          <p className={sectionTitle}>{t('data.recentActions')}</p>
           <button onClick={() => setOpen(v => !v)} className={btn()}>
-            {open ? 'Hide' : 'Show log'}
+            {open ? t('data.hideLog') : t('data.showLog')}
           </button>
         </div>
         {open && (
@@ -359,11 +354,11 @@ function ActionLog() {
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="bg-card border-b border-border text-text-sec">
-                  <th className="px-3 py-2 text-left">Time</th>
-                  <th className="px-3 py-2 text-left">Action</th>
-                  <th className="px-3 py-2 text-left">Food</th>
-                  <th className="px-3 py-2 text-right">Grams</th>
-                  <th className="px-3 py-2 text-left">Details</th>
+                  <th className="px-3 py-2 text-left">{t('data.thTime')}</th>
+                  <th className="px-3 py-2 text-left">{t('data.thAction')}</th>
+                  <th className="px-3 py-2 text-left">{t('data.thFood')}</th>
+                  <th className="px-3 py-2 text-right">{t('data.thGrams')}</th>
+                  <th className="px-3 py-2 text-left">{t('data.thDetails')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -389,7 +384,7 @@ function ActionLog() {
                   );
                 })}
                 {rows.length === 0 && (
-                  <tr><td colSpan={5} className="px-3 py-6 text-center text-text-sec">No actions logged yet</td></tr>
+                  <tr><td colSpan={5} className="px-3 py-6 text-center text-text-sec">{t('data.noActions')}</td></tr>
                 )}
               </tbody>
             </table>

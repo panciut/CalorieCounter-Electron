@@ -189,7 +189,7 @@ export default function WorkoutPlanEditor({ plan, exTypes, onSave, onCancel }: P
                 placeholder="Search and add exercise…"
               />
             </div>
-            <button onClick={() => setShowSearch(false)} className="text-xs text-text-sec hover:text-text cursor-pointer px-2 py-2">✕</button>
+            <button onClick={() => setShowSearch(false)} aria-label="Close" className="text-xs text-text-sec hover:text-text cursor-pointer px-2 py-2">✕</button>
           </div>
         ) : (
           <button
@@ -266,7 +266,7 @@ function PlanExerciseRow({ row, onPatch, onRemove, onDragStart, onDragOver, onDr
         </label>
 
         {/* Remove */}
-        <button onClick={onRemove} className="text-text-sec hover:text-red cursor-pointer text-xs px-1">✕</button>
+        <button onClick={onRemove} aria-label={t('common.delete')} className="text-text-sec hover:text-red cursor-pointer text-xs px-1">✕</button>
       </div>
 
       {/* Targets */}

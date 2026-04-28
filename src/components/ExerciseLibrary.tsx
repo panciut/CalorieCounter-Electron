@@ -265,7 +265,7 @@ export default function ExerciseLibrary() {
       {deleteTarget && (
         <ConfirmDialog
           message={t('exercise.library.deleteConfirm')}
-          confirmLabel="Delete"
+          confirmLabel={t("common.delete")}
           cancelLabel={t('exercise.library.cancel')}
           dangerous
           onConfirm={handleDelete}
@@ -352,7 +352,7 @@ function ExerciseTypeRow({ ex, expanded, onToggleExpand, onOpenDetail, onEdit, o
           <button
             onClick={onDelete}
             className="text-xs text-text-sec hover:text-red px-2 py-1 rounded border border-transparent hover:border-red/30 cursor-pointer transition-colors"
-            title="Delete"
+            title={t("common.delete")} aria-label={t("common.delete")}
           >
             ✕
           </button>

@@ -290,7 +290,7 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
                   />
                   <span className="text-xs text-text-sec">g</span>
                   {packs.length > 1 && (
-                    <button type="button" onClick={() => removePack(i)}
+                    <button type="button" onClick={() => removePack(i)} aria-label={t('common.delete')}
                       className="text-xs text-text-sec hover:text-red cursor-pointer px-1">✕</button>
                   )}
                 </div>

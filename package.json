@@ -10,7 +10,8 @@
     "start": "electron .",
     "build": "vite build",
     "rebuild": "electron-rebuild -f -w better-sqlite3",
-    "dist": "vite build && electron-builder"
+    "dist": "vite build && electron-builder",
+    "typecheck": "tsc --noEmit --ignoreDeprecations 6.0"
   },
   "build": {
     "appId": "com.caloriecounter.app",

@@ -76,6 +76,7 @@ export default function ExerciseEquipment() {
                 <span>{item.name}</span>
                 <button
                   onClick={() => setDeleteTarget(item)}
+                  aria-label={t('common.delete')}
                   className="ml-1 text-text-sec hover:text-red cursor-pointer text-xs leading-none"
                 >
                   ✕
@@ -101,7 +102,7 @@ export default function ExerciseEquipment() {
       {deleteTarget && (
         <ConfirmDialog
           message={t('exercise.equipment.deleteConfirm')}
-          confirmLabel="Delete"
+          confirmLabel={t("common.delete")}
           dangerous
           onConfirm={handleDelete}
           onCancel={() => setDeleteTarget(null)}

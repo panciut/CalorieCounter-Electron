@@ -22,7 +22,7 @@ export default function ExercisePage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto flex flex-col gap-0 h-full min-h-0">
-      <h1 className="text-xl font-bold text-text mb-4">Exercise</h1>
+      <h1 className="text-xl font-bold text-text mb-4">{t('exercise.title')}</h1>
 
       {/* Tab bar */}
       <div className="flex gap-1 border-b border-border shrink-0 mb-6 overflow-x-auto">

@@ -206,12 +206,12 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                     <td className="py-1.5 text-right tabular-nums text-text-sec">{e.protein}g</td>
                     <td className="py-1.5 text-right">
                       {e.status === 'planned' && onConfirm && (
-                        <button onClick={() => onConfirm(e.id)}
+                        <button onClick={() => onConfirm(e.id)} aria-label={t('plan.confirm') || 'Confirm'}
                           className="text-accent hover:opacity-75 px-1 cursor-pointer transition-colors text-xs" title="Confirm">✓</button>
                       )}
-                      <button onClick={() => startEdit(e)}
+                      <button onClick={() => startEdit(e)} aria-label={t('common.edit') || 'Edit'}
                         className="text-text-sec hover:text-text px-1 cursor-pointer transition-colors"><span style={{ display: 'inline-block', transform: 'scaleX(-1) rotate(15deg)' }}>✎</span></button>
-                      <button onClick={() => handleDelete(e.id)}
+                      <button onClick={() => handleDelete(e.id)} aria-label={t('common.delete') || 'Delete'}
                         className="text-text-sec hover:text-red px-1 cursor-pointer transition-colors">✕</button>
                     </td>
                   </tr>
