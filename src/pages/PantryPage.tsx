@@ -5,7 +5,7 @@ import {
   compareExpiry, expiryPillClass, expiryLabel,
   openedLabel, openedPillClass,
   seedExpiry, resolveExpiry,
-  formatQty, groupBatches, defaultUnit, unitToGrams, unitToPackageId,
+  formatQty, formatPacked, groupBatches, defaultUnit, unitToGrams, unitToPackageId,
   type PantryUnit,
 } from '../lib/pantryUtils';
 import { api } from '../api';
@@ -37,6 +37,7 @@ export default function PantryPage() {
   // Pantry state
   const [items, setItems]               = useState<PantryItem[]>([]);
   const [foods, setFoods]               = useState<Food[]>([]);
+  const [plannedMap, setPlannedMap]     = useState<Record<number, number>>({});
   const [selFood, setSelFood]           = useState<Food | null>(null);
   const [qty, setQty]                   = useState('');
   const [expiry, setExpiry]             = useState(''); // ISO date or ''
@@ -57,9 +58,14 @@ export default function PantryPage() {
   const [shopOpen, setShopOpen]   = useState(true);
 
   const loadPantry = useCallback(async (pid?: number) => {
-    const [p, f] = await Promise.all([api.pantry.getAll(pid), api.foods.getAll()]);
+    const [p, f, pm] = await Promise.all([
+      api.pantry.getAll(pid),
+      api.foods.getAll(),
+      api.log.getPlannedMap(),
+    ]);
     setItems(p);
     setFoods(f);
+    setPlannedMap(pm ?? {});
   }, []);
 
   const loadShopping = useCallback(async (pid?: number) => {
@@ -422,6 +428,8 @@ export default function PantryPage() {
                 const expiryColor = expiryPillClass(agg.earliest_expiry, warn, urgent);
                 const foodData = foodMap.get(agg.food_id);
                 const totalKcal = foodData ? Math.round(scaleNutrients(foodData, agg.total_g).calories) : null;
+                const plannedG = plannedMap[agg.food_id] ?? 0;
+                const remainingG = agg.total_g - plannedG;
                 return (
                   <div key={agg.food_id}>
                     {/* Aggregate header */}
@@ -458,6 +466,17 @@ export default function PantryPage() {
                         )}
                         {totalKcal !== null && (
                           <span className="text-xs text-text-sec/60 tabular-nums">≈ {totalKcal} kcal</span>
+                        )}
+                        {plannedG > 0 && (
+                          <span
+                            className="text-xs tabular-nums mt-0.5 flex items-center gap-1 flex-wrap justify-end"
+                            title={`Planned today + future: ${Math.round(plannedG)}g${remainingG < 0 ? ` · short ${Math.round(-remainingG)}g` : ` · ${Math.round(remainingG)}g left after plan`}`}
+                          >
+                            <span className="px-1.5 py-0.5 rounded bg-accent/15 text-accent">📋 {formatPacked(plannedG, foodData)}</span>
+                            <span className={remainingG < 0 ? 'px-1.5 py-0.5 rounded bg-red/15 text-red' : 'text-text-sec/60'}>
+                              {remainingG < 0 ? `⚠ −${formatPacked(-remainingG, foodData)}` : `→ ${formatPacked(remainingG, foodData)} left`}
+                            </span>
+                          </span>
                         )}
                       </div>
                       {agg.batches.length > 1 && (

@@ -2,6 +2,7 @@ import { useState, useMemo, useRef, useEffect, useCallback, useLayoutEffect } fr
 import { createPortal } from 'react-dom';
 import Fuse from 'fuse.js';
 import { api } from '../api';
+import { decomposeGrams, formatStock, type PackedStock } from '../lib/pantryUtils';
 import type { Food, Recipe } from '../types';
 
 export type SearchItem = (Food & { _freq?: number; isRecipe?: false }) | (Recipe & { _freq?: number; isRecipe: true });
@@ -49,8 +50,7 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
   }, [query, fuse]);
 
   // Pantry stock map (food_id → { total, packs, loose }). Refetched when pantry changes or list opens.
-  type Stock = { total_g: number; loose_g: number; packs: { grams: number; count: number }[] };
-  const [stockMap, setStockMap] = useState<Record<number, Stock>>({});
+  const [stockMap, setStockMap] = useState<Record<number, PackedStock>>({});
   useEffect(() => {
     if (pantryId == null) { setStockMap({}); return; }
     let cancelled = false;
@@ -66,38 +66,6 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
     api.log.getPlannedMap().then(m => { if (!cancelled) setPlannedMap(m ?? {}); });
     return () => { cancelled = true; };
   }, [open]);
-
-  function formatStock(s: Stock): string {
-    const fmtG = (g: number) => g >= 1000
-      ? `${(g / 1000).toFixed(g >= 10000 ? 0 : 1)}kg`
-      : `${Math.round(g)}g`;
-    const packParts = s.packs.map(p =>
-      p.count === 1 ? fmtG(p.grams) : `${p.count}×${fmtG(p.grams)}`,
-    );
-    if (packParts.length === 0) return fmtG(s.loose_g);
-    if (s.loose_g <= 0) return packParts.join(' + ');
-    return [fmtG(s.loose_g), ...packParts].join(' + ');
-  }
-
-  /**
-   * Greedy-decompose a raw gram amount into (whole packs of each size descending)
-   * + a loose remainder. Mirrors the pantry stock display so planned/remaining
-   * read in the same units as the user's actual stock.
-   */
-  function decomposeGrams(grams: number, packages: { grams: number }[] | undefined): Stock {
-    if (grams <= 0) return { total_g: 0, loose_g: 0, packs: [] };
-    const sizes = [...new Set((packages ?? []).map(p => p.grams))].sort((a, b) => b - a);
-    let rem = grams;
-    const packs: { grams: number; count: number }[] = [];
-    for (const size of sizes) {
-      if (rem >= size) {
-        const count = Math.floor(rem / size);
-        packs.push({ grams: size, count });
-        rem -= count * size;
-      }
-    }
-    return { total_g: grams, loose_g: Math.round(rem * 10) / 10, packs };
-  }
 
   // Sync controlled value
   useEffect(() => {
@@ -208,11 +176,11 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
                 const stock = pantryId != null ? stockMap[item.id] : undefined;
                 const plannedG = plannedMap[item.id] ?? 0;
                 const pantryG = stock?.total_g ?? 0;
-                const planned = plannedG > 0 ? decomposeGrams(plannedG, food.packages) : null;
+                const planned = plannedG > 0 ? decomposeGrams(plannedG, food) : null;
                 const remainingG = pantryG - plannedG;
                 // "Remaining" is only meaningful when the user has both stock and a plan.
                 const remaining = pantryG > 0 && plannedG > 0
-                  ? decomposeGrams(remainingG, food.packages)
+                  ? decomposeGrams(remainingG, food)
                   : null;
                 const shortageG = pantryG > 0 && remainingG < 0 ? -remainingG : 0;
                 return (
@@ -246,7 +214,7 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
                         className="text-[11px] px-1.5 py-0.5 rounded bg-red/15 text-red tabular-nums"
                         title={`Short ${Math.round(shortageG)}g — plan exceeds pantry stock`}
                       >
-                        ⚠ −{Math.round(shortageG)}g
+                        ⚠ −{formatStock(decomposeGrams(shortageG, food))}
                       </span>
                     )}
                   </div>

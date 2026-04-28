@@ -133,3 +133,65 @@ export function unitToGrams(unit: PantryUnit, val: number, food: Food): number {
 export function unitToPackageId(unit: PantryUnit): number | null {
   return unit.startsWith('pkg-') ? Number(unit.slice(4)) : null;
 }
+
+// ── Packed display ────────────────────────────────────────────────────────────
+// Canonical "show grams in the user's stocking units" used everywhere we display
+// pantry totals, planned amounts, remaining-after-plan, shortages, etc.
+
+export interface PackedStock {
+  total_g: number;
+  loose_g: number;
+  packs: { grams: number; count: number }[];
+  pieces?: number;
+}
+
+/**
+ * Greedy-decompose raw grams into whole packs (largest first) + loose remainder.
+ * Falls back to pieces when the food has piece_grams but no packages, so a
+ * piece-based food reads as "3 pcs" rather than "120g".
+ */
+export function decomposeGrams(
+  grams: number,
+  food: { packages?: { grams: number }[] | null; piece_grams?: number | null } | null | undefined,
+): PackedStock {
+  if (grams <= 0) return { total_g: 0, loose_g: 0, packs: [] };
+  const sizes = [...new Set((food?.packages ?? []).map(p => p.grams))].sort((a, b) => b - a);
+  let rem = grams;
+  const packs: { grams: number; count: number }[] = [];
+  for (const size of sizes) {
+    if (rem >= size) {
+      const count = Math.floor(rem / size);
+      packs.push({ grams: size, count });
+      rem -= count * size;
+    }
+  }
+  if (packs.length === 0 && food?.piece_grams && food.piece_grams > 0) {
+    const pieces = Math.round((rem / food.piece_grams) * 10) / 10;
+    return { total_g: grams, loose_g: 0, packs: [], pieces };
+  }
+  return { total_g: grams, loose_g: Math.round(rem * 10) / 10, packs };
+}
+
+export function formatStock(s: PackedStock): string {
+  const fmtG = (g: number) => g >= 1000
+    ? `${(g / 1000).toFixed(g >= 10000 ? 0 : 1)}kg`
+    : `${Math.round(g)}g`;
+  if (s.pieces && s.pieces > 0 && s.packs.length === 0) {
+    const pcs = `${s.pieces} pcs`;
+    return s.loose_g > 0 ? `${pcs} + ${fmtG(s.loose_g)}` : pcs;
+  }
+  const packParts = s.packs.map(p =>
+    p.count === 1 ? fmtG(p.grams) : `${p.count}×${fmtG(p.grams)}`,
+  );
+  if (packParts.length === 0) return fmtG(s.loose_g);
+  if (s.loose_g <= 0) return packParts.join(' + ');
+  return [fmtG(s.loose_g), ...packParts].join(' + ');
+}
+
+/** Convenience: decompose + format in one call. */
+export function formatPacked(
+  grams: number,
+  food: { packages?: { grams: number }[] | null; piece_grams?: number | null } | null | undefined,
+): string {
+  return formatStock(decomposeGrams(grams, food));
+}
