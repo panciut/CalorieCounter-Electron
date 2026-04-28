@@ -67,8 +67,8 @@ export default function DayMacrosCard({ entries }: DayMacrosCardProps) {
   const overall      = getBarColor(intakeSum, settings.cal_min||1800, settings.cal_max||2200, settings);
 
   return (
-    <div className="bg-card border border-border rounded-xl p-5 flex gap-5 items-start">
-      <div className="shrink-0">
+    <div className="bg-card border border-border/40 rounded-[2rem] p-6 flex flex-col md:flex-row gap-8 items-center md:items-start shadow-sm hover:border-border/60 transition-colors">
+      <div className="shrink-0 scale-110 md:scale-100 py-2">
         <MacroChart
           protein={pro} carbs={carbs} fat={fat} calories={cal}
           plannedProtein={plPro} plannedCarbs={plCarbs} plannedFat={plFat} plannedCalories={plCal}
@@ -76,26 +76,37 @@ export default function DayMacrosCard({ entries }: DayMacrosCardProps) {
           entries={entries}
         />
       </div>
-      <div className="flex-1 min-w-0 flex flex-col gap-3">
-        <div className="flex items-center gap-1.5 flex-wrap text-sm tabular-nums">
-          <span className="text-text font-medium">{loggedRound}</span>
-          <span className="text-text-sec text-xs uppercase">{t('dash.logged')}</span>
-          {plannedRound > 0 && <>
-            <span className="text-text-sec">+</span>
-            <span className="text-accent font-medium">{plannedRound}</span>
-            <span className="text-text-sec text-xs uppercase">{t('dash.planned')}</span>
-          </>}
-          <span className="text-text-sec">=</span>
-          <span className="text-text font-semibold">{intakeSum}</span>
-          <span className="text-text-sec text-xs">{t('macro.kcal')}</span>
-          <span className="text-text-sec mx-1">·</span>
-          <span className={`font-semibold ${remColorMap[overall]||'text-text'}`}>{leftoverAbs}</span>
-          <span className="text-text-sec text-xs">
-            {leftover >= 0 ? t('dash.remaining') : t('dash.overBy')}
-          </span>
-          <span className="text-text-sec/70 text-xs ml-1">(target {calRec})</span>
+      <div className="flex-1 min-w-0 flex flex-col gap-6 w-full">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="text-4xl font-black text-text tracking-tighter tabular-nums leading-none">{intakeSum}</span>
+            <span className="text-[10px] font-bold text-text-sec/60 uppercase tracking-widest">{t('macro.kcal')}</span>
+            
+            <div className="ml-auto flex items-center gap-1 bg-bg/40 px-3 py-1.5 rounded-xl border border-border/20">
+              <span className={`text-sm font-black tabular-nums ${leftover >= 0 ? 'text-text' : 'text-red'}`}>{leftoverAbs}</span>
+              <span className="text-[9px] font-bold text-text-sec/60 uppercase tracking-tight">
+                {leftover >= 0 ? t('dash.remaining') : t('dash.overBy')}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-text-sec/40 mt-1">
+            <div className="flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-text inline-block" />
+              {loggedRound} {t('dash.logged')}
+            </div>
+            {plannedRound > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-accent inline-block" />
+                {plannedRound} {t('dash.planned')}
+              </div>
+            )}
+            <div className="ml-auto opacity-40">Target {calRec}</div>
+          </div>
         </div>
-        <MacroBars bars={bars} settings={settings} entries={entries} />
+        
+        <div className="space-y-4">
+          <MacroBars bars={bars} settings={settings} entries={entries} />
+        </div>
       </div>
     </div>
   );

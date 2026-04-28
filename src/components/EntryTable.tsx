@@ -378,9 +378,9 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                       <button
                         onClick={() => openSaveMeal(meal, groups[meal])}
                         title={t('entry.saveAsBundle')}
-                        className="text-text-sec hover:text-accent px-1 cursor-pointer transition-colors"
+                        className="text-text-sec hover:text-accent p-1 cursor-pointer transition-colors"
                       >
-                        ＋📦
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
                       </button>
                     </td>
                   </tr>
@@ -397,9 +397,9 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
           return !isNaN(g) && g > 0;
         }).length;
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-            <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg mx-4 space-y-4">
-              <h2 className="font-semibold text-text text-lg">{t('entry.saveAsBundle')}</h2>
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+            <div className="bg-card border border-border rounded-[2rem] p-8 w-full max-w-lg mx-4 space-y-6 shadow-2xl">
+              <h2 className="font-black text-text text-xl tracking-tight">{t('entry.saveAsBundle')}</h2>
               <input
                 autoFocus
                 className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none focus:border-accent"

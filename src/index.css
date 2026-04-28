@@ -120,3 +120,50 @@ input[type=number] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ── Barcode scanner: mirror preview only (raw frame stays normal for decoding) ── */
 #barcode-reader video { transform: scaleX(-1); }
+
+/* ── Scrollbars — thin, blended into dark UI ── */
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,240,220,0.10) transparent;
+}
+
+/* Webkit (Chrome, Safari, Electron) */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255,240,220,0.10);
+  border-radius: 99px;
+  transition: background 0.2s;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255,240,220,0.22);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Light mode overrides */
+body.light * {
+  scrollbar-color: rgba(0,0,0,0.12) transparent;
+}
+body.light ::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.12);
+}
+body.light ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.22);
+}
+
+/* Completely hidden (used on horizontal chip rows, etc.) */
+.hide-scrollbar {
+  scrollbar-width: none;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}

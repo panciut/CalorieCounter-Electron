@@ -19,7 +19,9 @@
       "Bash(echo \"PID: $!\")",
       "PowerShell(Get-NetTCPConnection *)",
       "Bash(npm audit *)",
-      "Bash(npx vite *)"
+      "Bash(npx vite *)",
+      "Bash(git checkout *)",
+      "Bash(git branch *)"
     ]
   }
 }

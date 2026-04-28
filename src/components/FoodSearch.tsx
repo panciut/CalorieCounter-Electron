@@ -137,21 +137,31 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
 
   return (
     <div ref={containerRef} className="relative w-full">
-      <input
-        ref={inputRef}
-        type="text"
-        value={query}
-        onChange={handleChange}
-        onFocus={() => (query || showAllWhenEmpty) && setOpen(true)}
-        onKeyDown={handleKeyDown}
-        placeholder={placeholder}
-        className="w-full bg-bg border border-border rounded-md px-3 py-2 text-md text-text placeholder:text-text-sec outline-none focus:border-accent transition-colors"
-      />
+      <div className="relative flex items-center">
+        <div className="absolute left-5 text-text-sec/40 pointer-events-none group-focus-within:text-accent transition-colors">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+        </div>
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={handleChange}
+          onFocus={() => (query || showAllWhenEmpty) && setOpen(true)}
+          onKeyDown={handleKeyDown}
+          placeholder={placeholder}
+          className="w-full bg-card border-2 border-border/40 rounded-[2rem] pl-14 pr-6 py-5 text-lg font-bold text-text placeholder:text-text-sec/30 outline-none focus:border-accent focus:bg-bg/60 transition-all shadow-sm"
+        />
+        {query && (
+          <button onClick={() => { setQuery(''); if(onClear) onClear(); }} className="absolute right-5 p-2 text-text-sec/40 hover:text-text transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        )}
+      </div>
       {open && results.length > 0 && rect && createPortal(
         <ul
           ref={listRef}
           style={{ position: 'fixed', top: rect.top, left: rect.left, width: rect.width }}
-          className="z-[100] bg-card border border-border rounded-md shadow-lg max-h-72 overflow-y-auto"
+          className="z-[100] bg-card/95 backdrop-blur-xl border border-border/60 rounded-[2rem] shadow-2xl max-h-96 overflow-y-auto mt-2 overflow-hidden animate-spring-up"
         >
           {results.map((item, i) => (
             <li
@@ -159,31 +169,35 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
               onMouseDown={() => select(item)}
               onMouseEnter={() => setActiveIdx(i)}
               className={[
-                'flex items-center justify-between gap-2 px-3 py-2 text-md cursor-pointer transition-colors',
-                i === activeIdx ? 'bg-accent/15 text-text' : 'text-text hover:bg-card-hover',
+                'flex items-center justify-between gap-4 px-6 py-4 cursor-pointer transition-all border-b border-border/10 last:border-0',
+                i === activeIdx ? 'bg-accent/10' : 'hover:bg-card-hover/40',
               ].join(' ')}
             >
               <div className="min-w-0 flex-1">
-                <div className="truncate">{item.name}</div>
-                <div className="text-[11px] text-text-sec tabular-nums">
-                  {Math.round(item.calories)} kcal
-                  <span className="mx-1">·</span>Fat {Math.round(item.fat * 10) / 10}g
-                  <span className="mx-1">·</span>Carbs {Math.round(item.carbs * 10) / 10}g
-                  <span className="mx-1">·</span>Fiber {Math.round((item.fiber ?? 0) * 10) / 10}g
-                  <span className="mx-1">·</span>Protein {Math.round(item.protein * 10) / 10}g
-                  {!item.isRecipe && <span className="ml-1 opacity-60">/100g</span>}
+                <div className={`font-black text-lg truncate ${i === activeIdx ? 'text-accent' : 'text-text'} transition-colors tracking-tight`}>{item.name}</div>
+                <div className="text-[10px] font-bold text-text-sec/60 uppercase tracking-widest mt-1 flex items-center gap-1.5 flex-wrap">
+                  <span className="text-text tabular-nums">{Math.round(item.calories)} kcal</span>
+                  <span className="opacity-20">/</span>
+                  <span>P {Math.round(item.protein * 10) / 10}g</span>
+                  <span className="opacity-20">/</span>
+                  <span>C {Math.round(item.carbs * 10) / 10}g</span>
+                  <span className="opacity-20">/</span>
+                  <span>F {Math.round(item.fat * 10) / 10}g</span>
+                  {!item.isRecipe && <span className="ml-1 opacity-40 font-normal italic text-[9px] lowercase">(per 100g)</span>}
                 </div>
               </div>
               {!item.isRecipe && pantryId != null && stockMap[item.id]?.total_g > 0 && (
                 <span
-                  className="text-[11px] px-1.5 py-0.5 rounded bg-green/15 text-green tabular-nums shrink-0"
+                  className="text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-xl bg-green/10 text-green tabular-nums shrink-0 border border-green/20"
                   title={`In pantry: ${Math.round(stockMap[item.id].total_g)}g`}
                 >
                   {formatStock(stockMap[item.id])}
                 </span>
               )}
               {item.isRecipe && (
-                <span className="text-xs px-1.5 py-0.5 rounded bg-accent/20 text-accent2 shrink-0">recipe</span>
+                <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl bg-accent/10 text-accent2 shrink-0 border border-accent/20">
+                  recipe
+                </span>
               )}
             </li>
           ))}

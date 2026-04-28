@@ -144,7 +144,6 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const [dateStr, setDateStr]       = useState(initialDate || today());
   const [planMode, setPlanMode]     = useState((initialDate || today()) > today());
 
-  // Auto-default to plan mode when navigating to a future day
   useEffect(() => {
     setPlanMode(dateStr > today());
   }, [dateStr]);
@@ -160,7 +159,6 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const [weightKg, setWeightKg]     = useState(0);
   const [note, setNote]             = useState('');
 
-  // Apple Watch energy
   const [restingKcal, setRestingKcal] = useState('');
   const [activeKcal, setActiveKcal]   = useState('');
   const [extraKcal, setExtraKcal]     = useState('');
@@ -168,14 +166,11 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const [restingFromYest, setRestingFromYest] = useState(false);
   const noteSaveTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
 
-  // Pantry deduction event queue (opened-pack lifecycle prompts)
   const { current: deductionEvent, next: nextDeduction, push: pushDeduction } = useDeductionEvents();
 
-  // Pantry location for deduction
   const [pantries, setPantries] = useState<import('../types').PantryLocation[]>([]);
   const [logPantryId, setLogPantryId] = useState<number | undefined>(undefined);
 
-  // Form state
   const [selectedFood, setSelectedFood]     = useState<Food|null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<RecipeEditState|null>(null);
   const [searchKey, setSearchKey]           = useState(0);
@@ -184,7 +179,6 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const [selectedPackId, setSelectedPackId] = useState<number | null>(null);
   const [meal, setMeal]                     = useState<Meal>('AfternoonSnack');
 
-  // UI state
   const [quickFoodOpen, setQuickFoodOpen] = useState(false);
   const [swapOpen, setSwapOpen] = useState(false);
   const [waterCustomOpen, setWaterCustomOpen] = useState(false);
@@ -216,7 +210,6 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     setFrequent(freq);
   }, [dateStr]);
 
-  // Load pantries once on mount; restore today's selection from localStorage or default
   useEffect(() => {
     api.pantries.getAll().then(ps => {
       setPantries(ps);
@@ -224,7 +217,6 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       if (!def) return;
       try {
         const stored = JSON.parse(localStorage.getItem('dashPantry') || '{}');
-        // Use stored id only if it was set today and the pantry still exists
         if (stored.date === today() && ps.some(p => p.id === stored.id)) {
           setLogPantryId(stored.id);
         } else {
@@ -243,7 +235,6 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     api.weight.getAll().then((entries: WeightEntry[]) => {
       if (entries.length > 0) setWeightKg(entries[entries.length - 1].weight);
     });
-    // Load Apple Watch energy for this date
     api.dailyEnergy.get(dateStr).then((rec: DailyEnergy) => {
       if (rec.resting_kcal > 0 || rec.active_kcal > 0 || rec.extra_kcal > 0 || (rec.steps ?? 0) > 0) {
         setRestingKcal(rec.resting_kcal > 0 ? String(rec.resting_kcal) : '');
@@ -252,7 +243,6 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
         setSteps((rec.steps ?? 0) > 0 ? String(rec.steps) : '');
         setRestingFromYest(false);
       } else {
-        // No record for today — carry forward resting from yesterday
         api.dailyEnergy.getPrevResting(dateStr).then(({ resting_kcal }) => {
           if (resting_kcal > 0) {
             setRestingKcal(String(resting_kcal));
@@ -269,20 +259,14 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     });
   }, [load, dateStr]);
 
-  // ── Totals ──────────────────────────────────────────────────────────────────
-
   const plannedEntries = entries.filter(e => e.status === 'planned');
   const plannedKcalSum = Math.round(plannedEntries.reduce((s, e) => s + e.calories, 0));
-
-  // ── Food search items ───────────────────────────────────────────────────────
 
   const freqMap = new Map(frequent.map(f=>[f.id,f.use_count]));
   const searchItems: SearchItem[] = [
     ...foods.map(f=>({ ...f, _freq: freqMap.get(f.id)||0, isRecipe: false as const })),
     ...recipes.map(r=>({ ...r, isRecipe: true as const, _freq: 0 })),
   ];
-
-  // ── Select handlers ─────────────────────────────────────────────────────────
 
   async function handleSelect(item: SearchItem) {
     if (item.isRecipe) {
@@ -373,8 +357,6 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     load();
   }
 
-  // ── Water ───────────────────────────────────────────────────────────────────
-
   async function addWater(ml: number) {
     await api.water.add({ date: dateStr, ml, source: 'manual' });
     const wd = await api.water.getDay(dateStr);
@@ -397,22 +379,16 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const waterGoal = settings.water_goal || 2000;
   const waterPct  = Math.min(100, Math.round(waterTotal / waterGoal * 100));
 
-  // ── Supplements ─────────────────────────────────────────────────────────────
-
   async function handleTakeSuppl(id: number) {
     await api.supplements.take({ supplement_id: id, date: dateStr });
     setSupplements(await api.supplements.getDay(dateStr));
   }
-
-  // ── Notes ───────────────────────────────────────────────────────────────────
 
   function handleNoteChange(val: string) {
     setNote(val);
     if (noteSaveTimer.current) clearTimeout(noteSaveTimer.current);
     noteSaveTimer.current = setTimeout(()=>{ api.notes.save({ date: dateStr, note: val }); }, 1000);
   }
-
-  // ── Apple Watch energy ───────────────────────────────────────────────────────
 
   function handleEnergySave() {
     const resting   = parseFloat(restingKcal) || 0;
@@ -422,8 +398,6 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     api.dailyEnergy.set({ date: dateStr, resting_kcal: resting, active_kcal: active, extra_kcal: extra, steps: stepCount });
     setRestingFromYest(false);
   }
-
-  // ── Quick-log favorites/frequent ─────────────────────────────────────────────
 
   async function handleCopyDay() {
     const md = buildDayMarkdown({
@@ -447,8 +421,6 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   }
 
   async function quickLog(food: Food) {
-    // Non-bulk foods log by pack size (smallest available); bulk foods fall
-    // back to piece_grams, then 100g.
     const smallestPack = (food.packages ?? []).reduce<number | null>(
       (min, p) => (min == null || p.grams < min ? p.grams : min), null,
     );
@@ -465,8 +437,9 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
-  const inputCls = "bg-card border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
-  const numInputCls = "w-full bg-bg border border-border rounded-lg px-2 py-1.5 text-sm text-text outline-none focus:border-accent text-center tabular-nums";
+  const inputCls = "bg-bg border border-border/60 rounded-xl px-4 py-3 text-base text-text outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all w-full";
+  const numInputCls = "w-full bg-bg border border-border/60 rounded-xl px-2 py-2.5 text-sm text-text outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 text-center tabular-nums transition-all";
+  const cardCls = "bg-card border border-border/40 shadow-sm rounded-3xl p-5 flex flex-col gap-4";
 
   const loggedEntries  = entries.filter(e => e.status === 'logged');
   const caloriesIn     = Math.round(loggedEntries.reduce((s, e) => s + e.calories, 0));
@@ -478,494 +451,471 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const netKcal        = caloriesIn - energyOut;
   const hasEnergyData  = energyOut > 0 || caloriesIn > 0 || stepCount > 0;
 
+  // JSX vars reused in both mobile inline and desktop sidebar
+  const plannedBanner = plannedEntries.length > 0 ? (
+    <div className="flex items-center justify-between gap-4 bg-accent/5 border border-accent/20 rounded-3xl p-5 animate-fade-in">
+      <div className="text-sm font-bold text-text/80">
+        <span className="text-accent text-xl font-black">{plannedEntries.length}</span> {t('dash.plannedItems')}
+        <span className="block text-[10px] uppercase tracking-widest text-text-sec mt-1">Total: {plannedKcalSum} kcal</span>
+      </div>
+      <button onClick={() => setConfirmAllOpen(true)} className="bg-accent text-white text-[10px] font-black uppercase tracking-widest rounded-xl px-4 py-2.5 hover:scale-105 active:scale-95 transition-all">
+        {t('dash.confirmAll')}
+      </button>
+    </div>
+  ) : null;
+
   return (
-    <div className="p-6 max-w-6xl mx-auto flex flex-col gap-7">
+    <div className="h-full flex flex-col overflow-hidden bg-bg/20">
 
-      {/* Back */}
-      {fromWeek && (
-        <button
-          className="group flex items-center gap-1.5 text-text-sec hover:text-accent text-sm cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] self-start"
-          onClick={() => navigate('week', { weekStart: fromWeek })}
-        >
-          <span className="transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:-translate-x-0.5">‹</span>
-          {t('day.back')}
-        </button>
-      )}
-
-      {/* ── HEADER ─────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-text-sec/40">
-            {dateStr === today() ? 'Today' : 'Day View'}
-          </span>
-          <div className="flex items-center gap-2.5">
+      {/* ── STICKY HEADER ───────────────────────────────────────────── */}
+      <header className="shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-3 px-4 md:px-6 py-4 border-b border-border/10 bg-bg/80 backdrop-blur-md z-20">
+        <div className="flex items-center gap-4">
+          {fromWeek && (
             <button
-              onClick={() => setDateStr(addDays(dateStr, -1))}
-              className="w-8 h-8 flex items-center justify-center rounded-full border border-border text-text-sec hover:border-accent/50 hover:text-accent cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-95"
-            >‹</button>
-            <h1 className="text-3xl font-black text-text tracking-tight">{fmtDateWithWeekday(dateStr)}</h1>
-            <button
-              onClick={() => setDateStr(addDays(dateStr, 1))}
-              className="w-8 h-8 flex items-center justify-center rounded-full border border-border text-text-sec hover:border-accent/50 hover:text-accent cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-95"
-            >›</button>
-            <input
-              type="date"
-              value={dateStr}
-              onChange={e => setDateStr(e.target.value)}
-              className="text-xs bg-card border border-border rounded-full px-3 py-1.5 text-text-sec focus:outline-none focus:border-accent cursor-pointer transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
-            />
-            {dateStr !== today() && (
-              <button
-                onClick={() => setDateStr(today())}
-                className="text-xs text-accent border border-accent/30 rounded-full px-3 py-1.5 hover:bg-accent/8 cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]"
-              >
-                {t('week.today')}
-              </button>
-            )}
-          </div>
-          {pantries.length > 1 && (
-            <div className="flex gap-1.5 mt-0.5">
-              {pantries.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => selectPantry(p.id)}
-                  className={[
-                    'text-xs px-3 py-1 rounded-full border cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]',
-                    logPantryId === p.id
-                      ? 'border-accent bg-accent/10 text-accent'
-                      : 'border-border text-text-sec hover:border-accent/40',
-                  ].join(' ')}
-                >
-                  {p.name}
-                </button>
-              ))}
-            </div>
+              className="flex items-center justify-center w-8 h-8 rounded-full bg-card border border-border text-text-sec hover:text-accent transition-colors"
+              onClick={() => navigate('week', { weekStart: fromWeek })}
+              title={t('day.back')}
+            >
+              ←
+            </button>
           )}
+          <div className="flex items-center gap-1">
+            <button onClick={() => setDateStr(addDays(dateStr, -1))} className="p-2 rounded-xl text-text-sec hover:text-text hover:bg-card transition-all">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+            </button>
+            <div className="flex flex-col items-center px-2 min-w-35 relative">
+              <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-accent/80 mb-0.5">
+                {dateStr === today() ? t('dash.today') : t('dash.diary')}
+              </span>
+              <h1 className="text-lg font-black text-text tracking-tight flex items-center gap-2">
+                {fmtDateWithWeekday(dateStr)}
+                <input
+                  type="date" value={dateStr} onChange={e => setDateStr(e.target.value)}
+                  className="w-full h-full opacity-0 absolute inset-0 cursor-pointer"
+                />
+              </h1>
+            </div>
+            <button onClick={() => setDateStr(addDays(dateStr, 1))} className="p-2 rounded-xl text-text-sec hover:text-text hover:bg-card transition-all">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => setQuickFoodOpen(true)}
-            className="group flex items-center gap-2 text-sm bg-accent text-white rounded-full px-5 py-2 hover:opacity-90 cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] font-medium"
-          >
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 hide-scrollbar">
+          <button onClick={() => setQuickFoodOpen(true)} className="flex items-center gap-2 text-sm bg-accent text-white rounded-xl px-5 py-2.5 font-bold shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all whitespace-nowrap">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 4v16m8-8H4" /></svg>
             {t('dash.quickAdd')}
-            <span className="w-5 h-5 rounded-full bg-white/15 flex items-center justify-center text-xs transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] group-hover:translate-x-0.5 group-hover:-translate-y-px">+</span>
           </button>
-          <button
-            onClick={() => setPlanMode(v => !v)}
-            className={[
-              'text-sm border rounded-full px-4 py-2 cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]',
-              planMode
-                ? 'bg-accent/12 border-accent text-accent font-medium'
-                : 'border-border text-text-sec hover:border-accent/40 hover:text-text',
-            ].join(' ')}
-          >
+          <button onClick={() => setPlanMode(v => !v)} className={`text-sm rounded-xl px-5 py-2.5 font-bold transition-all whitespace-nowrap border ${planMode ? 'bg-accent/10 border-accent text-accent' : 'bg-card border-border text-text-sec hover:border-text-sec/40'}`}>
             {planMode ? t('dash.planned') : t('dash.plan')}
           </button>
-          <button
-            onClick={handleCopyDay}
-            className="text-sm text-text-sec border border-border rounded-full px-4 py-2 hover:border-accent/40 hover:text-text cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]"
-          >
-            {t('export.copyDay')}
+          <div className="h-6 w-px bg-border/20 mx-1 hidden md:block" />
+          <button onClick={() => setSwapOpen(true)} className="p-2.5 bg-card border border-border rounded-xl text-text-sec hover:text-text hover:border-text-sec/40 transition-all" title={t('dash.swapDays')}>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
           </button>
-          <button
-            onClick={() => setSwapOpen(true)}
-            className="text-sm text-text-sec border border-border rounded-full px-4 py-2 hover:border-accent/40 hover:text-text cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]"
-          >
-            {t('dash.swapDays')}
+          <button onClick={handleCopyDay} className="p-2.5 bg-card border border-border rounded-xl text-text-sec hover:text-text hover:border-text-sec/40 transition-all" title={t('export.copyDay')}>
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" /></svg>
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* Planned banner */}
-      {plannedEntries.length > 0 && (
-        <div className="flex items-center justify-between gap-3 bg-accent/6 border border-accent/20 rounded-2xl px-5 py-3">
-          <div className="text-sm text-text">
-            <span className="font-semibold text-accent">{plannedEntries.length}</span>{' '}
-            {plannedEntries.length === 1 ? 'planned entry' : 'planned entries'} ·{' '}
-            <span className="text-text-sec">{plannedKcalSum} kcal {t('dash.planned')}</span>
-          </div>
-          <button
-            onClick={() => setConfirmAllOpen(true)}
-            className="text-sm font-medium text-accent border border-accent/30 rounded-full px-4 py-1.5 hover:bg-accent/8 cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]"
-          >
-            {t('dash.confirmAll')}
-          </button>
-        </div>
-      )}
+      {/* ── BODY (scrollable content area) ─────────── */}
+      <div className="flex-1 min-h-0 overflow-y-auto w-full">
+        <div className="flex flex-col gap-6 md:gap-8 px-4 md:px-6 py-6 pb-24 max-w-5xl mx-auto">
 
-      {/* ── LOG FOOD — double-bezel ─────────────────────────────────── */}
-      <div className="p-1.5 rounded-[1.75rem] ring-1 ring-border/50 bg-card/30">
-        <div className="bg-card rounded-[calc(1.75rem-6px)] p-5 flex flex-col gap-4">
-          <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-text-sec/40">{t('dash.logFood')}</span>
+          {/* ── MACROS & CALORIES ZONE (FRONT & CENTER) ── */}
+          <div className="flex flex-col gap-6 md:gap-8">
+            <div className="animate-fade-in w-full">
+              <DayMacrosCard entries={entries} />
+            </div>
 
-          <FoodSearch key={searchKey} items={searchItems} onSelect={handleSelect} onClear={handleClear} placeholder={t('dash.searchPlaceholder')} pantryId={logPantryId} />
-
-          <div className="flex flex-wrap gap-1.5">
-            {favorites.length > 0 ? (
-              favorites.map(f => (
-                <button
-                  key={f.id}
-                  onClick={() => quickLog(f)}
-                  className="text-xs px-3 py-1.5 rounded-full bg-bg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]"
-                >
-                  ★ {f.name}
-                </button>
-              ))
-            ) : (
-              <div className="text-xs text-text-sec/40 italic px-1">
-                {t('dash.noFavorites')} — {t('dash.addFromFoods')} ★
-              </div>
-            )}
-            {frequent.slice(0, 4).map(f => (
-              <button
-                key={f.id}
-                onClick={() => quickLog(f)}
-                title={`${f.use_count}× · ${f.calories} kcal/100g`}
-                className="text-xs px-3 py-1.5 rounded-full bg-bg border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]"
-              >
-                {f.name}
-              </button>
-            ))}
-          </div>
-
-          {/* Food form */}
-          {selectedFood && (
-            <div className="flex flex-col gap-3 p-4 bg-bg rounded-2xl ring-1 ring-border/40">
-              <div className="flex flex-col gap-1.5 text-xs">
-                <div className="flex flex-wrap gap-3 text-text-sec">
-                  <span className="text-text font-semibold">{selectedFood.name}</span>
-                  <span>{t('common.per100g')}:</span>
-                  <span><span className="text-text font-medium">{selectedFood.calories}</span> kcal</span>
-                  <span><span className="text-text font-medium">{selectedFood.fat}</span>g {t('macro.fat')}</span>
-                  <span><span className="text-text font-medium">{selectedFood.carbs}</span>g {t('macro.carbs')}</span>
-                  {selectedFood.fiber > 0 && <span><span className="text-text font-medium">{selectedFood.fiber}</span>g {t('macro.fiber')}</span>}
-                  <span><span className="text-text font-medium">{selectedFood.protein}</span>g {t('macro.protein')}</span>
+            {plannedBanner}
+            
+            {/* ── HIGH-END BENTO GRID: ENERGY & WATER (APPLE HEALTH STYLE) ── */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
+              
+              {/* NET ENERGY */}
+              <div className="bg-card shadow-sm sm:rounded-3xl lg:rounded-[32px] p-6 lg:p-8 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-8 h-8 rounded-full bg-orange-500/10 flex items-center justify-center text-orange-500">🔥</div>
+                    <span className="text-[11px] font-bold text-text-sec/60 uppercase tracking-widest">{t('energy.title')}</span>
+                  </div>
+                  
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <span 
+                      className={`text-5xl lg:text-6xl font-bold tracking-tight ${
+                        !hasEnergyData ? 'text-text-sec/20' 
+                        : netKcal < 0 ? 'text-green' : 'text-orange-500'
+                      }`}
+                    >
+                      {hasEnergyData ? `${netKcal > 0 ? '+' : ''}${netKcal}` : '—'}
+                    </span>
+                    <span className="text-sm font-semibold text-text-sec/60 tracking-wide uppercase">kcal {t('energy.net')}</span>
+                  </div>
                 </div>
-                {effectiveGrams > 0 && (() => {
-                  const r = effectiveGrams / 100;
-                  return (
-                    <div className="flex flex-wrap gap-3 text-text-sec border-t border-border/50 pt-1.5">
-                      <span className="text-text font-semibold">{Math.round(effectiveGrams * 10) / 10}g =</span>
-                      <span><span className="text-text font-semibold">{Math.round(selectedFood.calories * r)}</span> kcal</span>
-                      <span><span className="text-text font-semibold">{Math.round(selectedFood.fat * r * 10) / 10}</span>g {t('macro.fat')}</span>
-                      <span><span className="text-text font-semibold">{Math.round(selectedFood.carbs * r * 10) / 10}</span>g {t('macro.carbs')}</span>
-                      {selectedFood.fiber > 0 && <span><span className="text-text font-semibold">{Math.round(selectedFood.fiber * r * 10) / 10}</span>g {t('macro.fiber')}</span>}
-                      <span><span className="text-text font-semibold">{Math.round(selectedFood.protein * r * 10) / 10}</span>g {t('macro.protein')}</span>
+
+                {hasEnergyData ? (
+                  <div className="grid grid-cols-2 gap-4 mt-8 pt-6 border-t border-border/10">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-semibold text-text-sec/60">{t('energy.foodIn')}</span>
+                      <span className="text-xl font-bold text-text">{caloriesIn}</span>
                     </div>
-                  );
-                })()}
+                    <div className="flex flex-col gap-1">
+                      <span className="text-xs font-semibold text-text-sec/60">{t('energy.out')}</span>
+                      <span className="text-xl font-bold text-text tracking-tight">{energyOut}</span>
+                    </div>
+                    {stepCount > 0 && (
+                      <div className="flex flex-col gap-1 mt-2 col-span-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-semibold text-text-sec/60 uppercase tracking-wider">{t('energy.steps')}</span>
+                          <span className="text-sm font-bold text-orange-500">{stepCount.toLocaleString()}</span>
+                        </div>
+                        <div className="h-1.5 w-full bg-border/20 rounded-full mt-1 overflow-hidden">
+                          <div className="h-full bg-orange-500 rounded-full" style={{ width: `${Math.min(100, (stepCount/10000)*100)}%` }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-xs font-medium text-text-sec/40 mt-8 uppercase tracking-widest">{t('energy.appleWatch')}</div>
+                )}
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <input
-                  type="text" inputMode="decimal"
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
-                  onBlur={() => setAmount(v => resolveExpr(v))}
-                  placeholder={
-                    usePieces
-                      ? (selectedFood.piece_grams
-                          ? `${t('common.pieces')} (${selectedFood.piece_grams}g)`
-                          : `${t('dash.packsPlaceholder')}${pieceSize != null ? ` (${pieceSize}g)` : ''}`)
-                      : t('common.grams')
-                  }
-                  className={`w-32 ${inputCls}`}
-                />
-                {(selectedFood.piece_grams || (selectedFood.packages?.length ?? 0) > 0) && (
-                  <button type="button" onClick={() => { setUsePieces(v => !v); setAmount(''); }} className="text-xs text-accent underline cursor-pointer">
-                    {usePieces ? t('dash.switchToGrams') : (selectedFood.piece_grams ? t('dash.switchToPieces') : t('dash.switchToPacks'))}
+
+              {/* WATER */}
+              <div className="bg-card shadow-sm sm:rounded-3xl lg:rounded-[32px] p-6 lg:p-8 flex flex-col relative overflow-hidden group">
+                <div className="absolute -right-16 -top-16 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl group-hover:bg-blue-500/10 transition-all duration-700 pointer-events-none" />
+                
+                <div className="flex items-start justify-between mb-6 relative z-10">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500">💧</div>
+                    <span className="text-[11px] font-bold text-text-sec/60 uppercase tracking-widest">{t('dash.water')}</span>
+                  </div>
+                  <div className="text-sm font-bold text-blue-500 bg-blue-500/10 px-3 py-1 rounded-full tabular-nums">{Math.round(waterTotal)} ml</div>
+                </div>
+                
+                <div className="flex items-center justify-between flex-1 gap-6 relative z-10">
+                  {/* Apple Watch Style Activity Ring for Water */}
+                  <div className="relative w-32 h-32 flex-shrink-0 flex items-center justify-center">
+                    <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                      <circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" strokeWidth="12" className="text-border/30" />
+                      <circle
+                        cx="50" cy="50" r="42" fill="none" strokeWidth="12"
+                        stroke={waterPct >= 100 ? 'var(--green)' : 'var(--color-blue-500)'}
+                        strokeLinecap="round"
+                        strokeDasharray="263.89"
+                        strokeDashoffset={263.89 * (1 - Math.min(1, waterPct / 100))}
+                        className="transition-all duration-1000 ease-[cubic-bezier(0.32,0.72,0,1)]"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className={`text-2xl font-bold tabular-nums tracking-tight ${waterPct >= 100 ? 'text-green' : 'text-blue-500'}`}>{waterPct}%</span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-2 w-full max-w-[120px]">
+                    {[250, 500].map(ml => (
+                      <button key={ml} onClick={() => addWater(ml)} className="py-2.5 flex items-center justify-center rounded-xl bg-blue-500/5 text-blue-600 text-xs font-bold hover:bg-blue-500/15 active:scale-95 transition-all">
+                        + {ml} ml
+                      </button>
+                    ))}
+                    <button onClick={() => setWaterCustomOpen(true)} className="py-2.5 flex items-center justify-center rounded-xl bg-bg border border-border/40 text-text-sec text-xs font-bold hover:bg-card hover:text-text active:scale-95 transition-all">
+                      {t('dash.custom')}
+                    </button>
+                  </div>
+                </div>
+                
+                {waterEntries.length > 0 && (
+                   <div className="mt-6 pt-4 border-t border-border/10 flex flex-col gap-2 relative z-10 w-full">
+                     <button onClick={() => setWaterExpanded(e => !e)} className="text-[10px] uppercase font-bold tracking-widest text-text-sec/50 w-full text-left flex items-center justify-between group-hover:text-text-sec transition-colors">
+                       <span>{t('dash.history')}</span>
+                       <span className={`transition-transform duration-300 ${waterExpanded ? 'rotate-180' : ''}`}>▼</span>
+                     </button>
+                     {waterExpanded && (
+                       <div className="flex flex-col gap-1 mt-2 max-h-24 overflow-y-auto">
+                         {waterEntries.map(e => (
+                           <div key={e.id} className="flex items-center justify-between text-xs text-text-sec bg-bg/60 rounded-lg px-3 py-2">
+                             <span className="font-medium text-text">{Math.round(e.ml)} ml</span>
+                             <button onClick={() => deleteWater(e.id)} className="text-text-sec/40 hover:text-red transition-colors">✕</button>
+                           </div>
+                         ))}
+                       </div>
+                     )}
+                   </div>
+                )}
+              </div>
+
+              {/* ENERGY INPUTS STRIP */}
+              <div className="md:col-span-2 bg-card shadow-sm sm:rounded-3xl lg:rounded-[32px] p-6 lg:p-8 flex flex-col gap-6 relative overflow-hidden group">
+                <div className="flex lg:hidden items-center gap-2 mb-2">
+                    <div className="text-xs uppercase tracking-widest font-semibold text-text-sec/60">{t('energy.appleWatch')} Inputs</div>
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+                  {[
+                    { label: t('energy.resting'), value: restingKcal, setter: setRestingKcal, sub: restingFromYest ? t('energy.fromYest') : null, mode: 'decimal' as const },
+                    { label: t('energy.active'), value: activeKcal, setter: setActiveKcal, mode: 'decimal' as const },
+                    { label: t('energy.extra'), value: extraKcal, setter: setExtraKcal, mode: 'decimal' as const },
+                    { label: t('energy.steps'), value: steps, setter: (v:string)=>setSteps(v.replace(/[^0-9]/g, '')), mode: 'numeric' as const },
+                  ].map((input, idx) => (
+                    <div key={idx} className="flex flex-col gap-2 relative">
+                      <label className="text-[10px] uppercase tracking-widest font-semibold text-text-sec/60">{input.label}</label>
+                      <input
+                        type="text" inputMode={input.mode} value={input.value}
+                        onChange={e => { input.setter(e.target.value); if (idx===0) setRestingFromYest(false); }}
+                        onBlur={handleEnergySave}
+                        className="w-full bg-bg border border-border/40 rounded-xl py-3 px-4 text-sm font-medium text-text outline-none focus:border-border/80 transition-all font-mono"
+                        placeholder="0"
+                      />
+                      {input.sub && <span className="absolute -bottom-5 left-1 text-[9px] uppercase font-medium text-accent/70 tracking-wider">{input.sub}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Log food section — OPEN AREA, no card */}
+          <section className="flex flex-col gap-5">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-black text-text tracking-tight">{t('dash.logFood')}</h2>
+                {pantries.length > 1 && (
+                  <select
+                    value={logPantryId || ''}
+                    onChange={(e) => selectPantry(Number(e.target.value))}
+                    className="text-xs bg-card border border-border rounded-lg px-3 py-1.5 text-text-sec outline-none focus:border-accent transition-colors"
+                  >
+                    {pantries.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                )}
+              </div>
+
+              <div className="relative group">
+                <FoodSearch key={searchKey} items={searchItems} onSelect={handleSelect} onClear={handleClear} placeholder={t('dash.searchPlaceholder')} pantryId={logPantryId} />
+              </div>
+
+              {!selectedFood && !selectedRecipe && (
+                <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
+                  {favorites.length > 0 && (
+                    <div className="flex gap-2 pr-4 border-r border-border/20">
+                      {favorites.map(f => (
+                        <button key={f.id} onClick={() => quickLog(f)} className="flex-shrink-0 text-xs px-4 py-2.5 rounded-xl bg-accent/5 border border-accent/20 text-accent hover:bg-accent/10 active:scale-95 transition-all font-bold">
+                          ★ {f.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    {frequent.slice(0, 6).map(f => (
+                      <button key={f.id} onClick={() => quickLog(f)} className="flex-shrink-0 text-xs px-4 py-2.5 rounded-xl bg-card/40 border border-border/40 text-text-sec hover:border-text-sec/60 hover:text-text active:scale-95 transition-all font-medium">
+                        {f.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedFood && (
+                <div className="bg-card border border-accent/20 shadow-xl shadow-accent/5 rounded-3xl p-6 mt-2 animate-spring-up overflow-hidden relative">
+                  <div className="absolute top-0 right-0 p-4">
+                    <button onClick={handleClear} className="text-text-sec hover:text-text transition-colors">✕</button>
+                  </div>
+                  <h3 className="font-black text-2xl text-text mb-6 tracking-tight">{selectedFood.name}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div className="space-y-4">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-[10px] uppercase tracking-widest font-bold text-text-sec/60 ml-1">{usePieces ? (selectedFood.piece_grams ? t('common.pieces') : t('dash.packsPlaceholder')) : t('common.grams')}</label>
+                        <input
+                          type="text" inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} onBlur={() => setAmount(v => resolveExpr(v))}
+                          placeholder="0"
+                          className="bg-bg border-2 border-border/40 rounded-2xl px-5 py-4 text-2xl font-black text-text outline-none focus:border-accent transition-all w-full tabular-nums" autoFocus
+                        />
+                      </div>
+                      <MealPills selected={meal} onChange={setMeal} />
+                    </div>
+                    
+                    <div className="bg-bg/40 rounded-2xl border border-border/40 p-5 flex flex-col justify-center gap-4">
+                      {effectiveGrams > 0 ? (() => {
+                        const r = effectiveGrams / 100;
+                        return (
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="flex flex-col">
+                              <span className="text-3xl font-black text-text tabular-nums leading-none">{Math.round(selectedFood.calories * r)}</span>
+                              <span className="text-[10px] uppercase tracking-wider font-bold text-text-sec/60 mt-1">kcal</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xl font-bold text-text tabular-nums leading-none">{Math.round(selectedFood.protein * r * 10)/10}g</span>
+                              <span className="text-[10px] uppercase tracking-wider font-bold text-text-sec/60 mt-1">Proteine</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xl font-bold text-text tabular-nums leading-none">{Math.round(selectedFood.carbs * r * 10)/10}g</span>
+                              <span className="text-[10px] uppercase tracking-wider font-bold text-text-sec/60 mt-1">Carboidrati</span>
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xl font-bold text-text tabular-nums leading-none">{Math.round(selectedFood.fat * r * 10)/10}g</span>
+                              <span className="text-[10px] uppercase tracking-wider font-bold text-text-sec/60 mt-1">Grassi</span>
+                            </div>
+                          </div>
+                        );
+                      })() : (
+                        <div className="text-center py-4">
+                          <span className="text-sm text-text-sec/60 italic">{t('common.per100g')}: <span className="text-text font-bold">{selectedFood.calories}</span> kcal</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <button onClick={() => handleLogFood(planMode ? 'planned' : 'logged')} disabled={!effectiveGrams} className="w-full bg-accent text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-accent/20 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 transition-all">
+                    {planMode ? t('dash.addToPlan') : t('common.add')}
+                  </button>
+                </div>
+              )}
+
+              {selectedRecipe && (() => {
+                const recipeTotals = selectedRecipe.ingredients.reduce((acc, ing) => {
+                  const r = ing.editGrams / ing.grams;
+                  return { cal: acc.cal + ing.calories * r, protein: acc.protein + ing.protein * r, carbs: acc.carbs + ing.carbs * r, fat: acc.fat + ing.fat * r, fiber: acc.fiber + (ing.fiber || 0) * r };
+                }, { cal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
+                const rt = { cal: Math.round(recipeTotals.cal), protein: Math.round(recipeTotals.protein * 10) / 10, carbs: Math.round(recipeTotals.carbs * 10) / 10, fat: Math.round(recipeTotals.fat * 10) / 10, fiber: Math.round(recipeTotals.fiber * 10) / 10 };
+                return (
+                  <div className="bg-card border border-accent/20 shadow-xl shadow-accent/5 rounded-3xl p-6 mt-2 animate-spring-up flex flex-col gap-6">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="font-black text-2xl text-text tracking-tight">{selectedRecipe.name}</h4>
+                        <div className="flex gap-3 text-xs text-text-sec tabular-nums mt-2 font-bold uppercase tracking-wider">
+                          <span className="text-text">{rt.cal} kcal</span>
+                          <span>F {rt.fat}g</span>
+                          <span>C {rt.carbs}g</span>
+                          <span>P {rt.protein}g</span>
+                        </div>
+                      </div>
+                      <button onClick={handleClear} className="text-text-sec hover:text-text transition-colors">✕</button>
+                    </div>
+                    
+                    <div className="flex flex-col gap-2 max-h-72 overflow-y-auto pr-2 custom-scrollbar">
+                      {selectedRecipe.ingredients.map((ing, i) => {
+                        const ratio = ing.editGrams / ing.grams;
+                        const ingCal = Math.round(ing.calories * ratio);
+                        return (
+                          <div key={ing.id} className="flex items-center gap-4 bg-bg/40 rounded-2xl border border-border/40 p-4 hover:border-border transition-colors">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-bold text-text truncate">{ing.name}</div>
+                              <div className="text-[10px] uppercase tracking-widest font-bold text-text-sec/60 mt-1">{ingCal} kcal</div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text" inputMode="decimal" value={ing.editGrams} min={0} step={0.1}
+                                onChange={e => { const val = parseFloat(e.target.value) || 0; setSelectedRecipe(r => r ? { ...r, ingredients: r.ingredients.map((x, j) => j === i ? { ...x, editGrams: val } : x) } : r); }}
+                                className="w-20 bg-bg border-2 border-border/40 rounded-xl py-2 px-3 text-sm font-black text-center focus:border-accent transition-all tabular-nums"
+                              />
+                              <span className="text-[10px] font-black text-text-sec">G</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="pt-2">
+                      <MealPills selected={meal} onChange={setMeal} />
+                    </div>
+
+                    <button onClick={() => handleLogRecipe(planMode ? 'planned' : 'logged')} className="w-full bg-accent text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-accent/20 hover:scale-[1.01] active:scale-[0.99] transition-all">
+                      {planMode ? t('dash.addToPlan') : t('dash.logRecipe')}
+                    </button>
+                  </div>
+                );
+              })()}
+            </section>
+
+            {/* Diary / Entry Table — Subtle background, no heavy card */}
+            <section className="flex flex-col gap-5">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-black text-text tracking-tight">{t('dash.todayEntries')}</h2>
+                {plannedEntries.some(e => e.meal === 'Lunch' || e.meal === 'Dinner') && (
+                  <button onClick={handleSwapLunchDinner} className="text-[10px] uppercase tracking-[0.15em] font-bold text-text-sec hover:text-accent transition-colors">
+                    {t('dash.swapLunchDinner')}
                   </button>
                 )}
               </div>
-              {usePieces && !selectedFood.piece_grams && (selectedFood.packages?.length ?? 0) > 1 && (
-                <div className="flex items-center gap-2 flex-wrap text-xs">
-                  <span className="text-text-sec">{t('dash.packPicker')}:</span>
-                  {selectedFood.packages!.map(pkg => (
-                    <button
-                      key={pkg.id}
-                      type="button"
-                      onClick={() => setSelectedPackId(pkg.id)}
-                      className={`px-3 py-1 rounded-full border cursor-pointer transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] ${
-                        selectedPackId === pkg.id ? 'border-accent text-accent bg-accent/10' : 'border-border text-text-sec hover:text-text'
-                      }`}
-                    >
-                      {Math.round(pkg.grams)}g
-                    </button>
-                  ))}
-                </div>
-              )}
-              <MealPills selected={meal} onChange={setMeal} />
-              <div className="flex gap-2 flex-wrap items-center">
-                {(planMode ? ['planned', 'logged'] : ['logged', 'planned'] as const).map((status, i) => (
-                  <button
-                    key={status}
-                    onClick={() => handleLogFood(status as 'logged' | 'planned')}
-                    disabled={!effectiveGrams}
-                    className={`px-5 py-2 rounded-full text-sm font-medium cursor-pointer disabled:opacity-40 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] ${
-                      i === 0 ? 'bg-accent text-white hover:opacity-90' : 'border border-border text-text-sec hover:text-text'
-                    }`}
-                  >
-                    {status === 'logged' ? t('common.add') : t('dash.addToPlan')}
+              
+              <div className="bg-card/30 border border-border/30 rounded-3xl p-2 md:p-4">
+                {entries.length === 0 ? (
+                  <div className="py-16 text-center">
+                    <div className="text-4xl mb-4 opacity-20">🍽️</div>
+                    <p className="text-sm font-medium text-text-sec/50">{t('dash.nothingLogged')}</p>
+                  </div>
+                ) : (
+                  <EntryTable entries={entries} foods={foods} onRefresh={load} onConfirm={handleConfirmPlanned} />
+                )}
+              </div>
+            </section>
+
+            {/* Accordions — Grouped and cleaner */}
+            <div className="flex flex-col gap-4 mt-4">
+              {[
+                {
+                  key: 'supplements', icon: '💊', title: t('suppl.dashTitle'), collapsed: supplementsCollapsed, toggle: () => setSupplementsCollapsed(!supplementsCollapsed),
+                  content: supplements.length > 0 ? (
+                    <div className="space-y-6">
+                      {SUPPLEMENT_TIME_ORDER.map(slot => {
+                        const group = supplements.filter(s => (s.time_of_day ?? 'breakfast') === slot);
+                        if (group.length === 0) return null;
+                        return (
+                          <div key={slot} className="flex flex-col gap-3">
+                            <div className="text-[10px] uppercase tracking-[0.2em] font-black text-accent/60">{t(`suppl.time.${slot}`)}</div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {group.map(s => {
+                                const done = s.taken >= s.qty;
+                                return (
+                                  <div key={s.id} className={`flex items-center justify-between gap-4 p-4 rounded-2xl border transition-all ${done ? 'bg-bg/40 border-border/20 opacity-50' : 'bg-card border-border/60 hover:border-accent/40'}`}>
+                                    <span className={`text-sm font-bold ${done ? 'text-text-sec line-through' : 'text-text'}`}>{s.name}</span>
+                                    <button disabled={done} onClick={() => handleTakeSuppl(s.id)}
+                                      className={`text-xs px-4 py-2 rounded-xl font-black transition-all ${done ? 'text-text-sec/40 bg-border/20' : 'text-accent bg-accent/10 hover:bg-accent/20 active:scale-95'}`}>
+                                      {s.taken} / {s.qty}
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-text-sec/50 italic text-center py-8">
+                      {t('suppl.noSupplements')} — <button onClick={() => navigate('supplements')} className="text-accent font-bold hover:underline">{t('suppl.manage')}</button>
+                    </div>
+                  )
+                },
+                {
+                  key: 'exercise', icon: '🏋️', title: t('exercise.title'), collapsed: exerciseCollapsed, toggle: () => setExerciseCollapsed(!exerciseCollapsed),
+                  content: <ExerciseSection date={dateStr} weightKg={weightKg} onCaloriesChange={() => {}} />
+                },
+                {
+                  key: 'notes', icon: '📝', title: t('dash.notes'), collapsed: notesCollapsed, toggle: () => setNotesCollapsed(!notesCollapsed),
+                  content: (
+                    <textarea value={note} onChange={e => handleNoteChange(e.target.value)} placeholder={t('dash.notesPlaceholder')} rows={5}
+                      className="w-full bg-bg border-2 border-border/40 rounded-2xl px-5 py-4 text-sm font-medium text-text outline-none focus:border-accent transition-all placeholder:text-text-sec/30 resize-none"
+                    />
+                  )
+                },
+              ].map(({ key, icon, title, collapsed, toggle, content }) => (
+                <div key={key} className={`bg-card/40 border rounded-3xl overflow-hidden transition-all ${collapsed ? 'border-border/20' : 'border-border/60 shadow-lg'}`}>
+                  <button onClick={toggle} className="w-full flex items-center justify-between px-6 py-5 hover:bg-card/60 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <span className="text-xl filter grayscale contrast-125">{icon}</span>
+                      <span className="text-sm font-black text-text uppercase tracking-wider">{title}</span>
+                    </div>
+                    <svg className={`w-4 h-4 text-text-sec transition-transform duration-500 ${collapsed ? '' : 'rotate-180'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M19 9l-7 7-7-7" /></svg>
                   </button>
-                ))}
-                <button onClick={handleClear} className="border border-border text-text-sec px-5 py-2 rounded-full text-sm cursor-pointer hover:text-text transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]">{t('common.cancel')}</button>
-              </div>
-            </div>
-          )}
-
-          {/* Recipe editor */}
-          {selectedRecipe && (() => {
-            const recipeTotals = selectedRecipe.ingredients.reduce((acc, ing) => {
-              const r = ing.editGrams / ing.grams;
-              return { cal: acc.cal + ing.calories * r, protein: acc.protein + ing.protein * r, carbs: acc.carbs + ing.carbs * r, fat: acc.fat + ing.fat * r, fiber: acc.fiber + (ing.fiber || 0) * r };
-            }, { cal: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 });
-            const rt = { cal: Math.round(recipeTotals.cal), protein: Math.round(recipeTotals.protein * 10) / 10, carbs: Math.round(recipeTotals.carbs * 10) / 10, fat: Math.round(recipeTotals.fat * 10) / 10, fiber: Math.round(recipeTotals.fiber * 10) / 10 };
-            return (
-              <div className="flex flex-col gap-3 p-4 bg-bg rounded-2xl ring-1 ring-border/40">
-                <div>
-                  <h4 className="text-sm font-semibold text-text">{selectedRecipe.name}</h4>
-                  <p className="text-xs text-text-sec tabular-nums mt-0.5">{rt.cal} kcal · F {rt.fat}g · C {rt.carbs}g{rt.fiber > 0 ? ` · Fi ${rt.fiber}g` : ''} · P {rt.protein}g</p>
+                  {!collapsed && <div className="px-6 pb-6 pt-2 border-t border-border/10 animate-fade-in">{content}</div>}
                 </div>
-                <div className="flex flex-col gap-2 max-h-56 overflow-y-auto">
-                  {selectedRecipe.ingredients.map((ing, i) => {
-                    const ratio = ing.editGrams / ing.grams;
-                    const ingCal = Math.round(ing.calories * ratio);
-                    const ingP = Math.round(ing.protein * ratio * 10) / 10;
-                    const ingC = Math.round(ing.carbs * ratio * 10) / 10;
-                    const ingF = Math.round(ing.fat * ratio * 10) / 10;
-                    return (
-                      <div key={ing.id} className="flex items-center gap-2 bg-card rounded-xl px-3 py-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm text-text truncate">{ing.name}</div>
-                          <div className="text-[11px] text-text-sec tabular-nums">{ingCal} kcal · F {ingF} · C {ingC} · P {ingP}</div>
-                        </div>
-                        <input
-                          type="text" inputMode="decimal" value={ing.editGrams} min={0} step={0.1}
-                          onChange={e => { const val = parseFloat(e.target.value) || 0; setSelectedRecipe(r => r ? { ...r, ingredients: r.ingredients.map((x, j) => j === i ? { ...x, editGrams: val } : x) } : r); }}
-                          className={`w-20 ${inputCls}`}
-                        />
-                        <span className="text-xs text-text-sec">g</span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <MealPills selected={meal} onChange={setMeal} />
-                <div className="flex gap-2 flex-wrap">
-                  {(planMode ? ['planned', 'logged'] : ['logged', 'planned'] as const).map((status, i) => (
-                    <button key={status} onClick={() => handleLogRecipe(status as 'logged' | 'planned')}
-                      className={`px-5 py-2 rounded-full text-sm font-medium cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] ${i === 0 ? 'bg-accent text-white hover:opacity-90' : 'border border-border text-text-sec hover:text-text'}`}>
-                      {status === 'logged' ? t('dash.logRecipe') : t('dash.addToPlan')}
-                    </button>
-                  ))}
-                  <button onClick={handleClear} className="border border-border text-text-sec px-5 py-2 rounded-full text-sm cursor-pointer hover:text-text transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]">{t('common.cancel')}</button>
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-      </div>
-
-      {/* ── ENTRY TABLE — double-bezel ──────────────────────────────── */}
-      <div className="p-1.5 rounded-[1.75rem] ring-1 ring-border/50 bg-card/30">
-        <div className="bg-card rounded-[calc(1.75rem-6px)] p-5 flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-text-sec/40">{t('dash.todayEntries')}</span>
-            {plannedEntries.some(e => e.meal === 'Lunch' || e.meal === 'Dinner') && (
-              <button
-                onClick={handleSwapLunchDinner}
-                className="text-xs text-text-sec border border-border rounded-full px-3 py-1.5 hover:border-accent/40 hover:text-text cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]"
-              >
-                {t('dash.swapLunchDinner')}
-              </button>
-            )}
-          </div>
-          {entries.length === 0
-            ? <p className="text-text-sec/50 text-sm py-6 text-center">{t('dash.nothingLogged')}</p>
-            : <EntryTable entries={entries} foods={foods} onRefresh={load} onConfirm={handleConfirmPlanned} />}
-        </div>
-      </div>
-
-      {/* ── MACROS ─────────────────────────────────────────────────── */}
-      <DayMacrosCard entries={entries} />
-
-      {/* ── ENERGY + WATER — 2-col bento ───────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Energy — double-bezel */}
-        <div className="p-1.5 rounded-[1.75rem] ring-1 ring-border/50 bg-card/30">
-          <div className="bg-card rounded-[calc(1.75rem-6px)] p-5 flex flex-col gap-4 h-full">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-text-sec/40">{t('energy.title')}</span>
-              <span className="text-[10px] text-text-sec/30">{t('energy.appleWatch')}</span>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className={`text-4xl font-black tabular-nums tracking-tight transition-colors duration-500 ${
-                !hasEnergyData ? 'text-text-sec/20' : netKcal < 0 ? 'text-green' : 'text-accent'
-              }`}>
-                {hasEnergyData ? `${netKcal > 0 ? '+' : ''}${netKcal}` : '—'}
-              </span>
-              {hasEnergyData && <span className="text-xs text-text-sec/60">kcal {t('energy.net')}</span>}
-            </div>
-            {hasEnergyData && (
-              <div className="flex gap-4 text-xs text-text-sec flex-wrap">
-                <span>{t('energy.foodIn')}: <span className="text-text tabular-nums font-medium">{caloriesIn}</span></span>
-                <span>{t('energy.out')}: <span className="text-text tabular-nums font-medium">
-                  {(() => {
-                    const parts = [energyResting > 0 ? String(energyResting) : null, energyActive > 0 ? String(energyActive) : null, energyExtra > 0 ? String(energyExtra) : null].filter(Boolean) as string[];
-                    if (parts.length === 0) return '0';
-                    if (parts.length === 1) return parts[0];
-                    return `${energyOut} (${parts.join(' + ')})`;
-                  })()}
-                </span></span>
-                {stepCount > 0 && <span>{t('energy.steps')}: <span className="text-text tabular-nums font-medium">{stepCount.toLocaleString()}</span></span>}
-              </div>
-            )}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-auto">
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] uppercase tracking-wider text-text-sec/40 text-center">{t('energy.resting')}</label>
-                <input type="text" inputMode="decimal" value={restingKcal} onChange={e => { setRestingKcal(e.target.value); setRestingFromYest(false); }} onBlur={handleEnergySave} placeholder="0" className={numInputCls} />
-                {restingFromYest && <span className="text-[10px] text-text-sec/40 text-center">{t('energy.fromYest')}</span>}
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] uppercase tracking-wider text-text-sec/40 text-center">{t('energy.active')}</label>
-                <input type="text" inputMode="decimal" value={activeKcal} onChange={e => setActiveKcal(e.target.value)} onBlur={handleEnergySave} placeholder="0" className={numInputCls} />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] uppercase tracking-wider text-text-sec/40 text-center" title={t('energy.extraHint')}>{t('energy.extra')}</label>
-                <input type="text" inputMode="decimal" value={extraKcal} onChange={e => setExtraKcal(e.target.value)} onBlur={handleEnergySave} placeholder="0" className={numInputCls} />
-              </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] uppercase tracking-wider text-text-sec/40 text-center">{t('energy.steps')}</label>
-                <input type="text" inputMode="numeric" value={steps} onChange={e => setSteps(e.target.value.replace(/[^0-9]/g, ''))} onBlur={handleEnergySave} placeholder="0" className={numInputCls} />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Water — double-bezel */}
-        <div className="p-1.5 rounded-[1.75rem] ring-1 ring-border/50 bg-card/30">
-          <div className="bg-card rounded-[calc(1.75rem-6px)] p-5 flex flex-col gap-4 h-full">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-text-sec/40">{t('dash.water')}</span>
-              <span className="text-xs text-text-sec/60 tabular-nums">{Math.round(waterTotal)} / {waterGoal} ml</span>
-            </div>
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-0.5 h-1.5">
-                {Array.from({ length: 10 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className={`flex-1 rounded-full transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${(i + 1) * 10 <= waterPct ? 'bg-accent' : 'bg-border'}`}
-                  />
-                ))}
-              </div>
-              <span className="text-xs text-text-sec/50">{waterPct}%{waterPct >= 100 ? ' 🎯' : ''}</span>
-            </div>
-            <div className="flex gap-2 flex-wrap mt-auto">
-              {[250, 500, 1000].map(ml => (
-                <button key={ml} onClick={() => addWater(ml)} className="text-xs px-3 py-1.5 rounded-full border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]">
-                  +{ml >= 1000 ? '1L' : `${ml}ml`}
-                </button>
               ))}
-              <button onClick={() => setWaterCustomOpen(true)} className="text-xs px-3 py-1.5 rounded-full border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]">{t('dash.custom')}</button>
-              {waterEntries.length > 0 && (
-                <button onClick={() => setWaterExpanded(e => !e)} className="text-xs px-3 py-1.5 rounded-full border border-border text-text-sec cursor-pointer ml-auto transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]">
-                  {t('dash.history')} {waterExpanded ? '▲' : '▼'}
-                </button>
-              )}
             </div>
-            {waterExpanded && waterEntries.length > 0 && (
-              <div className="flex flex-col gap-1">
-                {waterEntries.map(e => (
-                  <div key={e.id} className="flex items-center gap-2 text-xs text-text-sec">
-                    <span className="tabular-nums">{Math.round(e.ml)}ml</span>
-                    <span className="text-text-sec/40">{e.source === 'manual' ? t('water.manual') : `↩ ${e.source}`}</span>
-                    <button onClick={() => deleteWater(e.id)} className="ml-auto text-text-sec/40 hover:text-red cursor-pointer transition-colors duration-300">✕</button>
-                  </div>
-                ))}
-              </div>
-            )}
+
           </div>
-        </div>
       </div>
 
-      {/* ── SECONDARY SECTIONS — collapsible double-bezel ──────────── */}
-      <div className="flex flex-col gap-3">
-        {[
-          {
-            key: 'supplements',
-            title: t('suppl.dashTitle'),
-            collapsed: supplementsCollapsed,
-            toggle: () => setSupplementsCollapsed(v => !v),
-            content: supplements.length > 0 ? (
-              SUPPLEMENT_TIME_ORDER.map(slot => {
-                const group = supplements.filter(s => (s.time_of_day ?? 'breakfast') === slot);
-                if (group.length === 0) return null;
-                return (
-                  <div key={slot} className="flex flex-col gap-1.5">
-                    <div className="text-[10px] uppercase tracking-[0.15em] text-text-sec/40">{t(`suppl.time.${slot}`)}</div>
-                    {group.map(s => {
-                      const done = s.taken >= s.qty;
-                      return (
-                        <div key={s.id} className="flex items-center justify-between gap-2">
-                          <span className={`text-sm ${done ? 'text-text-sec line-through' : 'text-text'}`}>{s.name}</span>
-                          <button disabled={done} onClick={() => handleTakeSuppl(s.id)}
-                            className={`text-xs px-3 py-1 rounded-full cursor-pointer transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97] ${done ? 'text-text-sec/40' : 'text-accent border border-accent/30 hover:bg-accent/8'}`}>
-                            {s.taken}/{s.qty}
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })
-            ) : (
-              <div className="text-xs text-text-sec/40 italic">
-                {t('suppl.noSupplements')} — <button onClick={() => navigate('supplements')} className="text-accent underline cursor-pointer">{t('suppl.manage')}</button>
-              </div>
-            ),
-          },
-          {
-            key: 'exercise',
-            title: t('exercise.title'),
-            collapsed: exerciseCollapsed,
-            toggle: () => setExerciseCollapsed(v => !v),
-            content: <ExerciseSection date={dateStr} weightKg={weightKg} onCaloriesChange={() => {}} />,
-          },
-          {
-            key: 'notes',
-            title: t('dash.notes'),
-            collapsed: notesCollapsed,
-            toggle: () => setNotesCollapsed(v => !v),
-            content: (
-              <textarea
-                value={note}
-                onChange={e => handleNoteChange(e.target.value)}
-                placeholder={t('dash.notesPlaceholder')}
-                rows={3}
-                className="w-full bg-bg border border-border/40 rounded-2xl px-4 py-3 text-sm text-text outline-none focus:border-accent resize-none placeholder:text-text-sec/30 transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
-              />
-            ),
-          },
-        ].map(({ key, title, collapsed, toggle, content }) => (
-          <div key={key} className="p-1.5 rounded-[1.75rem] ring-1 ring-border/50 bg-card/30">
-            <div className="bg-card rounded-[calc(1.75rem-6px)] overflow-hidden">
-              <button
-                onClick={toggle}
-                className="w-full flex items-center justify-between px-5 py-4 hover:bg-card-hover transition-colors duration-300 cursor-pointer"
-              >
-                <span className="text-[10px] uppercase tracking-[0.2em] font-semibold text-text-sec/40">{title}</span>
-                <span className={`text-text-sec/30 text-xs transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] ${collapsed ? '' : 'rotate-180'}`}>▼</span>
-              </button>
-              {!collapsed && (
-                <div className="px-5 pb-5 flex flex-col gap-3 border-t border-border/20 pt-4">
-                  {content}
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── DIALOGS ─────────────────────────────────────────────────── */}
+      {/* ── DIALOGS E MODALS ────────────────────────────────────────── */}
       <QuickFoodDialog isOpen={quickFoodOpen} onClose={() => setQuickFoodOpen(false)} date={dateStr} meal={meal} onLogged={load} />
 
       <SwapDaysModal
@@ -976,14 +926,14 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
       />
 
       <Modal isOpen={waterCustomOpen} onClose={() => setWaterCustomOpen(false)} title={t('water.addWater')}>
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs text-text-sec">{t('water.amountMl')}</label>
-            <input type="text" inputMode="decimal" value={waterCustomMl} onChange={e => setWaterCustomMl(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleWaterCustom()} autoFocus className={`w-full ${inputCls}`} />
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-semibold text-text-sec">{t('water.amountMl')}</label>
+            <input type="text" inputMode="decimal" value={waterCustomMl} onChange={e => setWaterCustomMl(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleWaterCustom()} autoFocus className={inputCls} placeholder="es. 330" />
           </div>
-          <div className="flex justify-end gap-2">
-            <button onClick={() => setWaterCustomOpen(false)} className="px-4 py-2 text-sm text-text-sec border border-border rounded-full cursor-pointer transition-colors duration-300">{t('common.cancel')}</button>
-            <button onClick={handleWaterCustom} disabled={!waterCustomMl} className="px-4 py-2 text-sm bg-accent text-white rounded-full cursor-pointer hover:opacity-90 disabled:opacity-40 font-medium transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] active:scale-[0.97]">{t('common.add')}</button>
+          <div className="flex justify-end gap-2 mt-2">
+            <button onClick={() => setWaterCustomOpen(false)} className="px-5 py-2.5 text-sm text-text-sec border border-border bg-card rounded-xl font-medium transition-colors hover:bg-border/30">{t('common.cancel')}</button>
+            <button onClick={handleWaterCustom} disabled={!waterCustomMl} className="px-5 py-2.5 text-sm bg-accent text-white rounded-xl hover:opacity-90 disabled:opacity-40 font-bold transition-opacity">{t('common.add')}</button>
           </div>
         </div>
       </Modal>
