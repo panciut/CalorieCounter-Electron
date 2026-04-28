@@ -4,11 +4,12 @@ import { useToast } from '../components/Toast';
 import { useSettings } from '../hooks/useSettings';
 import { api } from '../api';
 import BarcodeScanner from '../components/BarcodeScanner';
+import FoodNameSearch from '../components/FoodNameSearch';
 import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import FoodSearch from '../components/FoodSearch';
 import type { SearchItem } from '../components/FoodSearch';
-import type { Food, BarcodeResult, FoodPackage } from '../types';
+import type { Food, BarcodeResult, BarcodeSearchResult, FoodPackage } from '../types';
 import { PRESETS, PresetKey, INPUT_CLASS, PRESET_LABELS } from '../lib/foodPresets';
 
 interface FoodFormState {
@@ -82,6 +83,7 @@ export default function FoodsPage() {
   const [barcodeInput, setBarcodeInput] = useState('');
   const [barcodeStatus, setBarcodeStatus] = useState<'found'|'notFound'|null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannerTab, setScannerTab] = useState<'scan' | 'search'>('scan');
   const [formOpen, setFormOpen] = useState(true);
   const [detailMode, setDetailMode] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -159,10 +161,16 @@ export default function FoodsPage() {
   }
 
   async function handleScanResult(barcode: string) {
-    setScannerOpen(false); setBarcodeInput(barcode); setBarcodeStatus(null); setPackFromBarcode(null);
+    setScannerOpen(false); setScannerTab('scan'); setBarcodeInput(barcode); setBarcodeStatus(null); setPackFromBarcode(null);
     const r = await api.barcode.lookup(barcode);
     if (r) applyBarcodeResult(r, barcode);
     else setBarcodeStatus('notFound');
+  }
+
+  function handleNameSearchResult(r: BarcodeSearchResult) {
+    setScannerOpen(false);
+    setScannerTab('scan');
+    applyBarcodeResult(r, r.barcode ?? '');
   }
 
   function startEdit(food: Food) { setEditId(food.id); setEditForm(foodToForm(food)); }
@@ -742,8 +750,36 @@ export default function FoodsPage() {
         </div>
       )}
 
-      <Modal isOpen={scannerOpen} onClose={()=>setScannerOpen(false)} title={t('barcode.scanTitle')}>
-        <BarcodeScanner onResult={handleScanResult} />
+      <Modal isOpen={scannerOpen} onClose={() => { setScannerOpen(false); setScannerTab('scan'); }} title={t('barcode.scanTitle')}>
+        <div className="flex gap-1 mb-4 bg-bg rounded-lg p-1">
+          <button
+            type="button"
+            onClick={() => setScannerTab('scan')}
+            className={[
+              'flex-1 flex items-center justify-center gap-1.5 text-sm py-1.5 rounded-md transition-colors cursor-pointer',
+              scannerTab === 'scan'
+                ? 'bg-card text-text font-medium shadow-sm'
+                : 'text-text-sec hover:text-text',
+            ].join(' ')}
+          >
+            📷 Scansiona
+          </button>
+          <button
+            type="button"
+            onClick={() => setScannerTab('search')}
+            className={[
+              'flex-1 flex items-center justify-center gap-1.5 text-sm py-1.5 rounded-md transition-colors cursor-pointer',
+              scannerTab === 'search'
+                ? 'bg-card text-text font-medium shadow-sm'
+                : 'text-text-sec hover:text-text',
+            ].join(' ')}
+          >
+            🔍 Cerca per nome
+          </button>
+        </div>
+
+        {scannerTab === 'scan' && <BarcodeScanner onResult={handleScanResult} />}
+        {scannerTab === 'search' && <FoodNameSearch onResult={handleNameSearchResult} />}
       </Modal>
 
       {deleteId !== null && (
