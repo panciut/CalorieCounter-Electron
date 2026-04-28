@@ -24,6 +24,8 @@ import { usePantry } from '../hooks/usePantry';
 import DeductionEventModal from '../components/DeductionEventModal';
 import QuickFoodDialog from '../components/dashboard/QuickFoodDialog';
 import SwapDaysModal from '../components/dashboard/SwapDaysModal';
+import MacroChips from '../components/ui/MacroChips';
+import { scaleNutrients } from '../lib/macroCalc';
 
 // ── Recipe editor (inline on dashboard) ──────────────────────────────────────
 
@@ -654,25 +656,29 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
           <div className="flex flex-col gap-3">
             {/* Food preview */}
             <div className="flex flex-col gap-1.5 text-xs bg-bg rounded-lg px-3 py-2">
-              <div className="flex flex-wrap gap-3 text-text-sec">
+              <div className="flex items-center gap-3 flex-wrap">
                 <span className="text-text font-medium">{selectedFood.name}</span>
-                <span>{t('common.per100g')}:</span>
-                <span><span className="text-text font-medium">{selectedFood.calories}</span> kcal</span>
-                <span><span className="text-text font-medium">{selectedFood.fat}</span>g {t('macro.fat')}</span>
-                <span><span className="text-text font-medium">{selectedFood.carbs}</span>g {t('macro.carbs')}</span>
-                {selectedFood.fiber > 0 && <span><span className="text-text font-medium">{selectedFood.fiber}</span>g {t('macro.fiber')}</span>}
-                <span><span className="text-text font-medium">{selectedFood.protein}</span>g {t('macro.protein')}</span>
+                <span className="text-text-sec">{t('common.per100g')}:</span>
+                <MacroChips
+                  calories={selectedFood.calories}
+                  protein={selectedFood.protein}
+                  carbs={selectedFood.carbs}
+                  fat={selectedFood.fat}
+                  fiber={selectedFood.fiber}
+                />
               </div>
               {effectiveGrams > 0 && (() => {
-                const r = effectiveGrams / 100;
+                const scaled = scaleNutrients(selectedFood, effectiveGrams);
                 return (
-                  <div className="flex flex-wrap gap-3 text-text-sec border-t border-border pt-1.5">
+                  <div className="flex items-center gap-3 flex-wrap border-t border-border pt-1.5">
                     <span className="text-text font-medium">{Math.round(effectiveGrams * 10) / 10}g =</span>
-                    <span><span className="text-text font-semibold">{Math.round(selectedFood.calories * r)}</span> kcal</span>
-                    <span><span className="text-text font-semibold">{Math.round(selectedFood.fat * r * 10) / 10}</span>g {t('macro.fat')}</span>
-                    <span><span className="text-text font-semibold">{Math.round(selectedFood.carbs * r * 10) / 10}</span>g {t('macro.carbs')}</span>
-                    {selectedFood.fiber > 0 && <span><span className="text-text font-semibold">{Math.round(selectedFood.fiber * r * 10) / 10}</span>g {t('macro.fiber')}</span>}
-                    <span><span className="text-text font-semibold">{Math.round(selectedFood.protein * r * 10) / 10}</span>g {t('macro.protein')}</span>
+                    <MacroChips
+                      calories={scaled.calories}
+                      protein={scaled.protein}
+                      carbs={scaled.carbs}
+                      fat={scaled.fat}
+                      fiber={scaled.fiber}
+                    />
                   </div>
                 );
               })()}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '../api';
 import Modal from './Modal';
+import ModalFooter from './ui/ModalFooter';
 import ConfirmDialog from './ConfirmDialog';
 import ExerciseDetailModal from './ExerciseDetailModal';
 import { useT } from '../i18n/useT';
@@ -476,24 +477,14 @@ function ExerciseForm({ form, setForm, onSave, onCancel, t, equipment }: FormPro
         />
       </div>
 
-      {/* Actions */}
-      <div className="flex gap-2 justify-end border-t border-border pt-3">
-        <button
-          type="button"
-          onClick={onCancel}
-          className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer"
-        >
-          {t('exercise.library.cancel')}
-        </button>
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={!form.name.trim()}
-          className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40 cursor-pointer"
-        >
-          {t('exercise.library.save')}
-        </button>
-      </div>
+      <ModalFooter
+        onCancel={onCancel}
+        onConfirm={onSave}
+        cancelLabel={t('exercise.library.cancel')}
+        confirmLabel={t('exercise.library.save')}
+        confirmDisabled={!form.name.trim()}
+        className="border-t border-border pt-3"
+      />
     </div>
   );
 }

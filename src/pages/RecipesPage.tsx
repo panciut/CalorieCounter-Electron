@@ -12,6 +12,7 @@ import { usePantry } from '../hooks/usePantry';
 import DeductionEventModal from '../components/DeductionEventModal';
 import Tabs from '../components/ui/Tabs';
 import PantryPicker from '../components/ui/PantryPicker';
+import ModalFooter from '../components/ui/ModalFooter';
 
 type PantryCheckResult = { can_make: boolean; missing: PantryIngredientCheck[] };
 
@@ -291,10 +292,12 @@ function BundlesTab() {
                 </button>
               )}
             </div>
-            <div className="flex gap-2 justify-end">
-              <button onClick={closeLogTarget} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
-              <button onClick={doLog} className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer">Log</button>
-            </div>
+            <ModalFooter
+              onCancel={closeLogTarget}
+              onConfirm={doLog}
+              cancelLabel="Cancel"
+              confirmLabel="Log"
+            />
           </div>
         </div>
       )}
@@ -365,10 +368,13 @@ function BundleDetailModal({ detail, foods, onClose, onSave, onChange }: {
         <div className="border-t border-border pt-3">
           <AddFoodRow foods={foods} onAdd={addIng} />
         </div>
-        <div className="flex gap-2 justify-end pt-1">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
-          <button onClick={onSave} className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer">Save</button>
-        </div>
+        <ModalFooter
+          onCancel={onClose}
+          onConfirm={onSave}
+          cancelLabel="Cancel"
+          confirmLabel="Save"
+          className="pt-1"
+        />
       </div>
     </div>
   );
@@ -457,14 +463,14 @@ function BundleCreateModal({ foods, onClose, onCreate, initial }: {
           )}
         </div>
 
-        <div className="flex gap-2 justify-end pt-2 border-t border-border">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
-          <button
-            onClick={() => onCreate({ name, description: desc, ingredients })}
-            disabled={!name || ingredients.length === 0}
-            className="px-5 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40 cursor-pointer"
-          >Create</button>
-        </div>
+        <ModalFooter
+          onCancel={onClose}
+          onConfirm={() => onCreate({ name, description: desc, ingredients })}
+          cancelLabel="Cancel"
+          confirmLabel="Create"
+          confirmDisabled={!name || ingredients.length === 0}
+          className="pt-2 border-t border-border"
+        />
       </div>
     </div>
   );
@@ -772,10 +778,12 @@ function RecipesTab() {
                 </button>
               )}
             </div>
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => { setLogTarget(null); setLogPantryCheck(null); }} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
-              <button onClick={doLog} className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer">Log</button>
-            </div>
+            <ModalFooter
+              onCancel={() => { setLogTarget(null); setLogPantryCheck(null); }}
+              onConfirm={doLog}
+              cancelLabel="Cancel"
+              confirmLabel="Log"
+            />
           </div>
         </div>
       )}
@@ -964,10 +972,13 @@ function RecipeDetailModal({ detail: initialDetail, foods, onClose, onSave }: {
           </div>
         )}
 
-        <div className="flex gap-2 justify-end pt-1 border-t border-border">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
-          <button onClick={() => onSave(detail)} className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer">Save</button>
-        </div>
+        <ModalFooter
+          onCancel={onClose}
+          onConfirm={() => onSave(detail)}
+          cancelLabel="Cancel"
+          confirmLabel="Save"
+          className="pt-1 border-t border-border"
+        />
       </div>
     </div>
   );
@@ -1134,22 +1145,22 @@ function RecipeCreateModal({ foods, onClose, onCreate }: {
           </div>
         )}
 
-        <div className="flex gap-2 justify-end pt-2 border-t border-border">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
-          <button
-            onClick={() => onCreate({
-              name, description: desc,
-              yield_g: parseFloat(yieldG) || 0,
-              notes,
-              prep_time_min: parseInt(prepTime) || 0,
-              cook_time_min: parseInt(cookTime) || 0,
-              tools, procedure,
-              ingredients,
-            })}
-            disabled={!name || ingredients.length === 0}
-            className="px-5 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40 cursor-pointer"
-          >Create</button>
-        </div>
+        <ModalFooter
+          onCancel={onClose}
+          onConfirm={() => onCreate({
+            name, description: desc,
+            yield_g: parseFloat(yieldG) || 0,
+            notes,
+            prep_time_min: parseInt(prepTime) || 0,
+            cook_time_min: parseInt(cookTime) || 0,
+            tools, procedure,
+            ingredients,
+          })}
+          cancelLabel="Cancel"
+          confirmLabel="Create"
+          confirmDisabled={!name || ingredients.length === 0}
+          className="pt-2 border-t border-border"
+        />
       </div>
     </div>
   );

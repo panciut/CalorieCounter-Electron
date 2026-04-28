@@ -4,6 +4,7 @@ import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import Modal from '../components/Modal';
 import Tabs from '../components/ui/Tabs';
+import ModalFooter from '../components/ui/ModalFooter';
 import { api } from '../api';
 import {
   SUPPLEMENT_TIME_ORDER,
@@ -148,17 +149,13 @@ function PlanEditor({ catalog, initialItems, onSave, onCancel, t }: PlanEditorPr
         </div>
       )}
 
-      {/* Footer */}
-      <div className="flex gap-2 justify-end border-t border-border pt-3">
-        <button
-          onClick={onCancel}
-          className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer"
-        >{t('common.cancel')}</button>
-        <button
-          onClick={handleSave}
-          className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer"
-        >{t('common.save')}</button>
-      </div>
+      <ModalFooter
+        onCancel={onCancel}
+        onConfirm={handleSave}
+        cancelLabel={t('common.cancel')}
+        confirmLabel={t('common.save')}
+        className="border-t border-border pt-3"
+      />
     </div>
   );
 }
@@ -209,17 +206,14 @@ function SupplementDetailModal({ supplement, onSave, onDelete, onClose, t }: Sup
                 className={`${inputCls} resize-none`}
               />
             </div>
-            <div className="flex gap-2 justify-end pt-1">
-              <button
-                onClick={() => { setEditing(false); setEditName(supplement.name); setEditDesc(supplement.description ?? ''); }}
-                className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer"
-              >{t('common.cancel')}</button>
-              <button
-                onClick={handleSave}
-                disabled={!editName.trim()}
-                className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer disabled:opacity-40"
-              >{t('common.save')}</button>
-            </div>
+            <ModalFooter
+              onCancel={() => { setEditing(false); setEditName(supplement.name); setEditDesc(supplement.description ?? ''); }}
+              onConfirm={handleSave}
+              cancelLabel={t('common.cancel')}
+              confirmLabel={t('common.save')}
+              confirmDisabled={!editName.trim()}
+              className="pt-1"
+            />
           </>
         ) : (
           <>

@@ -58,6 +58,15 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
     return () => { cancelled = true; };
   }, [pantryId, open]);
 
+  // Already-planned grams per food (status='planned', date >= today). Refetched
+  // when the dropdown opens so a freshly-planned food shows the right number.
+  const [plannedMap, setPlannedMap] = useState<Record<number, number>>({});
+  useEffect(() => {
+    let cancelled = false;
+    api.log.getPlannedMap().then(m => { if (!cancelled) setPlannedMap(m ?? {}); });
+    return () => { cancelled = true; };
+  }, [open]);
+
   function formatStock(s: Stock): string {
     const fmtG = (g: number) => g >= 1000
       ? `${(g / 1000).toFixed(g >= 10000 ? 0 : 1)}kg`
@@ -68,6 +77,26 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
     if (packParts.length === 0) return fmtG(s.loose_g);
     if (s.loose_g <= 0) return packParts.join(' + ');
     return [fmtG(s.loose_g), ...packParts].join(' + ');
+  }
+
+  /**
+   * Greedy-decompose a raw gram amount into (whole packs of each size descending)
+   * + a loose remainder. Mirrors the pantry stock display so planned/remaining
+   * read in the same units as the user's actual stock.
+   */
+  function decomposeGrams(grams: number, packages: { grams: number }[] | undefined): Stock {
+    if (grams <= 0) return { total_g: 0, loose_g: 0, packs: [] };
+    const sizes = [...new Set((packages ?? []).map(p => p.grams))].sort((a, b) => b - a);
+    let rem = grams;
+    const packs: { grams: number; count: number }[] = [];
+    for (const size of sizes) {
+      if (rem >= size) {
+        const count = Math.floor(rem / size);
+        packs.push({ grams: size, count });
+        rem -= count * size;
+      }
+    }
+    return { total_g: grams, loose_g: Math.round(rem * 10) / 10, packs };
   }
 
   // Sync controlled value
@@ -174,14 +203,55 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
                   {!item.isRecipe && <span className="ml-1 opacity-60">/100g</span>}
                 </div>
               </div>
-              {!item.isRecipe && pantryId != null && stockMap[item.id]?.total_g > 0 && (
-                <span
-                  className="text-[11px] px-1.5 py-0.5 rounded bg-green/15 text-green tabular-nums shrink-0"
-                  title={`In pantry: ${Math.round(stockMap[item.id].total_g)}g`}
-                >
-                  {formatStock(stockMap[item.id])}
-                </span>
-              )}
+              {!item.isRecipe && (() => {
+                const food = item as Food;
+                const stock = pantryId != null ? stockMap[item.id] : undefined;
+                const plannedG = plannedMap[item.id] ?? 0;
+                const pantryG = stock?.total_g ?? 0;
+                const planned = plannedG > 0 ? decomposeGrams(plannedG, food.packages) : null;
+                const remainingG = pantryG - plannedG;
+                // "Remaining" is only meaningful when the user has both stock and a plan.
+                const remaining = pantryG > 0 && plannedG > 0
+                  ? decomposeGrams(remainingG, food.packages)
+                  : null;
+                const shortageG = pantryG > 0 && remainingG < 0 ? -remainingG : 0;
+                return (
+                  <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end max-w-[55%]">
+                    {planned && (
+                      <span
+                        className="text-[11px] px-1.5 py-0.5 rounded bg-accent/15 text-accent tabular-nums"
+                        title={`Already planned: ${Math.round(plannedG)}g (today + future)`}
+                      >
+                        📋 {formatStock(planned)}
+                      </span>
+                    )}
+                    {stock && stock.total_g > 0 && (
+                      <span
+                        className="text-[11px] px-1.5 py-0.5 rounded bg-green/15 text-green tabular-nums"
+                        title={`In pantry: ${Math.round(stock.total_g)}g`}
+                      >
+                        📦 {formatStock(stock)}
+                      </span>
+                    )}
+                    {remaining && remainingG > 0 && (
+                      <span
+                        className="text-[11px] px-1.5 py-0.5 rounded bg-text-sec/10 text-text-sec tabular-nums"
+                        title={`After fulfilling planned amounts: ${Math.round(remainingG)}g remaining`}
+                      >
+                        ↘ {formatStock(remaining)}
+                      </span>
+                    )}
+                    {shortageG > 0 && (
+                      <span
+                        className="text-[11px] px-1.5 py-0.5 rounded bg-red/15 text-red tabular-nums"
+                        title={`Short ${Math.round(shortageG)}g — plan exceeds pantry stock`}
+                      >
+                        ⚠ −{Math.round(shortageG)}g
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
               {item.isRecipe && (
                 <span className="text-xs px-1.5 py-0.5 rounded bg-accent/20 text-accent2 shrink-0">recipe</span>
               )}

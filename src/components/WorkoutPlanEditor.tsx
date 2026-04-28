@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import ExerciseSearch from './ExerciseSearch';
+import ModalFooter from './ui/ModalFooter';
 import { useT } from '../i18n/useT';
 import type { ExerciseType, WorkoutPlan, WorkoutPlanExercise, WorkoutPlanExerciseInput } from '../types';
 
@@ -201,19 +202,14 @@ export default function WorkoutPlanEditor({ plan, exTypes, onSave, onCancel }: P
         )}
       </div>
 
-      {/* Footer */}
-      <div className="flex gap-2 justify-end border-t border-border pt-3 sticky bottom-0 bg-card">
-        <button onClick={onCancel} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">
-          {t('exercise.plans.cancel')}
-        </button>
-        <button
-          onClick={handleSave}
-          disabled={!name.trim()}
-          className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40 cursor-pointer"
-        >
-          {t('exercise.plans.save')}
-        </button>
-      </div>
+      <ModalFooter
+        onCancel={onCancel}
+        onConfirm={handleSave}
+        cancelLabel={t('exercise.plans.cancel')}
+        confirmLabel={t('exercise.plans.save')}
+        confirmDisabled={!name.trim()}
+        className="border-t border-border pt-3 sticky bottom-0 bg-card"
+      />
     </div>
   );
 }

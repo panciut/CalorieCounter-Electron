@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import FoodSearch, { type SearchItem } from './FoodSearch';
+import MacroChips from './ui/MacroChips';
 import { useT } from '../i18n/useT';
+import { scaleNutrients } from '../lib/macroCalc';
 import type { Food } from '../types';
 
 interface AddFoodRowProps {
@@ -57,13 +59,16 @@ export default function AddFoodRow({ foods, onAdd }: AddFoodRowProps) {
       />
       {selected && (
         <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap gap-3 text-xs text-text-sec bg-bg rounded-lg px-3 py-2">
+          <div className="flex flex-wrap items-center gap-3 text-xs bg-bg rounded-lg px-3 py-2">
             <span className="text-text font-medium">{selected.name}</span>
-            <span>per 100g:</span>
-            <span><span className="text-text font-medium">{Math.round(selected.calories)}</span> kcal</span>
-            <span><span className="text-text font-medium">{Math.round(selected.protein * 10) / 10}</span>g P</span>
-            <span><span className="text-text font-medium">{Math.round(selected.carbs * 10) / 10}</span>g C</span>
-            <span><span className="text-text font-medium">{Math.round(selected.fat * 10) / 10}</span>g F</span>
+            <span className="text-text-sec">{t('common.per100g')}:</span>
+            <MacroChips
+              calories={selected.calories}
+              protein={selected.protein}
+              carbs={selected.carbs}
+              fat={selected.fat}
+              fiber={selected.fiber}
+            />
           </div>
         <div className="flex items-center gap-2 flex-wrap">
           <input
@@ -93,14 +98,21 @@ export default function AddFoodRow({ foods, onAdd }: AddFoodRowProps) {
             {t('common.add')}
           </button>
           </div>
-          {effectiveGrams > 0 && (
-            <div className="text-xs text-text-sec tabular-nums">
-              = <span className="text-text font-medium">{Math.round(selected.calories * effectiveGrams / 100)}</span> kcal
-              <span className="mx-1">·</span>P <span className="text-text">{Math.round(selected.protein * effectiveGrams / 10) / 10}</span>g
-              <span className="mx-1">·</span>C <span className="text-text">{Math.round(selected.carbs * effectiveGrams / 10) / 10}</span>g
-              <span className="mx-1">·</span>F <span className="text-text">{Math.round(selected.fat * effectiveGrams / 10) / 10}</span>g
-            </div>
-          )}
+          {effectiveGrams > 0 && (() => {
+            const scaled = scaleNutrients(selected, effectiveGrams);
+            return (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-text-sec">=</span>
+                <MacroChips
+                  calories={scaled.calories}
+                  protein={scaled.protein}
+                  carbs={scaled.carbs}
+                  fat={scaled.fat}
+                  fiber={scaled.fiber}
+                />
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

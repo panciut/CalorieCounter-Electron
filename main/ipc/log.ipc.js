@@ -15,6 +15,22 @@ const today = () => {
 };
 
 function registerLogIpc() {
+  // Total grams currently planned (status='planned') from today onward, per food.
+  // Used by FoodSearch to badge already-planned amounts so the user doesn't
+  // double-allocate a food across days.
+  ipcMain.handle('log:getPlannedMap', () => {
+    const rows = getDb().prepare(
+      `SELECT food_id, ROUND(SUM(grams), 1) AS total_g
+         FROM log
+        WHERE status = 'planned' AND date >= ?
+        GROUP BY food_id
+        HAVING total_g > 0`,
+    ).all(today());
+    const out = {};
+    for (const r of rows) out[r.food_id] = r.total_g;
+    return out;
+  });
+
   ipcMain.handle('log:getDay', (_, { date }) => {
     const d = date || today();
     return getDb().prepare(`

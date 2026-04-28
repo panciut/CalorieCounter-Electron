@@ -50,6 +50,7 @@ export const api = {
 
   log: {
     getDay:             (date: string) => invoke<LogEntry[]>('log:getDay', { date }),
+    getPlannedMap:      () => invoke<Record<number, number>>('log:getPlannedMap'),
     add:                (data: { food_id: number; grams: number; meal: Meal; date: string; status?: 'logged' | 'planned'; pantry_id?: number }) =>
                           invoke<{ id: number; shortage: number; shortage_food: string | null; events: DeductionEvent[] }>('log:add', data),
     addQuick:           (data: { food: Omit<Food, 'id'>; grams: number; meal: Meal; date: string }) =>

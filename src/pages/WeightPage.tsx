@@ -9,6 +9,7 @@ import { useToast } from "../components/Toast";
 import LineChartCard from "../components/LineChartCard";
 import RangePicker from "../components/ui/RangePicker";
 import Tabs from "../components/ui/Tabs";
+import ModalFooter from "../components/ui/ModalFooter";
 import Modal from "../components/Modal";
 import type { WeightEntry, Scale } from "../types";
 
@@ -356,14 +357,14 @@ export default function WeightPage() {
               </div>
             )}
           </div>
-          <div className="flex gap-2 justify-end pt-2">
-            <button onClick={() => setEditing(null)} className="rounded-xl border border-border text-text-sec px-5 py-2 text-sm font-semibold hover:text-text cursor-pointer">
-              {t('common.cancel')}
-            </button>
-            <button onClick={handleSaveEdit} disabled={!editWeight || !editDate} className="rounded-xl bg-accent text-white px-5 py-2 text-sm font-semibold hover:opacity-90 disabled:opacity-40 cursor-pointer">
-              {t('common.save')}
-            </button>
-          </div>
+          <ModalFooter
+            onCancel={() => setEditing(null)}
+            onConfirm={handleSaveEdit}
+            cancelLabel={t('common.cancel')}
+            confirmLabel={t('common.save')}
+            confirmDisabled={!editWeight || !editDate}
+            className="pt-2"
+          />
         </div>
       </Modal>
 
