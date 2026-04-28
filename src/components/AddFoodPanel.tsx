@@ -3,8 +3,9 @@ import { useT } from '../i18n/useT';
 import { useToast } from './Toast';
 import { api } from '../api';
 import BarcodeScanner from './BarcodeScanner';
+import FoodNameSearch from './FoodNameSearch';
 import Modal from './Modal';
-import type { Food, BarcodeResult } from '../types';
+import type { Food, BarcodeResult, BarcodeSearchResult } from '../types';
 import { PRESETS, PresetKey, INPUT_CLASS, PRESET_LABELS } from '../lib/foodPresets';
 
 // ── Form types & helpers ──────────────────────────────────────────────────────
@@ -70,6 +71,7 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
   const [barcodeStatus, setBarcodeStatus] = useState<'found' | 'notFound' | null>(null);
   const [packFromBarcode, setPackFromBarcode] = useState<number | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [scannerTab, setScannerTab] = useState<'scan' | 'search'>('scan');
 
   function patch(p: Partial<FoodFormState>) { setForm(f => ({ ...f, ...p })); }
   function updatePackGrams(i: number, grams: string) { setPacks(p => p.map((x, idx) => idx === i ? { grams } : x)); }
@@ -88,6 +90,12 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
     } else {
       setPackFromBarcode(null);
     }
+  }
+
+  function handleNameSearchResult(r: BarcodeSearchResult) {
+    setScannerOpen(false);
+    setScannerTab('scan');
+    applyBarcodeResult(r, r.barcode ?? '');
   }
 
   async function handleBarcodeLookup() {
@@ -341,8 +349,40 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
       )}
 
       {scannerOpen && (
-        <Modal isOpen onClose={() => setScannerOpen(false)} title={t('barcode.scanTitle')}>
-          <BarcodeScanner onResult={handleScanResult} />
+        <Modal
+          isOpen
+          onClose={() => { setScannerOpen(false); setScannerTab('scan'); }}
+          title={t('barcode.scanTitle')}
+        >
+          <div className="flex gap-1 mb-4 bg-bg rounded-lg p-1">
+            <button
+              type="button"
+              onClick={() => setScannerTab('scan')}
+              className={[
+                'flex-1 flex items-center justify-center gap-1.5 text-sm py-1.5 rounded-md transition-colors cursor-pointer',
+                scannerTab === 'scan'
+                  ? 'bg-card text-text font-medium shadow-sm'
+                  : 'text-text-sec hover:text-text',
+              ].join(' ')}
+            >
+              📷 Scansiona
+            </button>
+            <button
+              type="button"
+              onClick={() => setScannerTab('search')}
+              className={[
+                'flex-1 flex items-center justify-center gap-1.5 text-sm py-1.5 rounded-md transition-colors cursor-pointer',
+                scannerTab === 'search'
+                  ? 'bg-card text-text font-medium shadow-sm'
+                  : 'text-text-sec hover:text-text',
+              ].join(' ')}
+            >
+              🔍 Cerca per nome
+            </button>
+          </div>
+
+          {scannerTab === 'scan' && <BarcodeScanner onResult={handleScanResult} />}
+          {scannerTab === 'search' && <FoodNameSearch onResult={handleNameSearchResult} />}
         </Modal>
       )}
     </div>
