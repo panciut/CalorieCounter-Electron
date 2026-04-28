@@ -530,6 +530,10 @@ export interface BarcodeResult {
   image_url?: string | null;
 }
 
+export interface BarcodeSearchResult extends BarcodeResult {
+  barcode?: string;
+}
+
 // ── Page navigation ──────────────────────────────────────────────────────────
 
 export type PageName =
