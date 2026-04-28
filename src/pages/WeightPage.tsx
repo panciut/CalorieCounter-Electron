@@ -8,6 +8,7 @@ import { copyToClipboard } from "../lib/exportText";
 import { useToast } from "../components/Toast";
 import LineChartCard from "../components/LineChartCard";
 import RangePicker from "../components/ui/RangePicker";
+import Tabs from "../components/ui/Tabs";
 import Modal from "../components/Modal";
 import type { WeightEntry, Scale } from "../types";
 
@@ -194,24 +195,15 @@ export default function WeightPage() {
   const inputCls = "rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text focus:outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
       <h1 className="text-xl font-bold text-text">Body</h1>
 
-      <div className="flex gap-1 border-b border-border -mt-2">
-        {(['weight', 'body'] as Tab[]).map(id => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            className={`px-5 py-2.5 text-sm font-medium transition-colors cursor-pointer border-b-2 -mb-px whitespace-nowrap ${
-              tab === id
-                ? 'border-accent text-accent'
-                : 'border-transparent text-text-sec hover:text-text'
-            }`}
-          >
-            {id === 'weight' ? 'Weight' : 'Composition'}
-          </button>
-        ))}
-      </div>
+      <Tabs<Tab>
+        items={[{ id: 'weight', label: 'Weight' }, { id: 'body', label: 'Composition' }]}
+        active={tab}
+        onChange={setTab}
+        className="-mt-2"
+      />
 
       {/* ── WEIGHT TAB ─────────────────────────────────────────────────────── */}
       {tab === 'weight' && (

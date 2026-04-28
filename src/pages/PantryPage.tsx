@@ -248,7 +248,7 @@ export default function PantryPage() {
   const checked   = shopping.filter(s => s.checked);
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-5">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
       <div className="flex items-center gap-3 flex-wrap">
         <h1 className="text-xl font-bold text-text flex-1">Pantry</h1>
         {pantries.length > 1 && (

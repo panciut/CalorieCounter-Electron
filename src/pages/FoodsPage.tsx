@@ -260,7 +260,7 @@ export default function FoodsPage() {
   ];
 
   return (
-    <div className="p-6 flex flex-col gap-4 h-full overflow-hidden">
+    <div className="p-6 max-w-6xl mx-auto w-full flex flex-col gap-4 h-full overflow-hidden">
 
       {/* ── Collapsible add form ──────────────────────────────────────────── */}
       <div className="bg-card border border-border rounded-xl shrink-0">

@@ -3,6 +3,7 @@ import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
 import Modal from '../components/Modal';
+import Tabs from '../components/ui/Tabs';
 import { api } from '../api';
 import {
   SUPPLEMENT_TIME_ORDER,
@@ -314,20 +315,12 @@ export default function SupplementsPage() {
     <div className="p-6 max-w-4xl mx-auto flex flex-col gap-0 h-full min-h-0">
       <h1 className="text-xl font-bold text-text mb-4">{t('suppl.title')}</h1>
 
-      {/* Tab bar */}
-      <div className="flex gap-1 border-b border-border shrink-0 mb-6">
-        {(['plan', 'catalog'] as Tab[]).map(id => (
-          <button
-            key={id}
-            onClick={() => setTab(id)}
-            className={`px-5 py-2.5 text-sm font-medium transition-colors cursor-pointer border-b-2 -mb-px whitespace-nowrap ${
-              tab === id ? 'border-accent text-accent' : 'border-transparent text-text-sec hover:text-text'
-            }`}
-          >
-            {id === 'catalog' ? t('suppl.catalog') : t('suppl.plan')}
-          </button>
-        ))}
-      </div>
+      <Tabs<Tab>
+        items={[{ id: 'plan', label: t('suppl.plan') }, { id: 'catalog', label: t('suppl.catalog') }]}
+        active={tab}
+        onChange={setTab}
+        className="mb-6"
+      />
 
       <div className="flex-1 min-h-0 overflow-y-auto">
 

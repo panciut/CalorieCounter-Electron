@@ -10,6 +10,7 @@ import { MEAL_ORDER, type Recipe, type RecipeIngredient, type ActualRecipe, type
 import { useDeductionEvents } from '../hooks/useDeductionEvents';
 import { usePantry } from '../hooks/usePantry';
 import DeductionEventModal from '../components/DeductionEventModal';
+import Tabs from '../components/ui/Tabs';
 
 type PantryCheckResult = { can_make: boolean; missing: PantryIngredientCheck[] };
 
@@ -1182,25 +1183,11 @@ export default function RecipesPage() {
     <div className="p-6 max-w-5xl mx-auto space-y-5">
       <h1 className="text-xl font-bold text-text">Recipes</h1>
 
-      <div className="flex gap-1 border-b border-border">
-        {([
-          { id: 'recipes', label: 'Recipes' },
-          { id: 'bundles', label: 'Bundles' },
-        ] as { id: Tab; label: string }[]).map(t => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            className={[
-              'px-5 py-2.5 text-sm font-medium transition-colors cursor-pointer border-b-2 -mb-px',
-              activeTab === t.id
-                ? 'border-accent text-accent'
-                : 'border-transparent text-text-sec hover:text-text',
-            ].join(' ')}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <Tabs<Tab>
+        items={[{ id: 'recipes', label: 'Recipes' }, { id: 'bundles', label: 'Bundles' }]}
+        active={activeTab}
+        onChange={setActiveTab}
+      />
 
       {activeTab === 'recipes' ? <RecipesTab /> : <BundlesTab />}
     </div>

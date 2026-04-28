@@ -351,7 +351,7 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   const hasEnergyData  = energyOut > 0 || caloriesIn > 0 || stepCount > 0;
 
   return (
-    <div className="p-6 max-w-6xl mx-auto flex flex-col gap-6">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
       {/* Header */}
       {fromWeek && (
         <button className="text-accent text-sm hover:opacity-80 cursor-pointer self-start" onClick={() => navigate('week', { weekStart: fromWeek })}>

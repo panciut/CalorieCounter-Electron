@@ -54,7 +54,7 @@ export default function NetPage() {
   const xInterval = range === 7 ? 0 : range === 30 ? 4 : 12;
 
   return (
-    <div className="p-6 max-w-6xl mx-auto flex flex-col gap-6">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
       <PageHeader
         title="Net Calories"
         action={<RangePicker<Range> value={range} options={[7, 30, 90]} onChange={setRange} />}

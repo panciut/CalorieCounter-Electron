@@ -131,7 +131,7 @@ export default function GoalsPage() {
   const confidenceColor = { low: 'text-red', medium: 'text-yellow', high: 'text-green' };
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
       <h1 className="text-xl font-bold text-text">{t("settings.title")}</h1>
 
       {/* ── TDEE / Goal Intelligence ─────────────────────────────────────── */}

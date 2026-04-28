@@ -71,11 +71,11 @@ export default function MeasurementsPage() {
   const numCls = "w-full bg-bg border border-border rounded-lg px-3 py-2 text-text placeholder:text-text-sec focus:outline-none focus:border-accent text-sm [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none";
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <h1 className="text-xl font-bold text-text mb-6">{t('meas.title')}</h1>
+    <div className="p-6 max-w-6xl mx-auto space-y-6">
+      <h1 className="text-xl font-bold text-text">{t('meas.title')}</h1>
 
       {/* Add form */}
-      <div className="bg-card border border-border rounded-xl p-4 mb-6">
+      <div className="bg-card border border-border rounded-xl p-4">
         <h2 className="text-base font-semibold text-text mb-3">{t('meas.addTitle')}</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
           <div>
@@ -119,7 +119,7 @@ export default function MeasurementsPage() {
               formatLabel={r => r === 'all' ? (t('meas.rangeAll') ?? 'All') : `${r}d`}
             />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {FIELDS.map(field => {
               const data = getChartData(field);
               if (data.length === 0) return null;

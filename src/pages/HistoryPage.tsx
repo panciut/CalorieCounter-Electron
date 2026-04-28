@@ -5,6 +5,7 @@ import { useToast } from '../components/Toast';
 import { useSettings } from '../hooks/useSettings';
 import { api } from '../api';
 import BarChartCard from '../components/BarChartCard';
+import Tabs from '../components/ui/Tabs';
 import { MACRO_COLORS } from '../lib/macroColors';
 import { formatShortDate, formatDMY, getMondayOf, today, addDays, buildDateRange, MS_PER_DAY } from '../lib/dateUtil';
 import { buildHistoryMarkdown, copyToClipboard } from '../lib/exportText';
@@ -160,11 +161,6 @@ export default function HistoryPage() {
     background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, color: 'var(--text)',
   };
 
-  const tabBtn = (v: Tab) => [
-    'px-5 py-2.5 text-sm font-medium transition-colors cursor-pointer border-b-2 -mb-px',
-    tab === v ? 'border-accent text-accent' : 'border-transparent text-text-sec hover:text-text',
-  ].join(' ');
-
   const rangeBtn = (v: WeekRange | AnalyticsRange, current: WeekRange | AnalyticsRange) => [
     'text-xs px-3 py-1.5 rounded-lg border cursor-pointer transition-colors',
     v === current ? 'border-accent bg-accent/10 text-accent' : 'border-border text-text-sec hover:border-accent/50',
@@ -203,11 +199,11 @@ export default function HistoryPage() {
         </button>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-border">
-        <button className={tabBtn('weekly')}    onClick={() => setTab('weekly')}>Weekly</button>
-        <button className={tabBtn('analytics')} onClick={() => setTab('analytics')}>Analytics</button>
-      </div>
+      <Tabs<Tab>
+        items={[{ id: 'weekly', label: 'Weekly' }, { id: 'analytics', label: 'Analytics' }]}
+        active={tab}
+        onChange={setTab}
+      />
 
       {/* ── WEEKLY TAB ────────────────────────────────────────────────────────── */}
       {tab === 'weekly' && (
