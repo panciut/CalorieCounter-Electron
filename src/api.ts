@@ -4,7 +4,7 @@ import type {
   Supplement, SupplementDay, SupplementAdherence,
   SupplementPlanWithItems,
   Measurement,
-  WeeklySummary, WeekDayDetail, BarcodeResult,
+  WeeklySummary, WeekDayDetail, BarcodeResult, BarcodeSearchResult,
   PantryItem, PantryAggregate, PantryLocation, ShoppingItem, PantryIngredientCheck,
   Scale,
   CalorieTrendPoint, MacroTrendPoint, ExerciseTrendPoint,
@@ -154,6 +154,7 @@ export const api = {
 
   barcode: {
     lookup: (barcode: string) => invoke<BarcodeResult | null>('barcode:lookup', { barcode }),
+    search: (query: string) => invoke<BarcodeSearchResult[]>('barcode:search', { query }),
   },
 
   streaks: {
