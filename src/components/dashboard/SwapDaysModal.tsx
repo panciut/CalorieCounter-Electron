@@ -3,6 +3,8 @@ import { useT } from '../../i18n/useT';
 import { api } from '../../api';
 import { addDays } from '../../lib/dateUtil';
 import Modal from '../Modal';
+import ModalFooter from '../ui/ModalFooter';
+import Field from '../ui/Field';
 import ConfirmDialog from '../ConfirmDialog';
 
 interface SwapDaysModalProps {
@@ -61,14 +63,12 @@ export default function SwapDaysModal({ isOpen, initialDate, onClose, onSwapped 
       <Modal isOpen={isOpen} onClose={onClose} title={t('swap.title')}>
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-text-sec">{t('swap.dateA')}</label>
+            <Field label={t('swap.dateA')}>
               <input type="date" value={dateA} onChange={e=>setDateA(e.target.value)} className={inputCls} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-text-sec">{t('swap.dateB')}</label>
+            </Field>
+            <Field label={t('swap.dateB')}>
               <input type="date" value={dateB} onChange={e=>setDateB(e.target.value)} className={inputCls} />
-            </div>
+            </Field>
           </div>
           <div className="text-xs bg-bg rounded-lg px-3 py-2 text-text-sec text-center">
             {sameDate
@@ -76,10 +76,14 @@ export default function SwapDaysModal({ isOpen, initialDate, onClose, onSwapped 
               : <span><span className="text-text font-medium">{countA}</span> {t('dash.planned')} ↔ <span className="text-text font-medium">{countB}</span> {t('dash.planned')}</span>
             }
           </div>
-          <div className="flex justify-end gap-2 pt-1">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-text-sec border border-border rounded-lg cursor-pointer hover:text-text">{t('common.cancel')}</button>
-            <button onClick={()=>setConfirmOpen(true)} disabled={!canSwap} className="px-4 py-2 text-sm bg-accent text-white rounded-lg cursor-pointer hover:opacity-90 disabled:opacity-40 font-medium">{t('swap.submit')}</button>
-          </div>
+          <ModalFooter
+            onCancel={onClose}
+            onConfirm={() => setConfirmOpen(true)}
+            cancelLabel={t('common.cancel')}
+            confirmLabel={t('swap.submit')}
+            confirmDisabled={!canSwap}
+            className="pt-1"
+          />
         </div>
       </Modal>
       {confirmOpen && (

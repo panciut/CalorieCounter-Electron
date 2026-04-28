@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSettings } from '../hooks/useSettings';
 import { useT } from '../i18n/useT';
 import { api } from '../api';
+import SettingsSection from '../components/ui/SettingsSection';
 import type { PantryLocation, Scale } from '../types';
 
 export default function SettingsPage() {
@@ -39,15 +40,11 @@ export default function SettingsPage() {
   const currentTheme = settings.theme    ?? 'dark';
   const currentLang  = settings.language ?? 'en';
 
-  const sectionTitle = 'text-sm font-semibold text-text-sec uppercase tracking-wider mb-3';
-
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
       <h1 className="text-xl font-bold text-text">{t('nav.settings')}</h1>
 
-      {/* ── Language ───────────────────────────────────────────────────────── */}
-      <section>
-        <h2 className={sectionTitle}>{t('settings.language')}</h2>
+      <SettingsSection title={t('settings.language')} bare>
         <div className="flex gap-3">
           {(['en', 'it'] as const).map(lang => (
             <button
@@ -64,11 +61,9 @@ export default function SettingsPage() {
             </button>
           ))}
         </div>
-      </section>
+      </SettingsSection>
 
-      {/* ── Theme ──────────────────────────────────────────────────────────── */}
-      <section>
-        <h2 className={sectionTitle}>{t('settings.theme')}</h2>
+      <SettingsSection title={t('settings.theme')} bare>
         <div className="flex gap-3">
           {(['dark', 'light'] as const).map(theme => (
             <button
@@ -85,12 +80,9 @@ export default function SettingsPage() {
             </button>
           ))}
         </div>
-      </section>
+      </SettingsSection>
 
-      {/* ── Pantry ─────────────────────────────────────────────────────────── */}
-      <section>
-        <h2 className={sectionTitle}>{t('settings.pantrySection')}</h2>
-        <div className="bg-card border border-border rounded-xl p-4 space-y-4">
+      <SettingsSection title={t('settings.pantrySection')}>
           <label className="flex items-center gap-3 cursor-pointer">
             <div
               onClick={() => updateSettings({ pantry_enabled: settings.pantry_enabled === 0 ? 1 : 0 })}
@@ -151,13 +143,9 @@ export default function SettingsPage() {
               )}
             </div>
           )}
-        </div>
-      </section>
+      </SettingsSection>
 
-      {/* ── Scales ─────────────────────────────────────────────────────────── */}
-      <section>
-        <h2 className={sectionTitle}>{t('settings.scalesSection')}</h2>
-        <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+      <SettingsSection title={t('settings.scalesSection')}>
           {scales.map(s => (
             <div key={s.id} className="flex items-center gap-2">
               <input
@@ -205,13 +193,9 @@ export default function SettingsPage() {
               {t('settings.scaleAdd')}
             </button>
           </div>
-        </div>
-      </section>
+      </SettingsSection>
 
-      {/* ── Currency ───────────────────────────────────────────────────────── */}
-      <section>
-        <h2 className={sectionTitle}>{t('settings.currencySymbol')}</h2>
-        <div className="bg-card border border-border rounded-xl p-4">
+      <SettingsSection title={t('settings.currencySymbol')}>
           <div className="flex items-center gap-3">
             <input
               type="text"
@@ -222,13 +206,9 @@ export default function SettingsPage() {
             />
             <span className="text-sm text-text-sec">{t('settings.currencySymbol')}</span>
           </div>
-        </div>
-      </section>
+      </SettingsSection>
 
-      {/* ── Apple Health ───────────────────────────────────────────────────── */}
-      <section>
-        <h2 className={sectionTitle}>Apple Health</h2>
-        <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+      <SettingsSection title="Apple Health">
           <p className="text-sm text-text-sec">
             Sync workouts, active calories, and body fat% from Apple Health to CalorieCounter.
           </p>
@@ -239,8 +219,7 @@ export default function SettingsPage() {
             <span className="text-xs text-text-sec bg-border/50 px-2 py-0.5 rounded-full">Coming soon</span>
           </div>
           <p className="text-xs text-text-sec">Available on macOS. Requires HealthKit permission.</p>
-        </div>
-      </section>
+      </SettingsSection>
     </div>
   );
 }

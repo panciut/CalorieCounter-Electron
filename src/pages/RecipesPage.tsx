@@ -11,6 +11,7 @@ import { useDeductionEvents } from '../hooks/useDeductionEvents';
 import { usePantry } from '../hooks/usePantry';
 import DeductionEventModal from '../components/DeductionEventModal';
 import Tabs from '../components/ui/Tabs';
+import PantryPicker from '../components/ui/PantryPicker';
 
 type PantryCheckResult = { can_make: boolean; missing: PantryIngredientCheck[] };
 
@@ -39,7 +40,7 @@ function BundlesTab() {
   const [canMakeMap, setCanMakeMap]       = useState<Map<number, { can_make: boolean; missing_count: number }>>(new Map());
   const [logPantryCheck, setLogPantryCheck] = useState<PantryCheckResult | null>(null);
   const [deductOnLog, setDeductOnLog]     = useState(false);
-  const { activeId, setActiveId, pantries } = usePantry();
+  const { activeId } = usePantry();
   const pantryId = activeId ?? undefined;
 
   const loadBundles = useCallback(async (pid?: number) => {
@@ -141,15 +142,7 @@ function BundlesTab() {
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-sm text-text-sec">Fixed-portion shortcuts — log a set of foods in one tap.</p>
         <div className="flex items-center gap-2 flex-wrap">
-          {pantries.length > 1 && (
-            <select
-              value={pantryId ?? ''}
-              onChange={e => setActiveId(Number(e.target.value))}
-              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-text outline-none focus:border-accent cursor-pointer"
-            >
-              {pantries.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          )}
+          <PantryPicker variant="dropdown" />
           <button
             onClick={() => setCanMakeFilter(v => !v)}
             className={[
@@ -499,7 +492,7 @@ function RecipesTab() {
   const [canMakeMap, setCanMakeMap]       = useState<Map<number, { can_make: boolean; missing_count: number }>>(new Map());
   const [logPantryCheck, setLogPantryCheck] = useState<PantryCheckResult | null>(null);
   const [deductOnLog, setDeductOnLog]     = useState(false);
-  const { activeId: rActiveId, setActiveId: rSetActiveId, pantries } = usePantry();
+  const { activeId: rActiveId } = usePantry();
   const pantryId = rActiveId ?? undefined;
 
   const loadRecipes = useCallback(async (pid?: number) => {
@@ -619,15 +612,7 @@ function RecipesTab() {
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-sm text-text-sec">Full recipes with yield — log by how much you ate.</p>
         <div className="flex items-center gap-2 flex-wrap">
-          {pantries.length > 1 && (
-            <select
-              value={pantryId ?? ''}
-              onChange={e => rSetActiveId(Number(e.target.value))}
-              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-text outline-none focus:border-accent cursor-pointer"
-            >
-              {pantries.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-          )}
+          <PantryPicker variant="dropdown" />
           <button
             onClick={() => setCanMakeFilter(v => !v)}
             className={[

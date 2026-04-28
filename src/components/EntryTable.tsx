@@ -4,6 +4,8 @@ import { api } from '../api';
 import { useToast } from './Toast';
 import Modal from './Modal';
 import EmptyState from './ui/EmptyState';
+import ModalFooter from './ui/ModalFooter';
+import MacroChips from './ui/MacroChips';
 import { MEAL_ORDER, type LogEntry, type Food, type Meal } from '../types';
 
 interface EntryTableProps {
@@ -437,25 +439,22 @@ export default function EntryTable({ entries, foods, onRefresh, onConfirm }: Ent
                 )}
               </div>
 
-              <div className="flex flex-wrap gap-3 text-xs text-text-sec border-t border-border pt-2">
-                <span><span className="text-text font-semibold tabular-nums">{prev.cal}</span> kcal</span>
-                <span><span className="text-text tabular-nums">{prev.fat}</span>g {t('macro.fat')}</span>
-                <span><span className="text-text tabular-nums">{prev.carbs}</span>g {t('macro.carbs')}</span>
-                {prev.fiber > 0 && <span><span className="text-text tabular-nums">{prev.fiber}</span>g {t('macro.fiber')}</span>}
-                <span><span className="text-text tabular-nums">{prev.protein}</span>g {t('macro.protein')}</span>
-              </div>
+              <MacroChips
+                calories={prev.cal}
+                protein={prev.protein}
+                carbs={prev.carbs}
+                fat={prev.fat}
+                fiber={prev.fiber}
+                className="border-t border-border pt-2"
+              />
 
-              <div className="flex gap-2 justify-end">
-                <button
-                  onClick={closeSaveMeal}
-                  className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer"
-                >{t('common.cancel')}</button>
-                <button
-                  onClick={confirmSaveMeal}
-                  disabled={!bundleName.trim() || validCount === 0}
-                  className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40 cursor-pointer"
-                >{t('common.save')}</button>
-              </div>
+              <ModalFooter
+                onCancel={closeSaveMeal}
+                onConfirm={confirmSaveMeal}
+                cancelLabel={t('common.cancel')}
+                confirmLabel={t('common.save')}
+                confirmDisabled={!bundleName.trim() || validCount === 0}
+              />
             </div>
           </Modal>
         );

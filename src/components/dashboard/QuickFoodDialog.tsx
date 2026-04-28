@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { useT } from '../../i18n/useT';
 import { api } from '../../api';
 import Modal from '../Modal';
+import ModalFooter from '../ui/ModalFooter';
+import Field from '../ui/Field';
+import MacroChips from '../ui/MacroChips';
 import type { Meal } from '../../types';
 
 // Calorie share per macro (must sum to 1.0); fiber as g/100kcal.
@@ -93,10 +96,9 @@ export default function QuickFoodDialog({ isOpen, onClose, date, meal, onLogged 
       <div className="flex flex-col gap-3">
         <input type="text" value={name} onChange={e=>setName(e.target.value)} placeholder={t('qf.foodNamePlaceholder')} className={inputCls} />
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-text-sec">{t('qf.totalKcal')}</label>
+        <Field label={t('qf.totalKcal')}>
           <input type="text" inputMode="decimal" value={kcal} onChange={e=>setKcal(e.target.value)} className={inputCls} />
-        </div>
+        </Field>
 
         {/* Mode toggle */}
         <div className="flex gap-1 p-0.5 bg-bg border border-border rounded-lg">
@@ -141,34 +143,36 @@ export default function QuickFoodDialog({ isOpen, onClose, date, meal, onLogged 
                 </button>
               ))}
             </div>
-            <div className="flex flex-wrap gap-3 text-xs bg-bg rounded-lg px-3 py-2 text-text-sec">
-              <span><span className="text-text font-medium">{presetMacros.fat}</span>g {t('macro.fat')}</span>
-              <span><span className="text-text font-medium">{presetMacros.carbs}</span>g {t('macro.carbs')}</span>
-              <span><span className="text-text font-medium">{presetMacros.fiber}</span>g {t('macro.fiber')}</span>
-              <span><span className="text-text font-medium">{presetMacros.protein}</span>g {t('macro.protein')}</span>
-            </div>
+            <MacroChips
+              protein={presetMacros.protein}
+              carbs={presetMacros.carbs}
+              fat={presetMacros.fat}
+              fiber={presetMacros.fiber}
+              className="bg-bg rounded-lg px-3 py-2"
+            />
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-2">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-text-sec">{t('th.protein')} (g)</label>
+            <Field label={`${t('th.protein')} (g)`}>
               <input type="text" inputMode="decimal" value={protein} onChange={e=>setProtein(e.target.value)} className={inputCls} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-text-sec">{t('th.carbs')} (g)</label>
+            </Field>
+            <Field label={`${t('th.carbs')} (g)`}>
               <input type="text" inputMode="decimal" value={carbs} onChange={e=>setCarbs(e.target.value)} className={inputCls} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-text-sec">{t('th.fat')} (g)</label>
+            </Field>
+            <Field label={`${t('th.fat')} (g)`}>
               <input type="text" inputMode="decimal" value={fat} onChange={e=>setFat(e.target.value)} className={inputCls} />
-            </div>
+            </Field>
           </div>
         )}
 
-        <div className="flex justify-end gap-2 pt-1">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-text-sec border border-border rounded-lg cursor-pointer hover:text-text">{t('common.cancel')}</button>
-          <button onClick={handleSubmit} disabled={submitDisabled} className="px-4 py-2 text-sm bg-accent text-white rounded-lg cursor-pointer hover:opacity-90 disabled:opacity-40 font-medium">{t('qf.addAndLog')}</button>
-        </div>
+        <ModalFooter
+          onCancel={onClose}
+          onConfirm={handleSubmit}
+          cancelLabel={t('common.cancel')}
+          confirmLabel={t('qf.addAndLog')}
+          confirmDisabled={submitDisabled}
+          className="pt-1"
+        />
       </div>
     </Modal>
   );
