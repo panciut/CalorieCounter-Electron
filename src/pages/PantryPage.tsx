@@ -706,7 +706,7 @@ export default function PantryPage() {
               {unchecked.length > 0 && (
                 <div className="flex flex-col divide-y divide-border/40">
                   {unchecked.map(item => (
-                    <ShoppingRow key={item.id} item={item} onToggle={() => api.shopping.toggle(item.id).then(() => loadShopping(activePantryId))} onDelete={() => api.shopping.delete(item.id).then(() => loadShopping(activePantryId))} />
+                    <ShoppingRow key={item.id} item={item} food={foodMap.get(item.food_id)} onToggle={() => api.shopping.toggle(item.id).then(() => loadShopping(activePantryId))} onDelete={() => api.shopping.delete(item.id).then(() => loadShopping(activePantryId))} />
                   ))}
                 </div>
               )}
@@ -718,7 +718,7 @@ export default function PantryPage() {
                   </div>
                   <div className="flex flex-col divide-y divide-border/40">
                     {checked.map(item => (
-                      <ShoppingRow key={item.id} item={item} onToggle={() => api.shopping.toggle(item.id).then(() => loadShopping(activePantryId))} onDelete={() => api.shopping.delete(item.id).then(() => loadShopping(activePantryId))} />
+                      <ShoppingRow key={item.id} item={item} food={foodMap.get(item.food_id)} onToggle={() => api.shopping.toggle(item.id).then(() => loadShopping(activePantryId))} onDelete={() => api.shopping.delete(item.id).then(() => loadShopping(activePantryId))} />
                     ))}
                   </div>
                 </>
@@ -890,11 +890,12 @@ function ManagePantriesModal({ pantries, activePantryId: _activePantryId, onClos
 
 interface ShoppingRowProps {
   item: ShoppingItem;
+  food?: Food;
   onToggle: () => void;
   onDelete: () => void;
 }
 
-function ShoppingRow({ item, onToggle, onDelete }: ShoppingRowProps) {
+function ShoppingRow({ item, food, onToggle, onDelete }: ShoppingRowProps) {
   return (
     <div className={`flex items-center gap-3 px-4 py-3 transition-colors ${item.checked ? 'bg-bg/20' : 'hover:bg-bg/40'}`}>
       <button
@@ -910,7 +911,7 @@ function ShoppingRow({ item, onToggle, onDelete }: ShoppingRowProps) {
         {item.food_name}
       </span>
       {item.quantity_g > 0 && (
-        <span className="text-xs text-text-sec tabular-nums">{item.quantity_g}g</span>
+        <span className="text-xs text-text-sec tabular-nums">{formatPacked(item.quantity_g, food)}</span>
       )}
       <button onClick={onDelete} className="text-text-sec hover:text-red text-sm cursor-pointer transition-colors w-5 text-center">✕</button>
     </div>

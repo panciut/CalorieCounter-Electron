@@ -13,6 +13,8 @@ import type {
   AppNotification, DismissedNotification,
 } from './types';
 
+import type { PackedStock } from './lib/pantryUtils';
+
 // Re-export for consumers that need it
 export type { PantryAggregate };
 
@@ -230,7 +232,7 @@ export const api = {
     checkStock:   (food_id: number, grams: number, pantry_id?: number) =>
                     invoke<{ have_g: number; shortage: number }>('pantry:checkStock', { food_id, grams, pantry_id }),
     getStockMap:  (pantry_id?: number) =>
-                    invoke<Record<number, { total_g: number; loose_g: number; packs: { grams: number; count: number }[] }>>('pantry:getStockMap', { pantry_id }),
+                    invoke<Record<number, PackedStock>>('pantry:getStockMap', { pantry_id }),
     canMake:      (recipe_id: number, recipe_type: 'actual' | 'bundle', pantry_id?: number) =>
       invoke<{ recipe_id: number; can_make: boolean; ingredients: PantryIngredientCheck[]; missing: PantryIngredientCheck[] }>(
         'pantry:canMake', { recipe_id, recipe_type, pantry_id }),
