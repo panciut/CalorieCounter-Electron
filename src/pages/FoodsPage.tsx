@@ -8,6 +8,9 @@ import Modal from '../components/Modal';
 import ConfirmDialog from '../components/ConfirmDialog';
 import FoodSearch from '../components/FoodSearch';
 import type { SearchItem } from '../components/FoodSearch';
+import OffSuggestions from '../components/OffSuggestions';
+import FoodMatchModal, { type Candidate } from '../components/FoodMatchModal';
+import { checkMacroConsistency } from '../lib/macroCheck';
 import type { Food, BarcodeResult, FoodPackage } from '../types';
 
 const INPUT_CLASS =
@@ -27,18 +30,64 @@ interface FoodFormState {
   name: string; calories: string; protein: string; carbs: string;
   fat: string; fiber: string; piece_grams: string; is_liquid: boolean; is_bulk: boolean; barcode: string;
   opened_days: string; discard_threshold_pct: string; price_per_100g: string;
+  sugar: string; saturated_fat: string;
+  /** User-entered sodium-mg OR salt-g; converted to sodium_mg at save based on settings.extra_nutrition_unit. */
+  sodium_or_salt: string;
 }
 
-const emptyForm = (): FoodFormState => ({ name:'', calories:'', protein:'', carbs:'', fat:'', fiber:'', piece_grams:'', is_liquid: false, is_bulk: true, barcode: '', opened_days: '7', discard_threshold_pct: '5', price_per_100g: '' });
-const foodToForm = (f: Food): FoodFormState => ({ name:f.name, calories:String(f.calories), protein:String(f.protein), carbs:String(f.carbs), fat:String(f.fat), fiber:String(f.fiber), piece_grams:f.piece_grams!=null?String(f.piece_grams):'', is_liquid:f.is_liquid===1, is_bulk: f.is_bulk===1, barcode: f.barcode ?? '', opened_days: f.opened_days != null ? String(f.opened_days) : '', discard_threshold_pct: f.discard_threshold_pct != null ? String(f.discard_threshold_pct) : '5', price_per_100g: f.price_per_100g != null ? String(f.price_per_100g) : '' });
-const barcodeToForm = (r: BarcodeResult, barcode: string): FoodFormState => ({ name:r.name, calories:String(r.calories), protein:String(r.protein), carbs:String(r.carbs), fat:String(r.fat), fiber:String(r.fiber), piece_grams:'', is_liquid:r.is_liquid===1, is_bulk: false, barcode, opened_days: '7', discard_threshold_pct: '5', price_per_100g: '' });
-const formToData = (f: FoodFormState): Omit<Food,'id'> => ({ name:f.name.trim(), calories:parseFloat(f.calories)||0, protein:parseFloat(f.protein)||0, carbs:parseFloat(f.carbs)||0, fat:parseFloat(f.fat)||0, fiber:parseFloat(f.fiber)||0, piece_grams: f.is_bulk ? null : (f.piece_grams!==''?parseFloat(f.piece_grams):null), is_liquid:f.is_liquid?1:0, is_bulk: f.is_bulk?1:0, barcode: f.barcode.trim() || null, opened_days: f.opened_days !== '' ? parseInt(f.opened_days, 10) : null, discard_threshold_pct: parseFloat(f.discard_threshold_pct) || 5, price_per_100g: f.price_per_100g !== '' ? parseFloat(f.price_per_100g) : null });
+const emptyForm = (): FoodFormState => ({ name:'', calories:'', protein:'', carbs:'', fat:'', fiber:'', piece_grams:'', is_liquid: false, is_bulk: true, barcode: '', opened_days: '7', discard_threshold_pct: '5', price_per_100g: '', sugar: '', saturated_fat: '', sodium_or_salt: '' });
+const foodToForm = (f: Food, unit: 'sodium' | 'salt'): FoodFormState => ({
+  name:f.name, calories:String(f.calories), protein:String(f.protein), carbs:String(f.carbs), fat:String(f.fat), fiber:String(f.fiber),
+  piece_grams:f.piece_grams!=null?String(f.piece_grams):'',
+  is_liquid:f.is_liquid===1, is_bulk: f.is_bulk===1,
+  barcode: f.barcode ?? '',
+  opened_days: f.opened_days != null ? String(f.opened_days) : '',
+  discard_threshold_pct: f.discard_threshold_pct != null ? String(f.discard_threshold_pct) : '5',
+  price_per_100g: f.price_per_100g != null ? String(f.price_per_100g) : '',
+  sugar: f.sugar != null ? String(f.sugar) : '',
+  saturated_fat: f.saturated_fat != null ? String(f.saturated_fat) : '',
+  sodium_or_salt: f.sodium_mg != null
+    ? (unit === 'salt' ? String(Math.round((f.sodium_mg / 400) * 100) / 100) : String(f.sodium_mg))
+    : '',
+});
+const barcodeToForm = (r: BarcodeResult, barcode: string, unit: 'sodium' | 'salt'): FoodFormState => ({
+  name:r.name, calories:String(r.calories), protein:String(r.protein), carbs:String(r.carbs), fat:String(r.fat), fiber:String(r.fiber),
+  piece_grams:'', is_liquid:r.is_liquid===1, is_bulk: false, barcode, opened_days: '7', discard_threshold_pct: '5', price_per_100g: '',
+  sugar: r.sugar != null ? String(r.sugar) : '',
+  saturated_fat: r.saturated_fat != null ? String(r.saturated_fat) : '',
+  sodium_or_salt: r.sodium_mg != null
+    ? (unit === 'salt' ? String(Math.round((r.sodium_mg / 400) * 100) / 100) : String(r.sodium_mg))
+    : '',
+});
+const formToData = (f: FoodFormState, unit: 'sodium' | 'salt'): Omit<Food,'id'> => {
+  const sodiumRaw = f.sodium_or_salt.trim();
+  const sodium_mg = sodiumRaw === ''
+    ? null
+    : (unit === 'salt' ? parseFloat(sodiumRaw) * 400 : parseFloat(sodiumRaw));
+  return ({
+    name:f.name.trim(), calories:parseFloat(f.calories)||0, protein:parseFloat(f.protein)||0, carbs:parseFloat(f.carbs)||0, fat:parseFloat(f.fat)||0, fiber:parseFloat(f.fiber)||0,
+    piece_grams: f.is_bulk ? null : (f.piece_grams!==''?parseFloat(f.piece_grams):null),
+    is_liquid:f.is_liquid?1:0, is_bulk: f.is_bulk?1:0,
+    barcode: f.barcode.trim() || null,
+    opened_days: f.opened_days !== '' ? parseInt(f.opened_days, 10) : null,
+    discard_threshold_pct: parseFloat(f.discard_threshold_pct) || 5,
+    price_per_100g: f.price_per_100g !== '' ? parseFloat(f.price_per_100g) : null,
+    sugar: f.sugar.trim() === '' ? null : parseFloat(f.sugar),
+    saturated_fat: f.saturated_fat.trim() === '' ? null : parseFloat(f.saturated_fat),
+    sodium_mg: sodium_mg != null && !isNaN(sodium_mg) ? sodium_mg : null,
+  });
+};
 
 // ── FormFields for table edit row (multi-line) ────────────────────────────────
 
-interface FormFieldsProps { form: FoodFormState; patch: (p: Partial<FoodFormState>) => void; }
+interface FormFieldsProps {
+  form: FoodFormState;
+  patch: (p: Partial<FoodFormState>) => void;
+  trackExtra?: boolean;
+  unit?: 'sodium' | 'salt';
+}
 
-function FormFields({ form, patch }: FormFieldsProps) {
+function FormFields({ form, patch, trackExtra = false, unit = 'sodium' }: FormFieldsProps) {
   const { t } = useT();
   const FIELD_CLS = 'bg-bg border border-border rounded-lg px-2 py-1.5 text-text text-sm outline-none focus:border-accent w-full';
   const macros: { key: keyof FoodFormState; label: string }[] = [
@@ -60,6 +109,24 @@ function FormFields({ form, patch }: FormFieldsProps) {
           </div>
         ))}
       </div>
+      {trackExtra && (
+        <div className="grid grid-cols-3 gap-2">
+          <div className="flex flex-col gap-0.5">
+            <label className="text-xs text-text-sec">{t('nutrition.sugar')} (g)</label>
+            <input type="text" inputMode="decimal" value={form.sugar} onChange={e => patch({ sugar: e.target.value })} placeholder="0" className={FIELD_CLS} />
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <label className="text-xs text-text-sec">{t('nutrition.saturatedFat')} (g)</label>
+            <input type="text" inputMode="decimal" value={form.saturated_fat} onChange={e => patch({ saturated_fat: e.target.value })} placeholder="0" className={FIELD_CLS} />
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <label className="text-xs text-text-sec">
+              {unit === 'salt' ? `${t('nutrition.salt')} (g)` : `${t('nutrition.sodium')} (mg)`}
+            </label>
+            <input type="text" inputMode="decimal" value={form.sodium_or_salt} onChange={e => patch({ sodium_or_salt: e.target.value })} placeholder="0" className={FIELD_CLS} />
+          </div>
+        </div>
+      )}
       <div className="flex items-center gap-4">
         <label className="flex items-center gap-2 text-sm text-text-sec cursor-pointer">
           <input type="checkbox" checked={form.is_liquid} onChange={e => patch({ is_liquid: e.target.checked })} />
@@ -82,6 +149,8 @@ export default function FoodsPage() {
   const { t } = useT();
   const { showToast } = useToast();
   const { settings } = useSettings();
+  const trackExtra = settings.track_extra_nutrition === 1;
+  const unit = (settings.extra_nutrition_unit ?? 'sodium') as 'sodium' | 'salt';
 
   const [foods, setFoods] = useState<Food[]>([]);
   const [addForm, setAddForm] = useState<FoodFormState>(emptyForm());
@@ -105,6 +174,16 @@ export default function FoodsPage() {
   const [packUnit, setPackUnit] = useState<'g' | 'pcs'>('g');
   const [packSearchKey, setPackSearchKey] = useState(0);
   const packGramsRef = useRef<HTMLInputElement>(null);
+  const [macroFailDialog, setMacroFailDialog] = useState<
+    | { kind: 'add'; expected: number; actual: number }
+    | { kind: 'edit'; food: Food; expected: number; actual: number }
+    | null
+  >(null);
+  const [matchModal, setMatchModal] = useState<
+    | { kind: 'add-suggestion'; candidates: Candidate[] }
+    | { kind: 'edit-find'; food: Food; candidates: Candidate[] }
+    | null
+  >(null);
 
 
   useEffect(() => { loadFoods(); }, []);
@@ -114,9 +193,31 @@ export default function FoodsPage() {
   function patchAdd(p: Partial<FoodFormState>) { setAddForm(f=>({...f,...p})); }
   function patchEdit(p: Partial<FoodFormState>) { setEditForm(f=>({...f,...p})); }
 
-  async function handleAdd() {
+  async function handleAdd(skipMacroCheck = false, skipDidYouMean = false) {
     if (!addForm.name.trim() || !addForm.calories) return;
-    const { id } = await api.foods.add(formToData(addForm));
+    const data = formToData(addForm, unit);
+    if (!skipMacroCheck) {
+      const chk = checkMacroConsistency(data.calories, data.protein, data.carbs, data.fat, data.fiber);
+      if (chk.level === 'fail') {
+        setMacroFailDialog({ kind: 'add', expected: chk.expected, actual: chk.actual });
+        return;
+      }
+      if (chk.level === 'warn') showToast(`${t('foods.macroWarn')} (~${Math.round(chk.expected)} kcal)`, 'error');
+    }
+    if (!skipDidYouMean && !data.barcode) {
+      try {
+        const cands = await api.openfoodfacts.findCandidates({
+          name: data.name,
+          calories: data.calories, protein: data.protein, carbs: data.carbs, fat: data.fat,
+          nameMin: 0.2, macroPct: 0.05, requireKcalConsistent: true,
+        });
+        if (cands.length > 0) {
+          setMatchModal({ kind: 'add-suggestion', candidates: cands });
+          return;
+        }
+      } catch { /* network err — fall through to save */ }
+    }
+    const { id } = await api.foods.add(data);
     for (const p of addPacks) {
       const g = parseFloat(p.grams);
       if (g > 0) await api.foods.addPackage({ food_id: id, grams: g });
@@ -129,7 +230,7 @@ export default function FoodsPage() {
   function addBlankAddPack() { setAddPacks(p => [...p, { grams: '' }]); }
 
   function applyBarcodeResult(r: BarcodeResult, barcode: string) {
-    setAddForm(barcodeToForm(r, barcode));
+    setAddForm(barcodeToForm(r, barcode, unit));
     setBarcodeStatus('found');
     setFormOpen(true);
     const allBlank = addPacks.every(p => !p.grams);
@@ -178,11 +279,50 @@ export default function FoodsPage() {
     else setBarcodeStatus('notFound');
   }
 
-  function startEdit(food: Food) { setEditId(food.id); setEditForm(foodToForm(food)); }
+  function startEdit(food: Food) { setEditId(food.id); setEditForm(foodToForm(food, unit)); }
   function cancelEdit() { setEditId(null); }
 
-  async function handleSaveEdit(food: Food) {
-    await api.foods.update({ ...formToData(editForm), id: food.id, favorite: food.favorite });
+  async function handleFindOffMatch(food: Food) {
+    const data = formToData(editForm, unit);
+    try {
+      const cands = await api.openfoodfacts.findCandidates({
+        name: data.name,
+        calories: data.calories, protein: data.protein, carbs: data.carbs, fat: data.fat,
+        nameMin: 0.2, macroPct: 0.10, requireKcalConsistent: true,
+      });
+      if (cands.length === 0) {
+        showToast(t('foods.noOffMatch'), 'error');
+        return;
+      }
+      setMatchModal({ kind: 'edit-find', food, candidates: cands });
+    } catch {
+      showToast(t('foods.noOffMatch'), 'error');
+    }
+  }
+
+  function applyOffCandidate(c: BarcodeResult) {
+    // Reuse barcodeToForm so all fields (sugar/sat-fat/sodium/pack/etc) are filled.
+    const next = barcodeToForm(c, c.barcode || '', unit);
+    // Preserve user-edited fields the candidate doesn't override (opened_days, price, etc.)
+    setEditForm(prev => ({
+      ...next,
+      opened_days: prev.opened_days || next.opened_days,
+      discard_threshold_pct: prev.discard_threshold_pct || next.discard_threshold_pct,
+      price_per_100g: prev.price_per_100g || next.price_per_100g,
+    }));
+  }
+
+  async function handleSaveEdit(food: Food, skipMacroCheck = false) {
+    const data = formToData(editForm, unit);
+    if (!skipMacroCheck) {
+      const chk = checkMacroConsistency(data.calories, data.protein, data.carbs, data.fat, data.fiber);
+      if (chk.level === 'fail') {
+        setMacroFailDialog({ kind: 'edit', food, expected: chk.expected, actual: chk.actual });
+        return;
+      }
+      if (chk.level === 'warn') showToast(`${t('foods.macroWarn')} (~${Math.round(chk.expected)} kcal)`, 'error');
+    }
+    await api.foods.update({ ...data, id: food.id, favorite: food.favorite });
     showToast(t('common.saved')); cancelEdit(); loadFoods();
   }
 
@@ -309,7 +449,7 @@ export default function FoodsPage() {
                 ? foods.find(f => f.name.toLowerCase() === addForm.name.trim().toLowerCase())
                 : null;
               return (
-                <div className="flex flex-col gap-0.5">
+                <div className="flex flex-col gap-1">
                   <label className="text-xs text-text-sec">{t('common.name')}</label>
                   <input
                     type="text"
@@ -322,6 +462,11 @@ export default function FoodsPage() {
                   {dupMatch && (
                     <span className="text-xs text-yellow">⚠ "{dupMatch.name}" already exists</span>
                   )}
+                  <OffSuggestions
+                    query={addForm.name}
+                    disabled={!!addForm.barcode.trim()}
+                    onSelect={(r) => applyBarcodeResult(r, r.barcode || '')}
+                  />
                 </div>
               );
             })()}
@@ -351,6 +496,26 @@ export default function FoodsPage() {
                 <input type="checkbox" checked={addForm.is_bulk} onChange={e => patchAdd({ is_bulk: e.target.checked, piece_grams: e.target.checked ? '' : addForm.piece_grams })} className="cursor-pointer accent-accent w-4 h-4" />
               </div>
             </div>
+
+            {/* Extra nutrition (sugar / sat fat / sodium-or-salt) */}
+            {trackExtra && (
+              <div className="flex items-end gap-2">
+                <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                  <label className="text-xs text-text-sec truncate">{t('nutrition.sugar')} (g)</label>
+                  <input type="text" inputMode="decimal" value={addForm.sugar} onChange={e => patchAdd({ sugar: e.target.value })} onKeyDown={e => e.key === 'Enter' && handleAdd()} placeholder="0" className={INPUT_CLASS} />
+                </div>
+                <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                  <label className="text-xs text-text-sec truncate">{t('nutrition.saturatedFat')} (g)</label>
+                  <input type="text" inputMode="decimal" value={addForm.saturated_fat} onChange={e => patchAdd({ saturated_fat: e.target.value })} onKeyDown={e => e.key === 'Enter' && handleAdd()} placeholder="0" className={INPUT_CLASS} />
+                </div>
+                <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                  <label className="text-xs text-text-sec truncate">
+                    {unit === 'salt' ? `${t('nutrition.salt')} (g)` : `${t('nutrition.sodium')} (mg)`}
+                  </label>
+                  <input type="text" inputMode="decimal" value={addForm.sodium_or_salt} onChange={e => patchAdd({ sodium_or_salt: e.target.value })} onKeyDown={e => e.key === 'Enter' && handleAdd()} placeholder="0" className={INPUT_CLASS} />
+                </div>
+              </div>
+            )}
 
             {/* Packs */}
             <div className="border-t border-border pt-2 flex flex-col gap-2">
@@ -438,7 +603,7 @@ export default function FoodsPage() {
             {/* Actions — bottom right */}
             <div className="flex justify-end gap-2 border-t border-border pt-3">
               <button type="button" onClick={handleImport} className="px-3 py-2 rounded-lg border border-border text-text-sec text-sm hover:border-accent hover:text-accent transition-colors cursor-pointer">{t('import.foods')}</button>
-              <button type="button" onClick={handleAdd} disabled={!addForm.name.trim()||!addForm.calories} className="px-5 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer">{t('common.add')}</button>
+              <button type="button" onClick={() => handleAdd()} disabled={!addForm.name.trim()||!addForm.calories} className="px-5 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer">{t('common.add')}</button>
             </div>
           </div>
         )}
@@ -505,7 +670,7 @@ export default function FoodsPage() {
                         <button type="button" onClick={()=>handleToggleFavorite(food.id)} className="text-base cursor-pointer">{food.favorite===1?'⭐':'☆'}</button>
                       </td>
                       <td colSpan={detailMode ? 9 : 8} className="px-3 py-2">
-                        <FormFields form={editForm} patch={patchEdit} />
+                        <FormFields form={editForm} patch={patchEdit} trackExtra={trackExtra} unit={unit} />
                         {detailMode && (
                           <div className="flex flex-wrap gap-3 mt-2">
                             <div className="flex flex-col gap-0.5">
@@ -601,6 +766,14 @@ export default function FoodsPage() {
                       <td className="px-2 py-2 align-top">
                         <div className="flex flex-col gap-1 pt-1">
                           <button type="button" onClick={()=>handleSaveEdit(food)} className="text-xs px-2 py-1 rounded bg-accent text-white hover:opacity-90 cursor-pointer">{t('common.save')}</button>
+                          {!editForm.barcode.trim() && (
+                            <button
+                              type="button"
+                              onClick={() => handleFindOffMatch(food)}
+                              className="text-xs px-2 py-1 rounded border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer"
+                              title={t('foods.findOffMatch')}
+                            >🔎 {t('foods.findOffMatch')}</button>
+                          )}
                           <button type="button" onClick={cancelEdit} className="text-xs px-2 py-1 rounded border border-border text-text-sec cursor-pointer">{t('common.cancel')}</button>
                         </div>
                       </td>
@@ -765,6 +938,54 @@ export default function FoodsPage() {
           dangerous
           onConfirm={() => handleDeletePack(deletePackId)}
           onCancel={() => setDeletePackId(null)}
+        />
+      )}
+
+      {macroFailDialog && (
+        <ConfirmDialog
+          message={
+            `${t('foods.macroFailWarn')}\n` +
+            `${t('foods.macroExpected')}: ~${Math.round(macroFailDialog.expected)} kcal\n` +
+            `${t('foods.macroActual')}: ${Math.round(macroFailDialog.actual)} kcal`
+          }
+          confirmLabel={t('foods.saveAnyway')}
+          dangerous
+          onConfirm={() => {
+            const dlg = macroFailDialog;
+            setMacroFailDialog(null);
+            if (dlg.kind === 'add') handleAdd(true);
+            else handleSaveEdit(dlg.food, true);
+          }}
+          onCancel={() => setMacroFailDialog(null)}
+        />
+      )}
+
+      {matchModal && (
+        <FoodMatchModal
+          isOpen
+          current={(() => {
+            const f = matchModal.kind === 'add-suggestion' ? addForm : editForm;
+            return {
+              name: f.name,
+              calories: parseFloat(f.calories) || 0,
+              protein: parseFloat(f.protein) || 0,
+              carbs: parseFloat(f.carbs) || 0,
+              fat: parseFloat(f.fat) || 0,
+            };
+          })()}
+          candidates={matchModal.candidates}
+          onApply={(c) => {
+            if (matchModal.kind === 'add-suggestion') {
+              applyBarcodeResult(c, c.barcode || '');
+            } else {
+              applyOffCandidate(c);
+            }
+            setMatchModal(null);
+          }}
+          onSaveAsIs={matchModal.kind === 'add-suggestion'
+            ? () => { setMatchModal(null); handleAdd(true, true); }
+            : undefined}
+          onClose={() => setMatchModal(null)}
         />
       )}
     </div>

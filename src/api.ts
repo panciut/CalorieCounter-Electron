@@ -11,6 +11,7 @@ import type {
   GoalType, TDEEResult, GoalSuggestion, DailyEnergy,
   DeductionEvent,
   AppNotification, DismissedNotification,
+  OffLocalStatus, OffImportProgress,
 } from './types';
 
 import type { PackedStock } from './lib/pantryUtils';
@@ -157,6 +158,41 @@ export const api = {
 
   barcode: {
     lookup: (barcode: string) => invoke<BarcodeResult | null>('barcode:lookup', { barcode }),
+  },
+
+  openfoodfacts: {
+    searchByName: (query: string, limit = 10) =>
+      invoke<BarcodeResult[]>('openfoodfacts:searchByName', { query, limit }),
+    findCandidates: (params: {
+      name: string;
+      calories?: number;
+      protein?: number;
+      carbs?: number;
+      fat?: number;
+      nameMin?: number;
+      macroPct?: number;
+      requireKcalConsistent?: boolean;
+      limit?: number;
+    }) =>
+      invoke<(BarcodeResult & {
+        nameScore: number;
+        kcalDeltaPct: number;
+        macroDeltas: { calories: number; protein: number; carbs: number; fat: number };
+      })[]>('openfoodfacts:findCandidates', params),
+  },
+
+  offLocal: {
+    getStatus:    () => invoke<OffLocalStatus>('off:status'),
+    download:     () => invoke<{ ok: boolean; error?: string; counters?: OffImportProgress }>('off:download'),
+    cancel:       () => invoke<{ ok: boolean; error?: string }>('off:cancel'),
+    delete:       () => invoke<{ ok: boolean; error?: string }>('off:delete'),
+    /** Subscribe to streaming progress events. Returns an unsubscribe function. */
+    onProgress:   (cb: (p: OffImportProgress) => void) => {
+      window.electronAPI.on('off:importProgress', (...args: unknown[]) => {
+        cb(args[0] as OffImportProgress);
+      });
+      return () => window.electronAPI.off('off:importProgress');
+    },
   },
 
   streaks: {

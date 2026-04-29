@@ -321,6 +321,17 @@ export default function PantryPage() {
                         <span>Carbs <span className="text-text font-medium">{selFood.carbs}</span>g</span>
                         <span>Fiber <span className="text-text font-medium">{selFood.fiber ?? 0}</span>g</span>
                         <span>Protein <span className="text-text font-medium">{selFood.protein}</span>g</span>
+                        {settings.track_extra_nutrition === 1 && selFood.sugar != null && (
+                          <span>{t('nutrition.sugar')} <span className="text-text font-medium">{selFood.sugar}</span>g</span>
+                        )}
+                        {settings.track_extra_nutrition === 1 && selFood.saturated_fat != null && (
+                          <span>{t('nutrition.saturatedFat')} <span className="text-text font-medium">{selFood.saturated_fat}</span>g</span>
+                        )}
+                        {settings.track_extra_nutrition === 1 && selFood.sodium_mg != null && (
+                          settings.extra_nutrition_unit === 'salt'
+                            ? <span>{t('nutrition.salt')} <span className="text-text font-medium">{Math.round((selFood.sodium_mg / 400) * 100) / 100}</span>g</span>
+                            : <span>{t('nutrition.sodium')} <span className="text-text font-medium">{Math.round(selFood.sodium_mg)}</span>mg</span>
+                        )}
                         <span className="opacity-50">/ 100g</span>
                       </div>
                       {addGrams > 0 && (() => {

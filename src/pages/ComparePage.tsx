@@ -4,13 +4,15 @@ import { useSettings } from '../hooks/useSettings';
 import { useToast } from '../components/Toast';
 import { api } from '../api';
 import FoodSearch from '../components/FoodSearch';
+import Tabs from '../components/ui/Tabs';
+import UnmatchedFoodsList from '../components/UnmatchedFoodsList';
 import { buildCompareMarkdown, copyToClipboard } from '../lib/exportText';
 import type { Food } from '../types';
 import type { SearchItem } from '../components/FoodSearch';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type Tab = 'compare' | 'rank';
+type Tab = 'compare' | 'rank' | 'match';
 
 type CompareMode = 'per100g' | 'per100kcal' | 'perPiece' | 'perPackage' | 'customG' | 'customKcal';
 
@@ -726,27 +728,16 @@ export default function ComparePage() {
     setTab('compare');
   }
 
+  const tabItems: { id: Tab; label: string }[] = [
+    { id: 'compare', label: t('compare.tabCompare') },
+    { id: 'rank',    label: t('compare.tabRank') },
+    { id: 'match',   label: t('compare.tabMatch') },
+  ];
+
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-6">
-      <div className="flex items-center gap-4">
-        <h1 className="text-xl font-bold text-text">{t('compare.title')}</h1>
-        <div className="flex gap-1 ml-auto">
-          {(['compare', 'rank'] as Tab[]).map(tabKey => (
-            <button
-              key={tabKey}
-              onClick={() => setTab(tabKey)}
-              className={[
-                'px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer',
-                tab === tabKey
-                  ? 'bg-accent text-white'
-                  : 'text-text-sec border border-border hover:border-accent/50 hover:text-text',
-              ].join(' ')}
-            >
-              {tabKey === 'compare' ? t('compare.tabCompare') : t('compare.tabRank')}
-            </button>
-          ))}
-        </div>
-      </div>
+      <h1 className="text-xl font-bold text-text">{t('compare.title')}</h1>
+      <Tabs items={tabItems} active={tab} onChange={setTab} />
 
       {tab === 'compare' && (
         <CompareTab
@@ -765,6 +756,7 @@ export default function ComparePage() {
           onCompareSelected={handleCompareSelected}
         />
       )}
+      {tab === 'match' && <UnmatchedFoodsList />}
     </div>
   );
 }

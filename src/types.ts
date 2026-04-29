@@ -65,6 +65,9 @@ export interface Food {
   discard_threshold_pct?: number;
   price_per_100g?: number | null;
   is_bulk?: number; // 0 or 1 — Shape C (flour/rice/oil): default to grams when logging
+  sugar?: number | null;          // g per 100g, optional
+  saturated_fat?: number | null;  // g per 100g, optional
+  sodium_mg?: number | null;      // mg per 100g, optional (display can convert to salt g)
 }
 
 export interface FrequentFood extends Food {
@@ -286,6 +289,31 @@ export interface Settings {
   notif_weight: number;
   notif_weight_warn_days: number;   // default 3
   notif_weight_urgent_days: number; // default 7
+  // extra nutrition (sugar / saturated fat / sodium)
+  track_extra_nutrition: number;          // 0 or 1
+  extra_nutrition_unit: 'sodium' | 'salt'; // display unit
+  off_country: string;                    // OFF subdomain code: 'world' | 'it' | 'us' | …
+  // Local OFF mirror
+  off_local_enabled: number;              // 0 or 1; flips to 1 after first successful import
+  off_local_last_synced: string;          // ISO date string of last successful import
+  off_disable_online: number;             // 0 or 1; when 1, skip the live API fallback entirely
+}
+
+export interface OffLocalStatus {
+  initialized: boolean;
+  sizeBytes: number;
+  productCount: number;
+  lastSynced: string;
+}
+
+export interface OffImportProgress {
+  stage: 'downloading' | 'parsing' | 'indexing' | 'done' | 'error' | 'cancelled';
+  bytesRead: number;
+  totalBytes: number | null;
+  rowsParsed: number;
+  rowsKept: number;
+  rowsSkipped: number;
+  message?: string;
 }
 
 export interface WeightEntry {
@@ -526,6 +554,11 @@ export interface BarcodeResult {
   fiber: number;
   is_liquid: number;
   pack_grams?: number | null;
+  sugar?: number | null;
+  saturated_fat?: number | null;
+  sodium_mg?: number | null;
+  barcode?: string;
+  brand?: string;
 }
 
 // ── Page navigation ──────────────────────────────────────────────────────────

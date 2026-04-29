@@ -1,9 +1,14 @@
 import { useState } from 'react';
 import { useT } from '../i18n/useT';
 import { useToast } from './Toast';
+import { useSettings } from '../hooks/useSettings';
 import { api } from '../api';
 import BarcodeScanner from './BarcodeScanner';
 import Modal from './Modal';
+import ConfirmDialog from './ConfirmDialog';
+import OffSuggestions from './OffSuggestions';
+import FoodMatchModal, { type Candidate } from './FoodMatchModal';
+import { checkMacroConsistency } from '../lib/macroCheck';
 import type { Food, BarcodeResult } from '../types';
 
 // ── Form types & helpers ──────────────────────────────────────────────────────
@@ -24,21 +29,34 @@ interface FoodFormState {
   name: string; calories: string; protein: string; carbs: string;
   fat: string; fiber: string; piece_grams: string; is_liquid: boolean; is_bulk: boolean; barcode: string;
   opened_days: string; price_per_100g: string;
+  sugar: string; saturated_fat: string;
+  /** Holds the user-entered value in the currently selected unit (sodium-mg OR salt-g). Conversion to sodium_mg happens at save. */
+  sodium_or_salt: string;
 }
 
 function emptyForm(): FoodFormState {
-  return { name: '', calories: '', protein: '', carbs: '', fat: '', fiber: '', piece_grams: '', is_liquid: false, is_bulk: true, barcode: '', opened_days: '7', price_per_100g: '' };
+  return { name: '', calories: '', protein: '', carbs: '', fat: '', fiber: '', piece_grams: '', is_liquid: false, is_bulk: true, barcode: '', opened_days: '7', price_per_100g: '', sugar: '', saturated_fat: '', sodium_or_salt: '' };
 }
 
-function barcodeToForm(r: BarcodeResult, barcode: string): FoodFormState {
+function barcodeToForm(r: BarcodeResult, barcode: string, unit: 'sodium' | 'salt'): FoodFormState {
+  const sodiumStr = r.sodium_mg != null
+    ? (unit === 'salt' ? String(Math.round((r.sodium_mg / 400) * 100) / 100) : String(r.sodium_mg))
+    : '';
   return {
     name: r.name, calories: String(r.calories), protein: String(r.protein),
     carbs: String(r.carbs), fat: String(r.fat), fiber: String(r.fiber),
     piece_grams: '', is_liquid: r.is_liquid === 1, is_bulk: false, barcode, opened_days: '7', price_per_100g: '',
+    sugar: r.sugar != null ? String(r.sugar) : '',
+    saturated_fat: r.saturated_fat != null ? String(r.saturated_fat) : '',
+    sodium_or_salt: sodiumStr,
   };
 }
 
-function formToData(f: FoodFormState): Omit<Food, 'id'> {
+function formToData(f: FoodFormState, unit: 'sodium' | 'salt'): Omit<Food, 'id'> {
+  const sodiumRaw = f.sodium_or_salt.trim();
+  const sodium_mg = sodiumRaw === ''
+    ? null
+    : (unit === 'salt' ? parseFloat(sodiumRaw) * 400 : parseFloat(sodiumRaw));
   return {
     name: f.name.trim(),
     calories: parseFloat(f.calories) || 0,
@@ -52,6 +70,9 @@ function formToData(f: FoodFormState): Omit<Food, 'id'> {
     barcode: f.barcode.trim() || null,
     opened_days: f.opened_days !== '' ? parseInt(f.opened_days, 10) : null,
     price_per_100g: f.price_per_100g !== '' ? parseFloat(f.price_per_100g) : null,
+    sugar: f.sugar.trim() === '' ? null : parseFloat(f.sugar),
+    saturated_fat: f.saturated_fat.trim() === '' ? null : parseFloat(f.saturated_fat),
+    sodium_mg: sodium_mg != null && !isNaN(sodium_mg) ? sodium_mg : null,
   };
 }
 
@@ -74,6 +95,9 @@ interface AddFoodPanelProps {
 export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, defaultOpen = false }: AddFoodPanelProps) {
   const { t } = useT();
   const { showToast } = useToast();
+  const { settings } = useSettings();
+  const trackExtra = settings.track_extra_nutrition === 1;
+  const unit = (settings.extra_nutrition_unit ?? 'sodium') as 'sodium' | 'salt';
   const [open, setOpen] = useState(defaultOpen);
   const [form, setForm] = useState<FoodFormState>(emptyForm());
   const [packs, setPacks] = useState<{ grams: string }[]>([{ grams: '' }]);
@@ -81,6 +105,8 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
   const [barcodeStatus, setBarcodeStatus] = useState<'found' | 'notFound' | null>(null);
   const [packFromBarcode, setPackFromBarcode] = useState<number | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [macroFailDialog, setMacroFailDialog] = useState<{ expected: number; actual: number } | null>(null);
+  const [matchModal, setMatchModal] = useState<{ candidates: Candidate[] } | null>(null);
 
   function patch(p: Partial<FoodFormState>) { setForm(f => ({ ...f, ...p })); }
   function updatePackGrams(i: number, grams: string) { setPacks(p => p.map((x, idx) => idx === i ? { grams } : x)); }
@@ -88,7 +114,15 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
   function addBlankPack() { setPacks(p => [...p, { grams: '' }]); }
 
   function applyBarcodeResult(r: BarcodeResult, barcode: string) {
-    setForm(barcodeToForm(r, barcode));
+    // Reject OFF data with internally inconsistent values (per Atwater).
+    if (r.calories > 0 || r.protein > 0 || r.carbs > 0 || r.fat > 0) {
+      const chk = checkMacroConsistency(r.calories, r.protein, r.carbs, r.fat, r.fiber);
+      if (chk.level === 'fail') {
+        showToast(t('foods.macroFailWarn'), 'error');
+        return;
+      }
+    }
+    setForm(barcodeToForm(r, barcode, unit));
     setBarcodeStatus('found');
     setOpen(true);
     const allBlank = packs.every(p => !p.grams);
@@ -99,6 +133,11 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
     } else {
       setPackFromBarcode(null);
     }
+  }
+
+  function applyOffSuggestion(r: BarcodeResult) {
+    // Same path as a barcode lookup but the user is choosing it from the typeahead.
+    applyBarcodeResult(r, r.barcode || '');
   }
 
   async function handleBarcodeLookup() {
@@ -142,9 +181,34 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
     });
   }
 
-  async function handleAdd() {
+  async function handleAdd(skipMacroCheck = false, skipDidYouMean = false) {
     if (!form.name.trim() || !form.calories) return;
-    const { id } = await api.foods.add(formToData(form));
+    const data = formToData(form, unit);
+    if (!skipMacroCheck) {
+      const chk = checkMacroConsistency(data.calories, data.protein, data.carbs, data.fat, data.fiber);
+      if (chk.level === 'fail') {
+        setMacroFailDialog({ expected: chk.expected, actual: chk.actual });
+        return;
+      }
+      if (chk.level === 'warn') {
+        showToast(`${t('foods.macroWarn')} (~${Math.round(chk.expected)} kcal)`, 'error');
+      }
+    }
+    // "Did you mean?" — only when the user hasn't already locked in a barcode.
+    if (!skipDidYouMean && !data.barcode) {
+      try {
+        const cands = await api.openfoodfacts.findCandidates({
+          name: data.name,
+          calories: data.calories, protein: data.protein, carbs: data.carbs, fat: data.fat,
+          nameMin: 0.2, macroPct: 0.05, requireKcalConsistent: true,
+        });
+        if (cands.length > 0) {
+          setMatchModal({ candidates: cands });
+          return;
+        }
+      } catch { /* network err — fall through to save */ }
+    }
+    const { id } = await api.foods.add(data);
     for (const p of packs) {
       const g = parseFloat(p.grams);
       if (g > 0) await api.foods.addPackage({ food_id: id, grams: g });
@@ -233,7 +297,7 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
           </div>
 
           {/* Name */}
-          <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col gap-1">
             <label className="text-xs text-text-sec">{t('common.name')}</label>
             <input
               type="text"
@@ -242,6 +306,11 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
               onKeyDown={e => e.key === 'Enter' && handleAdd()}
               placeholder={t('foods.namePlaceholder')}
               className={INPUT_CLASS}
+            />
+            <OffSuggestions
+              query={form.name}
+              disabled={!!form.barcode.trim()}
+              onSelect={applyOffSuggestion}
             />
           </div>
 
@@ -269,6 +338,47 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
               <input type="checkbox" checked={form.is_bulk} onChange={e => patch({ is_bulk: e.target.checked, piece_grams: e.target.checked ? '' : form.piece_grams })} className="cursor-pointer accent-accent w-4 h-4" />
             </div>
           </div>
+
+          {/* Extra nutrition (sugar / sat fat / sodium-or-salt) — only when toggle is on */}
+          {trackExtra && (
+            <div className="flex items-end gap-2">
+              <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                <label className="text-xs text-text-sec truncate">{t('nutrition.sugar')} (g)</label>
+                <input
+                  type="text" inputMode="decimal"
+                  value={form.sugar}
+                  onChange={e => patch({ sugar: e.target.value })}
+                  onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                  placeholder="0"
+                  className={INPUT_CLASS}
+                />
+              </div>
+              <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                <label className="text-xs text-text-sec truncate">{t('nutrition.saturatedFat')} (g)</label>
+                <input
+                  type="text" inputMode="decimal"
+                  value={form.saturated_fat}
+                  onChange={e => patch({ saturated_fat: e.target.value })}
+                  onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                  placeholder="0"
+                  className={INPUT_CLASS}
+                />
+              </div>
+              <div className="flex flex-col gap-0.5 flex-1 min-w-0">
+                <label className="text-xs text-text-sec truncate">
+                  {unit === 'salt' ? `${t('nutrition.salt')} (g)` : `${t('nutrition.sodium')} (mg)`}
+                </label>
+                <input
+                  type="text" inputMode="decimal"
+                  value={form.sodium_or_salt}
+                  onChange={e => patch({ sodium_or_salt: e.target.value })}
+                  onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                  placeholder="0"
+                  className={INPUT_CLASS}
+                />
+              </div>
+            </div>
+          )}
 
           {/* Packs */}
           <div className="border-t border-border pt-2 flex flex-col gap-2">
@@ -348,7 +458,7 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
           {/* Add button — bottom right */}
           <div className="flex justify-end border-t border-border pt-3">
             <button
-              type="button" onClick={handleAdd}
+              type="button" onClick={() => handleAdd()}
               disabled={!form.name.trim() || !form.calories}
               className="px-5 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:opacity-90 disabled:opacity-40 cursor-pointer">
               {t('common.add')}
@@ -361,6 +471,40 @@ export default function AddFoodPanel({ onSaved, knownFoods, onFoodFound, default
         <Modal isOpen onClose={() => setScannerOpen(false)} title={t('barcode.scanTitle')}>
           <BarcodeScanner onResult={handleScanResult} />
         </Modal>
+      )}
+
+      {macroFailDialog && (
+        <ConfirmDialog
+          message={
+            `${t('foods.macroFailWarn')}\n` +
+            `${t('foods.macroExpected')}: ~${Math.round(macroFailDialog.expected)} kcal\n` +
+            `${t('foods.macroActual')}: ${Math.round(macroFailDialog.actual)} kcal`
+          }
+          confirmLabel={t('foods.saveAnyway')}
+          dangerous
+          onConfirm={() => { setMacroFailDialog(null); handleAdd(true); }}
+          onCancel={() => setMacroFailDialog(null)}
+        />
+      )}
+
+      {matchModal && (
+        <FoodMatchModal
+          isOpen
+          current={{
+            name: form.name,
+            calories: parseFloat(form.calories) || 0,
+            protein: parseFloat(form.protein) || 0,
+            carbs: parseFloat(form.carbs) || 0,
+            fat: parseFloat(form.fat) || 0,
+          }}
+          candidates={matchModal.candidates}
+          onApply={(c) => {
+            applyBarcodeResult(c, c.barcode || '');
+            setMatchModal(null);
+          }}
+          onSaveAsIs={() => { setMatchModal(null); handleAdd(true, true); }}
+          onClose={() => setMatchModal(null)}
+        />
       )}
     </div>
   );

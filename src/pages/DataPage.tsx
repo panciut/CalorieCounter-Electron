@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { api } from '../api';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { BulkRefillModal, BulkMatchModal } from '../components/BulkOffOpsModal';
+import OffLocalCard from '../components/OffLocalCard';
 import { copyToClipboard } from '../lib/exportText';
 import { useT } from '../i18n/useT';
 
@@ -62,6 +64,9 @@ export default function DataPage() {
   const [pantryCopied, setPantryCopied]   = useState(false);
   const [confirmRestore, setConfirmRestore] = useState(false);
   const [restorePath, setRestorePath]     = useState('');
+  const [refillOpen, setRefillOpen]       = useState(false);
+  const [refillRefreshMacros, setRefillRefreshMacros] = useState(false);
+  const [matchOpen, setMatchOpen]         = useState(false);
 
   // ── Export ──────────────────────────────────────────────────────────────────
 
@@ -297,6 +302,34 @@ export default function DataPage() {
             {t('data.restoreFromBackup')}
           </button>
         </div>
+
+        {/* Local Open Food Facts copy */}
+        <OffLocalCard />
+
+        {/* Open Food Facts bulk operations */}
+        <div className={card}>
+          <p className={sectionTitle}>{t('data.refillNutrition')}</p>
+          <p className={desc}>{t('data.refillDesc')}</p>
+          <label className="flex items-center gap-2 text-sm text-text-sec cursor-pointer">
+            <input
+              type="checkbox"
+              checked={refillRefreshMacros}
+              onChange={e => setRefillRefreshMacros(e.target.checked)}
+            />
+            {t('data.refillRefreshMacros')}
+          </label>
+          <button onClick={() => setRefillOpen(true)} className={btn()}>
+            {t('data.refillNutrition')}
+          </button>
+        </div>
+
+        <div className={card}>
+          <p className={sectionTitle}>{t('data.matchBarcodes')}</p>
+          <p className={desc}>{t('data.matchBarcodesDesc')}</p>
+          <button onClick={() => setMatchOpen(true)} className={btn()}>
+            {t('data.matchBarcodes')}
+          </button>
+        </div>
       </section>
 
       {confirmRestore && (
@@ -308,6 +341,24 @@ export default function DataPage() {
           onCancel={() => setConfirmRestore(false)}
         />
       )}
+
+      <BulkRefillModal
+        isOpen={refillOpen}
+        refreshMacros={refillRefreshMacros}
+        onClose={() => setRefillOpen(false)}
+        onDone={(s) => {
+          setRefillOpen(false);
+          showToast(`${t('data.refillDone')}: ✓${s.updated} · ${s.skipped} ${t('data.skipped')} · ${s.failed} ${t('data.failed')}`);
+        }}
+      />
+
+      <BulkMatchModal
+        isOpen={matchOpen}
+        onClose={() => setMatchOpen(false)}
+        onDone={(s) => {
+          showToast(`${t('data.matchDone')}: ✓${s.auto} ${t('data.autoMatched')} · ✓${s.manual} · ↷${s.skipped} · —${s.none}`);
+        }}
+      />
 
       <ActionLog />
     </div>
