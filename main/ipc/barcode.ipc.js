@@ -1,4 +1,5 @@
 const { ipcMain } = require('electron');
+const { queryCustomDbBarcode, queryCustomDbName } = require('./customdb.ipc');
 
 // Parse "500 g", "1.5 kg", "330 ml", "6 × 200 g" → grams. Returns null if unparseable.
 function parseGrams(str) {
@@ -20,6 +21,8 @@ function parseGrams(str) {
 
 function registerBarcodeIpc() {
   ipcMain.handle('barcode:lookup', async (_, { barcode }) => {
+    const custom = queryCustomDbBarcode(barcode);
+    if (custom) return custom;
     try {
       const url = `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}?fields=product_name,product_name_en,product_name_it,nutriments,quantity,serving_size,categories_tags,image_front_small_url`;
       const resp = await fetch(url);
@@ -58,11 +61,12 @@ function registerBarcodeIpc() {
   });
 
   ipcMain.handle('barcode:search', async (_, { query }) => {
+    const customResults = queryCustomDbName(query);
     try {
       const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(query)}&json=1&fields=product_name,product_name_en,product_name_it,nutriments,quantity,serving_size,categories_tags,image_front_small_url,code&page_size=10`;
       const resp = await fetch(url);
       const json = await resp.json();
-      if (!Array.isArray(json.products)) return [];
+      if (!Array.isArray(json.products)) return customResults;
       const r2 = v => Math.round((v || 0) * 100) / 100;
       const liquidTags = new Set([
         'en:beverages', 'en:drinks', 'en:sodas', 'en:juices', 'en:fruit-juices',
@@ -72,7 +76,7 @@ function registerBarcodeIpc() {
         'en:teas', 'en:coffees', 'en:energy-drinks', 'en:sports-drinks',
         'en:smoothies', 'en:nectars', 'en:syrups',
       ]);
-      return json.products
+      const apiResults = json.products
         .filter(p => p.product_name)
         .map(p => {
           const n = p.nutriments || {};
@@ -92,9 +96,10 @@ function registerBarcodeIpc() {
             barcode:    p.code || '',
           };
         });
+      return [...customResults, ...apiResults];
     } catch (e) {
       console.error('Barcode search error:', e.message);
-      return [];
+      return customResults;
     }
   });
 }

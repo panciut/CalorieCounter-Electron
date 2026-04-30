@@ -8,6 +8,7 @@ import { today } from '../../lib/dateUtil';
 import { MEAL_ORDER, type ActualRecipe, type ActualRecipeIngredient, type Food, type Meal, type PantryIngredientCheck, type PantryLocation } from '../../types';
 import { useDeductionEvents } from '../../hooks/useDeductionEvents';
 import DeductionEventModal from '../DeductionEventModal';
+import { serifItalic, pillPrimary, pillGhost, EmptyState, MACRO_DOT, MacroChip } from '../../lib/fbUI';
 
 type PantryCheckResult = { can_make: boolean; missing: PantryIngredientCheck[] };
 
@@ -132,7 +133,7 @@ function RecipesTab() {
     showToast(`Added ${check.missing.length} item${check.missing.length > 1 ? 's' : ''} to shopping list`);
   }
 
-  const inputCls = 'w-full rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent';
+  const inputCls = 'w-full rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text outline-none focus:border-accent transition-colors';
   const selCls   = 'rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent';
 
   const logPreview = (() => {
@@ -150,104 +151,151 @@ function RecipesTab() {
   const visibleRecipes = canMakeFilter ? recipes.filter(r => canMakeMap.get(r.id)?.can_make) : recipes;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <p className="text-sm text-text-sec">Full recipes with yield — log by how much you ate.</p>
-        <div className="flex items-center gap-2 flex-wrap">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <span className="tnum" style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 28, letterSpacing: -1, color: 'var(--fb-text)', lineHeight: 1 }}>
+            {visibleRecipes.length}
+          </span>
+          <span style={{ ...serifItalic, fontSize: 14, color: 'var(--fb-text-3)' }}>
+            {visibleRecipes.length === 1 ? 'recipe' : 'recipes'}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {pantries.length > 1 && (
             <select
               value={pantryId ?? ''}
               onChange={e => { const pid = Number(e.target.value); setPantryId(pid); loadRecipes(pid); }}
-              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-text outline-none focus:border-accent cursor-pointer"
+              style={{ fontSize: 11, fontWeight: 600, background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', borderRadius: 99, padding: '6px 14px', color: 'var(--fb-text-2)', outline: 'none', cursor: 'pointer' }}
             >
               {pantries.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           )}
           <button
             onClick={() => setCanMakeFilter(v => !v)}
-            className={[
-              'text-xs px-3 py-1.5 rounded-lg border cursor-pointer transition-colors',
-              canMakeFilter
-                ? 'border-accent bg-accent/10 text-accent'
-                : 'border-border text-text-sec hover:border-accent/50',
-            ].join(' ')}
+            style={canMakeFilter
+              ? { ...pillGhost, color: 'var(--fb-accent)', borderColor: 'var(--fb-accent)', background: 'var(--fb-accent-soft)' }
+              : pillGhost}
           >
-            🥗 Can make
+            Can make
           </button>
-          <button
-            onClick={() => setCreating(true)}
-            className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer"
-          >
-            + New Recipe
+          <button onClick={() => setCreating(true)} style={pillPrimary}>
+            + New recipe
           </button>
         </div>
       </div>
 
       {visibleRecipes.length === 0 ? (
-        <p className="text-text-sec text-center py-12 text-sm">
-          {canMakeFilter ? 'No recipes you can make with current pantry.' : 'No recipes yet.'}
-        </p>
+        <EmptyState message={canMakeFilter ? 'No recipes you can make with current pantry.' : 'No recipes yet.'} />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
           {visibleRecipes.map(r => {
             const cm = canMakeMap.get(r.id);
             return (
-            <div
-              key={r.id}
-              onClick={() => openDetail(r.id)}
-              className="bg-card border border-border rounded-xl p-4 cursor-pointer hover:bg-card-hover transition-colors space-y-2"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold text-text">{r.name}</h3>
-                    {cm && (
-                      <span className={[
-                        'text-xs px-1.5 py-0.5 rounded font-medium shrink-0',
-                        cm.can_make
-                          ? 'bg-green/10 text-green'
-                          : cm.missing_count <= 2
-                            ? 'bg-yellow/10 text-yellow'
-                            : 'bg-red/10 text-red',
-                      ].join(' ')}>
-                        {cm.can_make ? '✓ can make' : `${cm.missing_count} missing`}
-                      </span>
+              <div
+                key={r.id}
+                onClick={() => openDetail(r.id)}
+                className="recipe-card"
+                style={{
+                  background: 'var(--fb-bg)',
+                  border: '1px solid var(--fb-border)',
+                  borderRadius: 18,
+                  padding: 4,
+                  cursor: 'pointer',
+                  transition: 'transform .35s cubic-bezier(0.32,0.72,0,1), border-color .25s ease',
+                }}
+              >
+                <div style={{
+                  background: 'var(--fb-card)',
+                  borderRadius: 14,
+                  padding: 16,
+                  display: 'flex', flexDirection: 'column', gap: 12,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                    <div style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ ...serifItalic, fontSize: 17, fontWeight: 400, color: 'var(--fb-text)', letterSpacing: -0.2 }}>{r.name}</span>
+                        {cm && (
+                          <span style={{
+                            fontSize: 9.5, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase',
+                            padding: '3px 9px', borderRadius: 99,
+                            background: cm.can_make ? 'color-mix(in srgb, var(--fb-green) 14%, transparent)' : cm.missing_count <= 2 ? 'color-mix(in srgb, var(--fb-amber) 14%, transparent)' : 'color-mix(in srgb, var(--fb-red) 14%, transparent)',
+                            color: cm.can_make ? 'var(--fb-green)' : cm.missing_count <= 2 ? 'var(--fb-amber)' : 'var(--fb-red)',
+                            flexShrink: 0,
+                          }}>
+                            {cm.can_make ? '✓ ready' : `${cm.missing_count} missing`}
+                          </span>
+                        )}
+                      </div>
+                      {r.description && (
+                        <p style={{ fontSize: 11.5, color: 'var(--fb-text-3)', margin: 0, lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                          {r.description}
+                        </p>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={e => { e.stopPropagation(); openLogTarget(r); }}
+                        style={{
+                          padding: '6px 14px', borderRadius: 99,
+                          background: 'var(--fb-accent-soft)', color: 'var(--fb-accent)',
+                          border: '1px solid var(--fb-accent)',
+                          fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                          transition: 'all .25s ease',
+                        }}
+                      >Log</button>
+                      <button
+                        onClick={e => { e.stopPropagation(); setDeleteTarget(r); }}
+                        aria-label="Delete"
+                        style={{
+                          width: 28, height: 28, borderRadius: 99,
+                          background: 'transparent', color: 'var(--fb-text-3)',
+                          border: '1px solid var(--fb-border-strong)',
+                          fontSize: 11, cursor: 'pointer',
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >✕</button>
+                    </div>
+                  </div>
+
+                  <div style={{
+                    display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center',
+                    paddingTop: 8, borderTop: '1px solid var(--fb-divider)',
+                  }}>
+                    <MacroChip dot={MACRO_DOT.kcal} value={`${n(r.total_calories)}`} unit="kcal" emphasis />
+                    <MacroChip dot={MACRO_DOT.protein} value={`${n(r.total_protein)}`} unit="g P" />
+                    <MacroChip dot={MACRO_DOT.carbs}   value={`${n(r.total_carbs)}`}   unit="g C" />
+                    <MacroChip dot={MACRO_DOT.fat}     value={`${n(r.total_fat)}`}     unit="g F" />
+                    {r.yield_g > 0 && (
+                      <span className="tnum" style={{ fontSize: 11, color: 'var(--fb-text-3)' }}>yield {r.yield_g}g</span>
+                    )}
+                    {(r.prep_time_min > 0 || r.cook_time_min > 0) && (
+                      <span className="tnum" style={{ fontSize: 11, color: 'var(--fb-text-3)' }}>{r.prep_time_min + r.cook_time_min} min</span>
+                    )}
+                    {cm && !cm.can_make && (
+                      <button
+                        onClick={e => { e.stopPropagation(); addMissingToShopping(r.id); }}
+                        style={{
+                          marginLeft: 'auto', fontSize: 10.5, fontWeight: 600,
+                          padding: '4px 10px', borderRadius: 99,
+                          border: '1px dashed var(--fb-border-strong)',
+                          background: 'transparent', color: 'var(--fb-text-3)',
+                          cursor: 'pointer',
+                          transition: 'all .25s ease',
+                        }}
+                      >+ shopping</button>
                     )}
                   </div>
-                  {r.description && <p className="text-xs text-text-sec mt-0.5">{r.description}</p>}
-                </div>
-                <div className="flex gap-1.5 shrink-0">
-                  <button
-                    onClick={e => { e.stopPropagation(); openLogTarget(r); }}
-                    className="px-2.5 py-1 rounded-lg bg-accent/10 text-accent text-xs font-medium hover:bg-accent/20 transition-colors cursor-pointer"
-                  >Log</button>
-                  <button
-                    onClick={e => { e.stopPropagation(); setDeleteTarget(r); }}
-                    className="px-2.5 py-1 rounded-lg bg-red/10 text-red text-xs font-medium hover:bg-red/20 transition-colors cursor-pointer"
-                  >Delete</button>
                 </div>
               </div>
-              <div className="flex gap-3 text-xs text-text-sec flex-wrap items-center">
-                <span>{n(r.total_calories)} kcal</span>
-                <span>F {n(r.total_fat)}g</span>
-                <span>C {n(r.total_carbs)}g</span>
-                <span>P {n(r.total_protein)}g</span>
-                {r.yield_g > 0 && <span>Yield {r.yield_g}g</span>}
-                {(r.prep_time_min > 0 || r.cook_time_min > 0) && (
-                  <span>{r.prep_time_min + r.cook_time_min} min</span>
-                )}
-                {cm && !cm.can_make && (
-                  <button
-                    onClick={e => { e.stopPropagation(); addMissingToShopping(r.id); }}
-                    className="ml-auto text-xs px-2 py-0.5 rounded border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors"
-                  >+ shopping list</button>
-                )}
-              </div>
-            </div>
             );
           })}
         </div>
       )}
+
+      <style>{`
+        .recipe-card:hover { border-color: var(--fb-border-strong) !important; transform: translateY(-1px); }
+      `}</style>
 
       {detailId !== null && detail && (
         <RecipeDetailModal
@@ -273,9 +321,12 @@ function RecipesTab() {
 
       {logTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm mx-4 space-y-4">
-            <h2 className="font-semibold text-text">Log "{logTarget.name}"</h2>
-            <p className="text-xs text-text-sec">Total yield: {logTarget.yield_g}g</p>
+          <div style={{ background: 'var(--fb-card)', border: '1px solid var(--fb-border-strong)', borderRadius: 14, padding: 24, width: '100%', maxWidth: 400, margin: '0 16px', display: 'flex', flexDirection: 'column', gap: 16, boxShadow: '0 24px 64px rgba(0,0,0,0.7)' }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.4, textTransform: 'uppercase', color: 'var(--fb-accent)', marginBottom: 2 }}>Log recipe</div>
+              <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 17, color: 'var(--fb-text)' }}>{logTarget.name}</div>
+              <div style={{ fontSize: 11, color: 'var(--fb-text-3)', marginTop: 2 }}>Total yield: {logTarget.yield_g}g</div>
+            </div>
             <div className="space-y-3">
               <div className="space-y-1">
                 <label className="text-xs text-text-sec">How much did you eat? (g)</label>
@@ -322,9 +373,9 @@ function RecipesTab() {
                 </button>
               )}
             </div>
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => { setLogTarget(null); setLogPantryCheck(null); }} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
-              <button onClick={doLog} className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer">Log</button>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => { setLogTarget(null); setLogPantryCheck(null); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'transparent', border: '1px solid var(--fb-border-strong)', color: 'var(--fb-text-2)', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 500, fontFamily: 'var(--font-body)', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={doLog} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'var(--fb-accent)', color: 'white', border: 0, padding: '7px 14px', borderRadius: 7, fontSize: 12.5, fontWeight: 600, fontFamily: 'var(--font-body)', cursor: 'pointer' }}>Log</button>
             </div>
           </div>
         </div>
@@ -397,7 +448,7 @@ function RecipeDetailModal({ detail: initialDetail, foods, onClose, onSave }: {
     setDetail(d => ({ ...d, ingredients: [...(d.ingredients ?? []), newIng] }));
   }
 
-  const inputCls = 'w-full rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text focus:outline-none focus:border-accent';
+  const inputCls = 'w-full rounded-lg border border-border bg-bg px-3 py-1.5 text-sm text-text outline-none focus:border-accent transition-colors';
   const TABS = [
     { id: 'ingredients', label: 'Ingredients' },
     { id: 'procedure',   label: 'Procedure' },
@@ -406,7 +457,7 @@ function RecipeDetailModal({ detail: initialDetail, foods, onClose, onSave }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto flex flex-col gap-4">
+      <div style={{ background: 'var(--fb-card)', border: '1px solid var(--fb-border-strong)', borderRadius: 14, padding: 24, width: '100%', maxWidth: '42rem', maxHeight: '90vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16, boxShadow: '0 24px 64px rgba(0,0,0,0.7)', fontFamily: 'var(--font-body)' }}>
         {/* Header fields */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <input className={inputCls} value={detail.name}
@@ -426,16 +477,15 @@ function RecipeDetailModal({ detail: initialDetail, foods, onClose, onSave }: {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 border-b border-border">
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={[
-                'px-4 py-2 text-sm font-medium transition-colors cursor-pointer border-b-2 -mb-px',
-                tab === t.id ? 'border-accent text-accent' : 'border-transparent text-text-sec hover:text-text',
-              ].join(' ')}>
-              {t.label}
-            </button>
-          ))}
+        <div style={{ display: 'flex', gap: 2, background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', borderRadius: 16, padding: 3, alignSelf: 'flex-start' }}>
+          {TABS.map(t => {
+            const active = tab === t.id;
+            return (
+              <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: '4px 14px', borderRadius: 12, fontSize: 11.5, fontWeight: 600, border: active ? '1px solid var(--fb-border-strong)' : '1px solid transparent', background: active ? 'var(--fb-card)' : 'transparent', color: active ? 'var(--fb-text)' : 'var(--fb-text-2)', cursor: 'pointer', fontFamily: 'var(--font-body)', transition: 'all 0.12s' }}>
+                {t.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Ingredients tab */}
@@ -521,8 +571,8 @@ function RecipeDetailModal({ detail: initialDetail, foods, onClose, onSave }: {
         )}
 
         <div className="flex gap-2 justify-end pt-1 border-t border-border">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
-          <button onClick={() => onSave(detail)} className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 cursor-pointer">Save</button>
+          <button onClick={onClose} style={{ display: 'inline-flex', alignItems: 'center', background: 'transparent', border: '1px solid var(--fb-border-strong)', color: 'var(--fb-text-2)', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 500, fontFamily: 'var(--font-body)', cursor: 'pointer' }}>Cancel</button>
+          <button onClick={() => onSave(detail)} style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--fb-accent)', color: 'white', border: 0, padding: '7px 14px', borderRadius: 7, fontSize: 12.5, fontWeight: 600, fontFamily: 'var(--font-body)', cursor: 'pointer' }}>Save</button>
         </div>
       </div>
     </div>
@@ -579,8 +629,11 @@ function RecipeCreateModal({ foods, onClose, onCreate }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto flex flex-col gap-5">
-        <h2 className="font-semibold text-text text-xl">New Recipe</h2>
+      <div style={{ background: 'var(--fb-card)', border: '1px solid var(--fb-border-strong)', borderRadius: 14, padding: 24, width: '100%', maxWidth: '48rem', maxHeight: '90vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 20, boxShadow: '0 24px 64px rgba(0,0,0,0.7)', fontFamily: 'var(--font-body)' }}>
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.4, textTransform: 'uppercase', color: 'var(--fb-accent)', marginBottom: 2 }}>Create</div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 20, color: 'var(--fb-text)' }}>New Recipe</div>
+        </div>
 
         {/* Header fields */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -598,16 +651,15 @@ function RecipeCreateModal({ foods, onClose, onCreate }: {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 border-b border-border">
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={[
-                'px-4 py-2 text-sm font-medium transition-colors cursor-pointer border-b-2 -mb-px',
-                tab === t.id ? 'border-accent text-accent' : 'border-transparent text-text-sec hover:text-text',
-              ].join(' ')}>
-              {t.label}
-            </button>
-          ))}
+        <div style={{ display: 'flex', gap: 2, background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', borderRadius: 16, padding: 3, alignSelf: 'flex-start' }}>
+          {TABS.map(t => {
+            const active = tab === t.id;
+            return (
+              <button key={t.id} onClick={() => setTab(t.id)} style={{ padding: '4px 14px', borderRadius: 12, fontSize: 11.5, fontWeight: 600, border: active ? '1px solid var(--fb-border-strong)' : '1px solid transparent', background: active ? 'var(--fb-card)' : 'transparent', color: active ? 'var(--fb-text)' : 'var(--fb-text-2)', cursor: 'pointer', fontFamily: 'var(--font-body)', transition: 'all 0.12s' }}>
+                {t.label}
+              </button>
+            );
+          })}
         </div>
 
         {/* Ingredients tab */}
@@ -691,7 +743,7 @@ function RecipeCreateModal({ foods, onClose, onCreate }: {
         )}
 
         <div className="flex gap-2 justify-end pt-2 border-t border-border">
-          <button onClick={onClose} className="px-4 py-2 rounded-xl text-sm text-text-sec border border-border hover:bg-card-hover cursor-pointer">Cancel</button>
+          <button onClick={onClose} style={{ display: 'inline-flex', alignItems: 'center', background: 'transparent', border: '1px solid var(--fb-border-strong)', color: 'var(--fb-text-2)', padding: '6px 12px', borderRadius: 6, fontSize: 12, fontWeight: 500, fontFamily: 'var(--font-body)', cursor: 'pointer' }}>Cancel</button>
           <button
             onClick={() => onCreate({
               name, description: desc,
@@ -703,7 +755,7 @@ function RecipeCreateModal({ foods, onClose, onCreate }: {
               ingredients,
             })}
             disabled={!name || ingredients.length === 0}
-            className="px-5 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 disabled:opacity-40 cursor-pointer"
+            style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--fb-accent)', color: 'white', border: 0, padding: '7px 14px', borderRadius: 7, fontSize: 12.5, fontWeight: 600, fontFamily: 'var(--font-body)', cursor: 'pointer', opacity: (!name || ingredients.length === 0) ? 0.4 : 1 }}
           >Create</button>
         </div>
       </div>

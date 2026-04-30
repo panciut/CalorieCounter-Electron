@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { useT } from '../i18n/useT';
 import { useToast } from './Toast';
 import { useSettings } from '../hooks/useSettings';
@@ -53,6 +53,47 @@ interface AddFoodFormProps {
   defaultOpen?: boolean;
 }
 
+// ── Shared style tokens (Dashboard + Apple Fitness mix) ──────────────────────
+const eyebrow: CSSProperties = {
+  fontSize: 10, fontWeight: 600, letterSpacing: 1.4,
+  textTransform: 'uppercase', color: 'var(--fb-text-3)',
+};
+
+const serifNum: CSSProperties = {
+  fontFamily: 'var(--font-serif)', fontWeight: 300, letterSpacing: -1,
+  color: 'var(--fb-text)', lineHeight: 1,
+};
+
+const serifItalic: CSSProperties = {
+  fontFamily: 'var(--font-serif)', fontStyle: 'italic',
+};
+
+const bezelOuter = (radius = 18): CSSProperties => ({
+  background: 'var(--fb-bg)',
+  border: '1px solid var(--fb-border)',
+  borderRadius: radius,
+  padding: 3,
+});
+
+const bezelInner = (radius = 15): CSSProperties => ({
+  background: 'var(--fb-card)',
+  borderRadius: radius,
+  padding: '14px 16px',
+});
+
+const inlineInput: CSSProperties = {
+  background: 'transparent', border: 0, outline: 'none',
+  color: 'var(--fb-text)', width: '100%',
+  fontFamily: 'inherit', fontSize: 'inherit', fontWeight: 'inherit', letterSpacing: 'inherit',
+};
+
+const numTile = (focused: boolean): CSSProperties => ({
+  ...bezelInner(13),
+  display: 'flex', flexDirection: 'column', gap: 8,
+  transition: 'box-shadow .35s cubic-bezier(0.32,0.72,0,1), transform .35s cubic-bezier(0.32,0.72,0,1)',
+  boxShadow: focused ? '0 0 0 1px var(--fb-accent)' : 'none',
+});
+
 export default function AddFoodForm({
   existingFoods = [],
   onAdded,
@@ -72,6 +113,7 @@ export default function AddFoodForm({
   const [barcodeStatus, setBarcodeStatus] = useState<'found' | 'notFound' | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [scannerTab, setScannerTab] = useState<'scan' | 'search'>('scan');
+  const [focusedKey, setFocusedKey] = useState<string | null>(null);
 
   function patch(p: Partial<FoodFormState>) { setAddForm(f => ({ ...f, ...p })); }
   function updateAddPackGrams(i: number, grams: string) { setAddPacks(p => p.map((x, idx) => idx === i ? { grams } : x)); }
@@ -155,185 +197,558 @@ export default function AddFoodForm({
     setFormOpen(false);
   }
 
-  const macroFields: { key: keyof FoodFormState; label: string }[] = [
-    { key: 'calories', label: 'kcal'          },
-    { key: 'fat',      label: t('th.fat')     },
-    { key: 'carbs',    label: t('th.carbs')   },
-    { key: 'fiber',    label: t('th.fiber')   },
-    { key: 'protein',  label: t('th.protein') },
+  // 5 macro tiles — kcal acts as the "Move ring" hero (orange)
+  const macroFields: { key: keyof FoodFormState; label: string; color: string; unit: string; size: 'hero' | 'std' }[] = [
+    { key: 'calories', label: 'Energy',     color: 'var(--fb-orange)', unit: 'kcal', size: 'hero' },
+    { key: 'protein', label: t('th.protein'), color: 'var(--fb-red)',   unit: 'g',    size: 'std' },
+    { key: 'carbs',    label: t('th.carbs'),   color: 'var(--fb-amber)', unit: 'g',    size: 'std' },
+    { key: 'fat',      label: t('th.fat'),     color: 'var(--fb-green)', unit: 'g',    size: 'std' },
+    { key: 'fiber',    label: t('th.fiber'),   color: 'var(--fb-text-2)',unit: 'g',    size: 'std' },
   ];
 
-  const inputCls = "bg-bg border border-border/60 rounded-xl px-4 py-2.5 text-base text-text outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all w-full";
-  const numInputCls = "w-full bg-bg border border-border/60 rounded-xl px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 tabular-nums transition-all";
-  const cardCls = "bg-card border border-border/40 shadow-sm rounded-3xl p-5 flex flex-col gap-4";
+  const duplicateName = existingFoods.some(
+    f => f.name.toLowerCase() === addForm.name.trim().toLowerCase() && addForm.name.trim() !== ''
+  );
 
   return (
     <>
-      <section className={`${cardCls} shrink-0`}>
-        <button onClick={() => setFormOpen(v => !v)} className="w-full flex items-center justify-between group">
-          <div className="flex items-center gap-3">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold transition-colors ${formOpen ? 'bg-text-sec' : 'bg-accent group-hover:bg-accent/90'}`}>
-              {formOpen ? '−' : '+'}
-            </div>
-            <h2 className="text-base font-bold text-text group-hover:text-accent transition-colors">{t('foods.addTitle')}</h2>
+      <section style={{
+        background: 'var(--fb-card)',
+        border: '1px solid var(--fb-border)',
+        borderRadius: 18,
+        overflow: 'hidden',
+        flexShrink: 0,
+        transition: 'all .5s cubic-bezier(0.32,0.72,0,1)',
+      }}>
+        {/* ── Hero header ────────────────────────────────────────────────── */}
+        <button
+          type="button"
+          onClick={() => setFormOpen(v => !v)}
+          style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            width: '100%', padding: '18px 22px',
+            background: 'transparent', border: 0, cursor: 'pointer',
+            textAlign: 'left',
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+            <span style={eyebrow}>{t('foods.addTitle')}</span>
+            <span style={{ ...serifItalic, fontSize: 22, fontWeight: 400, color: 'var(--fb-text)', lineHeight: 1.1 }}>
+              {addForm.name.trim() || (formOpen ? 'Nuovo prodotto' : 'Aggiungi un alimento')}
+            </span>
           </div>
-          <span className="text-xs font-medium text-text-sec/50 bg-bg px-3 py-1 rounded-full">{t('foods.valuesPerLabel')}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+            <span style={{
+              ...eyebrow, fontSize: 9.5,
+              padding: '5px 10px', borderRadius: 99,
+              background: 'var(--fb-bg-2)', border: '1px solid var(--fb-border)',
+              color: 'var(--fb-text-2)',
+            }}>
+              {t('foods.valuesPerLabel')}
+            </span>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              width: 32, height: 32, borderRadius: 99,
+              background: formOpen ? 'var(--fb-bg-2)' : 'var(--fb-accent)',
+              color: formOpen ? 'var(--fb-text-2)' : 'white',
+              fontSize: 16, fontWeight: 400, lineHeight: 1,
+              transition: 'transform .5s cubic-bezier(0.32,0.72,0,1), background .3s ease',
+              transform: formOpen ? 'rotate(45deg)' : 'rotate(0deg)',
+            }}>+</span>
+          </div>
         </button>
 
+        {/* ── Body ───────────────────────────────────────────────────────── */}
         {formOpen && (
-          <div className="flex flex-col gap-5 pt-4 border-t border-border/20 animate-slide-down">
+          <div style={{
+            display: 'flex', flexDirection: 'column', gap: 18,
+            padding: '4px 22px 22px',
+            borderTop: '1px solid var(--fb-divider)',
+            paddingTop: 20,
+            animation: 'slideDown .5s cubic-bezier(0.32,0.72,0,1)',
+          }}>
 
-            {/* Barcode */}
-            <div className="flex flex-col sm:flex-row items-center gap-3 bg-bg/50 p-3 rounded-2xl border border-border/30 w-full">
-              <span className="text-xs font-bold text-text-sec/70 uppercase tracking-wider whitespace-nowrap">{t('barcode.addByBarcode')}</span>
-              <div className="flex flex-col sm:flex-row items-center gap-2 flex-1 w-full">
-                <input
-                  type="text" value={barcodeInput}
-                  onChange={e => { setBarcodeInput(e.target.value); setBarcodeStatus(null); }}
-                  onKeyDown={e => e.key === 'Enter' && handleBarcodeLookup()}
-                  placeholder={t('barcode.placeholder')}
-                  className="bg-card border border-border/60 rounded-xl px-4 py-2.5 text-sm text-text outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all flex-1 w-full"
-                />
-                <div className="flex gap-2 w-full sm:w-auto">
-                  <button type="button" onClick={handleBarcodeLookup} className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-accent text-white text-sm font-bold shadow-sm hover:opacity-90 transition-opacity whitespace-nowrap">
-                    {t('barcode.lookup')}
-                  </button>
-                  <button type="button" onClick={() => setScannerOpen(true)} className="p-2.5 rounded-xl border border-border/60 bg-card text-text-sec hover:text-accent hover:border-accent/40 transition-colors shrink-0" title="Scan Barcode">
-                    📷
-                  </button>
-                </div>
-              </div>
-              {barcodeStatus === 'found' && <span className="text-xs font-bold text-accent py-2 px-3 bg-accent/10 rounded-lg">{t('barcode.found')} ✓</span>}
-              {barcodeStatus === 'notFound' && <span className="text-xs font-bold text-red py-2 px-3 bg-red/10 rounded-lg">{t('barcode.notFound')} ✕</span>}
+            {/* Identify — barcode strip */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+              padding: '10px 12px',
+              background: 'var(--fb-bg)',
+              border: '1px solid var(--fb-border)',
+              borderRadius: 14,
+            }}>
+              <span style={{ ...eyebrow, flexShrink: 0 }}>{t('barcode.addByBarcode')}</span>
+              <input
+                type="text"
+                value={barcodeInput}
+                onChange={e => { setBarcodeInput(e.target.value); setBarcodeStatus(null); }}
+                onKeyDown={e => e.key === 'Enter' && handleBarcodeLookup()}
+                placeholder={t('barcode.placeholder')}
+                style={{
+                  ...inlineInput, flex: '1 1 160px',
+                  fontSize: 13, fontFamily: 'var(--font-mono, inherit)',
+                  letterSpacing: 0.3, padding: '6px 0',
+                }}
+              />
+              {barcodeStatus === 'found' && (
+                <span className="tnum" style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.4, color: 'var(--fb-green)', padding: '4px 9px', borderRadius: 99, background: 'color-mix(in srgb, var(--fb-green) 14%, transparent)' }}>
+                  {t('barcode.found')} ✓
+                </span>
+              )}
+              {barcodeStatus === 'notFound' && (
+                <span className="tnum" style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.4, color: 'var(--fb-red)', padding: '4px 9px', borderRadius: 99, background: 'color-mix(in srgb, var(--fb-red) 14%, transparent)' }}>
+                  {t('barcode.notFound')} ✕
+                </span>
+              )}
+              <button
+                type="button" onClick={handleBarcodeLookup}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  background: 'var(--fb-bg-2)', color: 'var(--fb-text)',
+                  border: '1px solid var(--fb-border-strong)',
+                  padding: '6px 14px', borderRadius: 99,
+                  fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                  transition: 'all .3s ease',
+                }}
+              >
+                {t('barcode.lookup')}
+              </button>
+              <button
+                type="button" onClick={() => setScannerOpen(true)}
+                title={t('barcode.scanTitle')}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  width: 32, height: 32, borderRadius: 99,
+                  background: 'var(--fb-accent)', color: 'white', border: 0,
+                  cursor: 'pointer', fontSize: 14,
+                  transition: 'transform .3s cubic-bezier(0.32,0.72,0,1)',
+                }}
+                onMouseDown={e => (e.currentTarget.style.transform = 'scale(0.94)')}
+                onMouseUp={e => (e.currentTarget.style.transform = 'scale(1)')}
+                onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+              >📷</button>
             </div>
 
-            {/* Name */}
-            <div className="flex flex-col sm:flex-row gap-4 items-start w-full">
+            {/* Name + image */}
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
               {addForm.image_url && (
-                <div className="shrink-0 animate-fade-in pt-1">
-                  <img src={addForm.image_url} alt="Food" className="w-16 h-16 md:w-20 md:h-20 object-cover rounded-2xl border-2 border-border/40 shadow-sm bg-white" />
+                <div style={{
+                  flexShrink: 0, padding: 3,
+                  background: 'var(--fb-bg)',
+                  border: '1px solid var(--fb-border)',
+                  borderRadius: 16,
+                }}>
+                  <img
+                    src={addForm.image_url} alt=""
+                    style={{ width: 76, height: 76, objectFit: 'cover', borderRadius: 13, display: 'block', background: 'white' }}
+                  />
                 </div>
               )}
-              <div className="flex-1 flex flex-col gap-1.5 w-full">
-                <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-2">
-                  <label className="text-xs font-bold text-text-sec/70 uppercase tracking-wider">{t('common.name')}</label>
-                  <div className="flex gap-1.5 overflow-x-auto hide-scrollbar w-full md:w-auto pb-1 md:pb-0">
-                    {(Object.keys(PRESETS) as PresetKey[]).map(key => (
-                      <button key={key} type="button" onClick={() => applyPreset(key)} className="text-[10px] px-3 py-1 rounded-full border border-border/60 bg-bg text-text-sec hover:border-accent hover:text-accent font-medium transition-colors whitespace-nowrap">
-                        {t(PRESET_LABELS[key])}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <input type="text" value={addForm.name} onChange={e => patch({ name: e.target.value })} onKeyDown={e => e.key === 'Enter' && handleAdd()} placeholder={t('foods.namePlaceholder')} className={`${inputCls} font-bold text-lg`} />
-                {existingFoods.some(f => f.name.toLowerCase() === addForm.name.trim().toLowerCase() && addForm.name.trim() !== '') && (
-                  <span className="text-xs font-medium text-yellow-600 bg-yellow-500/10 px-2 py-1 rounded-md inline-block mt-1">⚠ A food with this name already exists</span>
+              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={eyebrow}>{t('common.name')}</span>
+                <input
+                  type="text" value={addForm.name}
+                  onChange={e => patch({ name: e.target.value })}
+                  onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                  placeholder={t('foods.namePlaceholder')}
+                  style={{
+                    ...inlineInput,
+                    fontFamily: 'var(--font-serif)', fontStyle: 'italic',
+                    fontSize: 26, fontWeight: 400, letterSpacing: -0.5,
+                    color: 'var(--fb-text)',
+                    borderBottom: '1px solid var(--fb-border-strong)',
+                    paddingBottom: 6,
+                  }}
+                />
+                {duplicateName && (
+                  <span style={{ fontSize: 11, color: 'var(--fb-amber)', fontStyle: 'italic' }}>
+                    ⚠ Esiste già un alimento con questo nome
+                  </span>
                 )}
               </div>
             </div>
 
-            {/* Macros */}
-            <div className="grid grid-cols-3 md:grid-cols-5 gap-3 md:gap-4 w-full">
-              {macroFields.map(({ key, label }) => (
-                <div key={key} className="flex flex-col gap-1.5">
-                  <label className="text-[10px] md:text-xs font-bold text-text-sec/70 uppercase tracking-wider text-center">{label}</label>
-                  <input type="text" inputMode="decimal" value={(addForm as unknown as Record<string, string>)[key]} onChange={e => patch({ [key]: e.target.value })} onKeyDown={e => e.key === 'Enter' && handleAdd()} placeholder="0" className={`${numInputCls} text-center font-bold`} />
-                </div>
+            {/* Macro grid — Apple Fitness style tiles */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr) repeat(3, 1fr)',
+              gridTemplateAreas: '"kcal kcal protein carbs fat" "kcal kcal fiber fiber fat"',
+              gap: 8,
+            }} className="addfood-macro-grid">
+              {macroFields.map(({ key, label, color, unit, size }) => {
+                const val = (addForm as unknown as Record<string, string>)[key];
+                const isHero = size === 'hero';
+                const isFocused = focusedKey === key;
+                return (
+                  <div
+                    key={key}
+                    style={{
+                      ...bezelOuter(14),
+                      gridArea: isHero ? 'kcal' : key === 'fiber' ? 'fiber' : key === 'fat' ? 'fat' : key,
+                    }}
+                  >
+                    <div style={numTile(isFocused)}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                        <span style={eyebrow}>{label}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4, minWidth: 0 }}>
+                        <input
+                          type="text" inputMode="decimal"
+                          value={val}
+                          onChange={e => patch({ [key]: e.target.value })}
+                          onFocus={() => setFocusedKey(key)}
+                          onBlur={() => setFocusedKey(null)}
+                          onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                          placeholder="0"
+                          className="tnum"
+                          style={{
+                            ...inlineInput, ...serifNum,
+                            fontSize: isHero ? 48 : 28,
+                            letterSpacing: isHero ? -2 : -1,
+                            minWidth: 0,
+                          }}
+                        />
+                        <span style={{ ...serifItalic, fontSize: isHero ? 16 : 12, color: 'var(--fb-text-3)', flexShrink: 0 }}>
+                          {unit}
+                        </span>
+                      </div>
+                      {/* mini progress hint — purely decorative ring-like bar */}
+                      <div style={{ height: 3, background: 'var(--fb-bg-2)', borderRadius: 99, overflow: 'hidden' }}>
+                        <div style={{
+                          height: '100%',
+                          width: val ? `${Math.min(100, parseFloat(val || '0') / (isHero ? 8 : 0.5))}%` : '0%',
+                          background: color,
+                          borderRadius: 99,
+                          transition: 'width .8s cubic-bezier(0.32,0.72,0,1)',
+                        }} />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Presets row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ ...eyebrow, marginRight: 4 }}>Preset</span>
+              {(Object.keys(PRESETS) as PresetKey[]).map(key => (
+                <button
+                  key={key} type="button" onClick={() => applyPreset(key)}
+                  style={{
+                    background: 'var(--fb-bg)',
+                    border: '1px solid var(--fb-border)',
+                    color: 'var(--fb-text-2)',
+                    padding: '5px 12px', borderRadius: 99,
+                    fontSize: 11, fontWeight: 500, cursor: 'pointer',
+                    transition: 'all .3s cubic-bezier(0.32,0.72,0,1)',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.color = 'var(--fb-text)'; e.currentTarget.style.borderColor = 'var(--fb-border-strong)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.color = 'var(--fb-text-2)'; e.currentTarget.style.borderColor = 'var(--fb-border)'; }}
+                >
+                  {t(PRESET_LABELS[key])}
+                </button>
               ))}
             </div>
 
-            {/* Flags + Packs */}
-            <div className="flex flex-col md:flex-row gap-6 pt-4 border-t border-border/20 w-full">
-              <div className="flex flex-wrap gap-4 md:flex-col shrink-0">
-                <label className="flex items-center gap-2 text-sm font-medium text-text-sec cursor-pointer hover:text-text transition-colors">
-                  <input type="checkbox" checked={addForm.is_liquid} onChange={e => patch({ is_liquid: e.target.checked })} className="w-5 h-5 accent-accent rounded" />
-                  {t('foods.liquid')} 💧
-                </label>
-                <label className="flex items-center gap-2 text-sm font-medium text-text-sec cursor-pointer hover:text-text transition-colors" title={t('foods.bulkHelp')}>
-                  <input type="checkbox" checked={addForm.is_bulk} onChange={e => patch({ is_bulk: e.target.checked, piece_grams: e.target.checked ? '' : addForm.piece_grams })} className="w-5 h-5 accent-accent rounded" />
-                  {t('foods.bulk')} ⚖️
-                </label>
-              </div>
-
-              <div className="flex-1 flex flex-col gap-3 w-full">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-bold text-text-sec/70 uppercase tracking-wider">{t('foods.packsSection')}</span>
-                  {packFromBarcode != null && <span className="text-[10px] font-bold text-accent bg-accent/10 px-2 py-0.5 rounded-full">{t('foods.packFromBarcode').replace('{g}', String(packFromBarcode))}</span>}
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {addPacks.map((p, i) => (
-                    <div key={i} className="flex items-center gap-1 relative group">
-                      <input type="text" inputMode="decimal" value={p.grams} onChange={e => updateAddPackGrams(i, e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (i === addPacks.length - 1 && parseFloat(p.grams) > 0) addBlankAddPack(); } }} placeholder="0" className={`${numInputCls} !py-2 !w-20 pr-6`} />
-                      <span className="absolute right-3 text-text-sec/50 text-sm pointer-events-none">g</span>
-                      {addPacks.length > 1 && (
-                        <button type="button" onClick={() => removeAddPack(i)} className="absolute -top-2 -right-2 bg-card border border-border text-red rounded-full w-5 h-5 flex items-center justify-center text-xs opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-sm">✕</button>
-                      )}
-                    </div>
-                  ))}
-                  <button type="button" onClick={addBlankAddPack} className="px-4 py-2 rounded-xl border border-dashed border-border/60 text-text-sec text-sm font-medium hover:border-accent hover:text-accent transition-colors bg-bg/50 whitespace-nowrap">
-                    + {t('foods.addPack')}
-                  </button>
-                </div>
-
-                {!addForm.is_bulk && (
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-1 bg-bg p-3 rounded-xl border border-border/40">
-                    <label className="text-xs font-medium text-text-sec shrink-0">{t('foods.pieceInPack')}:</label>
-                    <div className="relative w-full sm:w-auto">
-                      <input type="text" inputMode="decimal" value={addForm.piece_grams} onChange={e => patch({ piece_grams: e.target.value })} onKeyDown={e => e.key === 'Enter' && handleAdd()} placeholder="0" className={`${numInputCls} !py-1.5 w-full sm:w-24 pr-6`} />
-                      <span className="absolute right-3 top-1.5 text-text-sec/50 text-sm pointer-events-none">g</span>
-                    </div>
-                  </div>
+            {/* Packs + flags row */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <span style={eyebrow}>{t('foods.packsSection')}</span>
+                {packFromBarcode != null && (
+                  <span className="tnum" style={{ fontSize: 9.5, fontWeight: 600, color: 'var(--fb-accent)', padding: '3px 8px', borderRadius: 99, background: 'var(--fb-accent-soft)' }}>
+                    {t('foods.packFromBarcode').replace('{g}', String(packFromBarcode))}
+                  </span>
                 )}
+                {/* iOS-style toggles */}
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: 14 }}>
+                  <Toggle
+                    label={`${t('foods.liquid')} 💧`}
+                    checked={addForm.is_liquid}
+                    onChange={v => patch({ is_liquid: v })}
+                  />
+                  <Toggle
+                    label={`${t('foods.bulk')} ⚖️`}
+                    checked={addForm.is_bulk}
+                    onChange={v => patch({ is_bulk: v, piece_grams: v ? '' : addForm.piece_grams })}
+                  />
+                </div>
               </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                {addPacks.map((p, i) => (
+                  <div key={i} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <div style={{
+                      display: 'inline-flex', alignItems: 'baseline', gap: 4,
+                      padding: '6px 12px', borderRadius: 99,
+                      background: 'var(--fb-bg)', border: '1px solid var(--fb-border-strong)',
+                    }}>
+                      <input
+                        type="text" inputMode="decimal" value={p.grams}
+                        onChange={e => updateAddPackGrams(i, e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); if (i === addPacks.length - 1 && parseFloat(p.grams) > 0) addBlankAddPack(); } }}
+                        placeholder="0"
+                        className="tnum"
+                        style={{ ...inlineInput, width: 44, fontSize: 13, fontWeight: 600, textAlign: 'right' }}
+                      />
+                      <span style={{ ...serifItalic, fontSize: 11, color: 'var(--fb-text-3)' }}>g</span>
+                    </div>
+                    {addPacks.length > 1 && (
+                      <button
+                        type="button" onClick={() => removeAddPack(i)}
+                        style={{
+                          position: 'absolute', top: -6, right: -6,
+                          width: 18, height: 18, borderRadius: 99,
+                          background: 'var(--fb-card)', border: '1px solid var(--fb-border-strong)',
+                          color: 'var(--fb-red)', fontSize: 10, lineHeight: 1, cursor: 'pointer',
+                        }}
+                      >✕</button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button" onClick={addBlankAddPack}
+                  style={{
+                    padding: '6px 14px', borderRadius: 99,
+                    background: 'transparent', border: '1px dashed var(--fb-border-strong)',
+                    color: 'var(--fb-text-2)', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                    transition: 'all .3s ease',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--fb-accent)'; e.currentTarget.style.color = 'var(--fb-accent)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--fb-border-strong)'; e.currentTarget.style.color = 'var(--fb-text-2)'; }}
+                >+ {t('foods.addPack')}</button>
+              </div>
+
+              {!addForm.is_bulk && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+                  padding: '8px 12px',
+                  background: 'var(--fb-bg)', border: '1px solid var(--fb-border)',
+                  borderRadius: 12,
+                }}>
+                  <span style={{ ...eyebrow }}>{t('foods.pieceInPack')}</span>
+                  <div style={{
+                    display: 'inline-flex', alignItems: 'baseline', gap: 4,
+                    padding: '4px 10px', borderRadius: 99,
+                    background: 'var(--fb-card)', border: '1px solid var(--fb-border)',
+                  }}>
+                    <input
+                      type="text" inputMode="decimal" value={addForm.piece_grams}
+                      onChange={e => patch({ piece_grams: e.target.value })}
+                      onKeyDown={e => e.key === 'Enter' && handleAdd()}
+                      placeholder="0"
+                      className="tnum"
+                      style={{ ...inlineInput, width: 44, fontSize: 12, fontWeight: 600, textAlign: 'right' }}
+                    />
+                    <span style={{ ...serifItalic, fontSize: 11, color: 'var(--fb-text-3)' }}>g</span>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Advanced + Actions */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pt-4 border-t border-border/20 w-full">
-              <div className="flex items-center gap-3 flex-wrap w-full md:w-auto">
-                <div className="flex flex-col gap-1 flex-1 sm:flex-none">
-                  <label className="text-[10px] font-bold text-text-sec/60 uppercase">{t('foods.openedDays')}</label>
-                  <input type="number" inputMode="numeric" min={1} value={addForm.opened_days} onChange={e => patch({ opened_days: e.target.value })} className={`${numInputCls} !py-1.5 w-full sm:w-20`} placeholder="days" />
-                </div>
-                <div className="flex flex-col gap-1 flex-1 sm:flex-none">
-                  <label className="text-[10px] font-bold text-text-sec/60 uppercase">{t('foods.discardThreshold')} (%)</label>
-                  <input type="number" inputMode="numeric" min={1} max={100} value={addForm.discard_threshold_pct} onChange={e => patch({ discard_threshold_pct: e.target.value })} className={`${numInputCls} !py-1.5 w-full sm:w-20`} placeholder="5" />
-                </div>
-                <div className="flex flex-col gap-1 flex-1 sm:flex-none">
-                  <label className="text-[10px] font-bold text-text-sec/60 uppercase">{t('foods.pricePer100g').replace('{cur}', settings.currency_symbol ?? '€')}</label>
-                  <input type="number" inputMode="decimal" min={0} value={addForm.price_per_100g} onChange={e => patch({ price_per_100g: e.target.value })} className={`${numInputCls} !py-1.5 w-full sm:w-24`} placeholder="0.00" />
-                </div>
-              </div>
+            {/* Shelf-life trio — mini bento */}
+            <div style={{
+              display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8,
+            }}>
+              <ShelfMini
+                label={t('foods.openedDays')}
+                unit="d"
+                value={addForm.opened_days}
+                onChange={v => patch({ opened_days: v })}
+              />
+              <ShelfMini
+                label={t('foods.discardThreshold')}
+                unit="%"
+                value={addForm.discard_threshold_pct}
+                onChange={v => patch({ discard_threshold_pct: v })}
+              />
+              <ShelfMini
+                label={t('foods.pricePer100g').replace('{cur}', settings.currency_symbol ?? '€')}
+                unit={settings.currency_symbol ?? '€'}
+                value={addForm.price_per_100g}
+                onChange={v => patch({ price_per_100g: v })}
+              />
+            </div>
 
-              <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
-                {onImport && (
-                  <button type="button" onClick={onImport} className="w-full sm:w-auto px-5 py-3 rounded-xl border border-border/60 bg-card text-text-sec text-sm font-bold hover:bg-border/30 transition-colors text-center">
-                    {t('import.foods')}
-                  </button>
-                )}
-                <button type="button" onClick={handleAdd} disabled={!addForm.name.trim() || !addForm.calories} className="w-full md:w-auto px-8 py-3 rounded-xl bg-accent text-white text-sm font-bold hover:opacity-90 disabled:opacity-50 transition-opacity shadow-sm text-center">
-                  {t('common.add')}
+            {/* Footer CTA */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10,
+              flexWrap: 'wrap', paddingTop: 6,
+            }}>
+              {onImport && (
+                <button
+                  type="button" onClick={onImport}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid var(--fb-border-strong)',
+                    color: 'var(--fb-text-2)',
+                    padding: '10px 20px', borderRadius: 99,
+                    fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+                    transition: 'all .3s ease',
+                  }}
+                >
+                  {t('import.foods')}
                 </button>
-              </div>
+              )}
+              <button
+                type="button" onClick={handleAdd}
+                disabled={!addForm.name.trim() || !addForm.calories}
+                className="addfood-cta"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8,
+                  background: 'var(--fb-accent)', color: 'white',
+                  border: 0, padding: '8px 8px 8px 22px', borderRadius: 99,
+                  fontSize: 13.5, fontWeight: 600, cursor: 'pointer',
+                  opacity: (!addForm.name.trim() || !addForm.calories) ? 0.4 : 1,
+                  transition: 'all .35s cubic-bezier(0.32,0.72,0,1)',
+                  boxShadow: '0 4px 18px -6px rgba(217,119,6,0.5)',
+                }}
+              >
+                {t('common.add')}
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  width: 28, height: 28, borderRadius: 99,
+                  background: 'rgba(255,255,255,0.18)',
+                  fontSize: 14, lineHeight: 1,
+                  transition: 'transform .35s cubic-bezier(0.32,0.72,0,1)',
+                }} className="addfood-cta-icon">↗</span>
+              </button>
             </div>
 
           </div>
         )}
       </section>
 
+      {/* Inline keyframes + responsive overrides */}
+      <style>{`
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+        .addfood-cta:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 8px 28px -8px rgba(217,119,6,0.6); }
+        .addfood-cta:not(:disabled):hover .addfood-cta-icon { transform: translate(2px, -2px); }
+        .addfood-cta:not(:disabled):active { transform: scale(0.98); }
+        @media (max-width: 720px) {
+          .addfood-macro-grid {
+            grid-template-columns: 1fr 1fr !important;
+            grid-template-areas:
+              "kcal kcal"
+              "protein carbs"
+              "fat fiber" !important;
+          }
+        }
+      `}</style>
+
       <Modal isOpen={scannerOpen} onClose={() => { setScannerOpen(false); setScannerTab('scan'); }} title={t('barcode.scanTitle')}>
-        <div className="flex flex-col sm:flex-row p-1 bg-bg/50 border border-border/40 rounded-3xl sm:rounded-full mb-4 shadow-sm gap-1 sm:gap-0">
-          <button type="button" onClick={() => setScannerTab('scan')} className={`flex-1 py-3 sm:py-2 text-sm font-bold rounded-full transition-all duration-300 ${scannerTab === 'scan' ? 'bg-card text-text shadow-sm border border-border/40' : 'text-text-sec hover:text-text'}`}>
-            📷 Scan
-          </button>
-          <button type="button" onClick={() => setScannerTab('search')} className={`flex-1 py-3 sm:py-2 text-sm font-bold rounded-full transition-all duration-300 ${scannerTab === 'search' ? 'bg-card text-text shadow-sm border border-border/40' : 'text-text-sec hover:text-text'}`}>
-            🔍 Search by name
-          </button>
+        {/* Apple-style segmented control */}
+        <div style={{
+          position: 'relative',
+          display: 'grid', gridTemplateColumns: '1fr 1fr',
+          padding: 4,
+          background: 'var(--fb-bg)',
+          border: '1px solid var(--fb-border)',
+          borderRadius: 99,
+          marginBottom: 16,
+        }}>
+          <span style={{
+            position: 'absolute', top: 4, bottom: 4,
+            left: scannerTab === 'scan' ? 4 : 'calc(50% + 0px)',
+            width: 'calc(50% - 4px)',
+            background: 'var(--fb-card)',
+            border: '1px solid var(--fb-border-strong)',
+            borderRadius: 99,
+            transition: 'left .4s cubic-bezier(0.32,0.72,0,1)',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+          }} />
+          {(['scan', 'search'] as const).map(tab => (
+            <button
+              key={tab} type="button" onClick={() => setScannerTab(tab)}
+              style={{
+                position: 'relative', zIndex: 1,
+                background: 'transparent', border: 0, cursor: 'pointer',
+                padding: '8px 14px',
+                fontSize: 12.5, fontWeight: 600, letterSpacing: 0.2,
+                color: scannerTab === tab ? 'var(--fb-text)' : 'var(--fb-text-2)',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                transition: 'color .3s ease',
+              }}
+            >
+              {tab === 'scan' ? <>📷 Scansiona</> : <>🔍 Cerca per nome</>}
+            </button>
+          ))}
         </div>
-        <div className="bg-bg p-4 rounded-3xl border border-border/40 shadow-inner">
+
+        <div style={{
+          background: 'var(--fb-bg)',
+          border: '1px solid var(--fb-border)',
+          borderRadius: 18,
+          padding: 14,
+        }}>
           {scannerTab === 'scan' && <BarcodeScanner onResult={handleScanResult} />}
           {scannerTab === 'search' && <FoodNameSearch onResult={handleNameSearchResult} />}
         </div>
       </Modal>
     </>
+  );
+}
+
+// ── iOS-style toggle ─────────────────────────────────────────────────────────
+function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label style={{
+      display: 'inline-flex', alignItems: 'center', gap: 8,
+      fontSize: 11.5, color: 'var(--fb-text-2)', fontWeight: 500,
+      cursor: 'pointer', userSelect: 'none',
+    }}>
+      <span
+        role="switch" aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        style={{
+          position: 'relative', width: 32, height: 18, borderRadius: 99,
+          background: checked ? 'var(--fb-accent)' : 'var(--fb-bg-2)',
+          border: '1px solid ' + (checked ? 'var(--fb-accent)' : 'var(--fb-border-strong)'),
+          transition: 'background .3s cubic-bezier(0.32,0.72,0,1)',
+          flexShrink: 0,
+        }}
+      >
+        <span style={{
+          position: 'absolute', top: 1, left: checked ? 15 : 1,
+          width: 14, height: 14, borderRadius: '50%',
+          background: 'white',
+          transition: 'left .3s cubic-bezier(0.32,0.72,0,1)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+        }} />
+      </span>
+      <span>{label}</span>
+      <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} style={{ display: 'none' }} />
+    </label>
+  );
+}
+
+// ── Mini shelf-life tile ─────────────────────────────────────────────────────
+function ShelfMini({ label, unit, value, onChange }: { label: string; unit: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div style={{
+      background: 'var(--fb-bg)', border: '1px solid var(--fb-border)',
+      borderRadius: 12, padding: '10px 12px',
+      display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0,
+    }}>
+      <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: 1.2, textTransform: 'uppercase', color: 'var(--fb-text-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        {label}
+      </span>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 3 }}>
+        <input
+          type="text" inputMode="decimal" value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder="—"
+          className="tnum"
+          style={{
+            background: 'transparent', border: 0, outline: 'none',
+            fontFamily: 'var(--font-serif)', fontWeight: 300,
+            fontSize: 22, letterSpacing: -0.8, color: 'var(--fb-text)',
+            width: '100%', minWidth: 0, padding: 0,
+          }}
+        />
+        <span style={{ fontFamily: 'var(--font-serif)', fontStyle: 'italic', fontSize: 11, color: 'var(--fb-text-3)', flexShrink: 0 }}>
+          {unit}
+        </span>
+      </div>
+    </div>
   );
 }

@@ -12,6 +12,7 @@ const registerWaterIpc    = require('./ipc/water.ipc');
 const registerWeightIpc   = require('./ipc/weight.ipc');
 const registerSettingsIpc     = require('./ipc/settings.ipc');
 const registerBarcodeIpc     = require('./ipc/barcode.ipc');
+const { registerCustomDbIpc } = require('./ipc/customdb.ipc');
 const registerNotesIpc       = require('./ipc/notes.ipc');
 const registerStreaksIpc     = require('./ipc/streaks.ipc');
 const registerSupplementsIpc = require('./ipc/supplements.ipc');
@@ -95,6 +96,7 @@ app.whenReady().then(async () => {
   registerWeightIpc();
   registerSettingsIpc();
   registerBarcodeIpc();
+  registerCustomDbIpc();
   registerNotesIpc();
   registerStreaksIpc();
   registerSupplementsIpc();

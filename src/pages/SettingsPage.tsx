@@ -4,15 +4,21 @@ import { useT } from '../i18n/useT';
 import { api } from '../api';
 import type { PantryLocation, Scale } from '../types';
 
+type CustomDbStatus = { path: string | null; status: 'none' | 'ok' | 'error'; error?: string; table?: string; rows?: number };
+
 export default function SettingsPage() {
   const { t } = useT();
   const { settings, updateSettings } = useSettings();
   const [pantries, setPantries] = useState<PantryLocation[]>([]);
   const [scales, setScales] = useState<Scale[]>([]);
   const [newScaleName, setNewScaleName] = useState('');
+  const [customDbStatus, setCustomDbStatus] = useState<CustomDbStatus>({ path: null, status: 'none' });
+  const [customDbLoading, setCustomDbLoading] = useState(false);
+  const [customDbError, setCustomDbError] = useState<string | null>(null);
 
   useEffect(() => { api.pantries.getAll().then(setPantries); }, []);
   useEffect(() => { api.scales.getAll().then(setScales); }, []);
+  useEffect(() => { api.customDb.getStatus().then(setCustomDbStatus); }, []);
 
   async function reloadScales() { setScales(await api.scales.getAll()); }
   async function handleRenameScale(id: number, name: string) {
@@ -34,6 +40,31 @@ export default function SettingsPage() {
   async function handleSetDefaultScale(id: number) {
     await api.scales.setDefault(id);
     reloadScales();
+  }
+
+  async function handleSelectCustomDb() {
+    setCustomDbLoading(true);
+    setCustomDbError(null);
+    try {
+      const filePath = await api.customDb.selectFile();
+      if (!filePath) return;
+      const result = await api.customDb.setPath(filePath);
+      if (!result.ok) {
+        setCustomDbError(result.error ?? 'Errore sconosciuto');
+        return;
+      }
+      setCustomDbStatus(await api.customDb.getStatus());
+    } catch (e: unknown) {
+      setCustomDbError(e instanceof Error ? e.message : 'Errore nella comunicazione con il processo principale');
+    } finally {
+      setCustomDbLoading(false);
+    }
+  }
+
+  async function handleClearCustomDb() {
+    await api.customDb.setPath(null);
+    setCustomDbStatus({ path: null, status: 'none' });
+    setCustomDbError(null);
   }
 
   const currentTheme = settings.theme    ?? 'dark';
@@ -221,6 +252,65 @@ export default function SettingsPage() {
               className="w-16 bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent text-center"
             />
             <span className="text-sm text-text-sec">{t('settings.currencySymbol')}</span>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Custom Food Database ───────────────────────────────────────────── */}
+      <section>
+        <h2 className={sectionTitle}>Database alimenti personalizzato</h2>
+        <div className="bg-card border border-border rounded-xl p-4 space-y-4">
+          <p className="text-sm text-text-sec">
+            Carica un file <code className="text-xs bg-bg px-1 py-0.5 rounded">.db</code> SQLite con i tuoi alimenti.
+            Verrà consultato prima delle API esterne durante la ricerca per nome o codice a barre.
+          </p>
+
+          {customDbStatus.status === 'ok' && customDbStatus.path && (
+            <div className="flex items-start gap-3 bg-bg border border-border rounded-lg px-3 py-2.5">
+              <div className="w-2 h-2 rounded-full bg-green-500 mt-1.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium text-text truncate" title={customDbStatus.path}>
+                  {customDbStatus.path.split(/[\\/]/).pop()}
+                </div>
+                <div className="text-xs text-text-sec mt-0.5">
+                  Tabella: <span className="text-text">{customDbStatus.table}</span>
+                  {' · '}
+                  <span className="text-text">{customDbStatus.rows?.toLocaleString()}</span> alimenti
+                </div>
+              </div>
+            </div>
+          )}
+
+          {customDbStatus.status === 'error' && (
+            <div className="flex items-center gap-2 bg-bg border border-red/30 rounded-lg px-3 py-2.5">
+              <div className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+              <span className="text-xs text-red-400">{customDbStatus.error}</span>
+            </div>
+          )}
+
+          {customDbError && (
+            <div className="flex items-center gap-2 bg-bg border border-red/30 rounded-lg px-3 py-2.5">
+              <div className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+              <span className="text-xs text-red-400">{customDbError}</span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSelectCustomDb}
+              disabled={customDbLoading}
+              className="text-sm px-4 py-2 rounded-lg border border-accent text-accent hover:bg-accent/10 cursor-pointer disabled:opacity-40 transition-colors"
+            >
+              {customDbLoading ? 'Caricamento…' : customDbStatus.status === 'ok' ? 'Cambia file' : 'Seleziona file .db'}
+            </button>
+            {customDbStatus.status !== 'none' && (
+              <button
+                onClick={handleClearCustomDb}
+                className="text-sm px-3 py-2 rounded-lg border border-border text-text-sec hover:text-red-400 hover:border-red/50 cursor-pointer transition-colors"
+              >
+                Rimuovi
+              </button>
+            )}
           </div>
         </div>
       </section>

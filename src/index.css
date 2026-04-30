@@ -1,20 +1,68 @@
 @import "tailwindcss";
 
-/* ── Design tokens ── */
+/* ── FB design tokens (warm-dark) ── */
+:root {
+  --fb-bg:            #16130f;
+  --fb-bg-2:          #1d1a14;
+  --fb-card:          #221e17;
+  --fb-card-2:        #2a251c;
+  --fb-border:        rgba(255,240,220,0.07);
+  --fb-border-strong: rgba(255,240,220,0.13);
+  --fb-divider:       rgba(255,240,220,0.05);
+  --fb-text:          #ece8df;
+  --fb-text-2:        #a59c8c;
+  --fb-text-3:        #6e6757;
+  --fb-accent:        #d97706;
+  --fb-accent-2:      #f59e3b;
+  --fb-accent-soft:   rgba(217,119,6,0.12);
+  --fb-green:         #7cba6c;
+  --fb-amber:         #e0a93a;
+  --fb-orange:        #d97706;
+  --fb-red:           #d65a4d;
+  --fb-blue:          #7aa6c8;
+  --font-display:     "Inter Tight", system-ui, sans-serif;
+  --font-body:        "Inter", system-ui, sans-serif;
+  --font-serif:       "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-mono:        "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* ── FB animations ── */
+@keyframes fb-fade-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fb-pop {
+  0%   { scale: 1; }
+  35%  { scale: 1.06; }
+  100% { scale: 1; }
+}
+@keyframes fb-row-in {
+  from { opacity: 0; transform: translateX(-8px); background: rgba(196,92,0,0.12); }
+  to   { opacity: 1; transform: translateX(0); background: transparent; }
+}
+@keyframes fb-toast-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Utility ── */
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* ── Legacy aliases → fb tokens (dark mode source of truth) ── */
 :root {
   color-scheme: dark;
-  --bg:         #0d0b09;
-  --nav-bg:     #131109;
-  --card-bg:    #1c1a16;
-  --card-hover: #242118;
-  --text:       #e9e6e0;
-  --text-sec:   #8a8278;
-  --border:     rgba(255,240,220,0.08);
-  --accent:     #c45c00;
-  --accent2:    #e07020;
-  --green:      #4ade80; /* Authentic warm green */
-  --yellow:     #fbbf24; /* Authentic amber */
-  --red:        #ef4444; /* Authentic red */
+  --bg:         var(--fb-bg);
+  --nav-bg:     var(--fb-bg-2);
+  --card-bg:    var(--fb-card);
+  --card-hover: var(--fb-card-2);
+  --text:       var(--fb-text);
+  --text-sec:   var(--fb-text-2);
+  --border:     var(--fb-border);
+  --accent:     var(--fb-accent);
+  --accent2:    var(--fb-accent-2);
+  --green:      var(--fb-green);
+  --yellow:     var(--fb-amber);
+  --red:        var(--fb-red);
   --shadow:     0 2px 12px rgba(0,0,0,0.65);
   --radius:     12px;
   --ease:       cubic-bezier(0.16, 1, 0.3, 1);
@@ -158,6 +206,31 @@ body.light ::-webkit-scrollbar-thumb {
 }
 body.light ::-webkit-scrollbar-thumb:hover {
   background: rgba(0,0,0,0.22);
+}
+
+/* ── Dashboard responsive layout ── */
+.dash-hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 364px;
+  gap: 16px;
+}
+.dash-secondary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+@media (max-width: 960px) {
+  .dash-hero-grid {
+    grid-template-columns: 1fr;
+  }
+  .dash-secondary-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 600px) {
+  .dash-secondary-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Completely hidden (used on horizontal chip rows, etc.) */

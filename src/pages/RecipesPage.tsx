@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import BundlesTab from '../components/recipes/BundlesTab';
 import RecipesTab from '../components/recipes/RecipesTab';
+import { PageHeader, SegmentedControl } from '../lib/fbUI';
 
 type Tab = 'recipes' | 'bundles';
 
@@ -8,30 +9,28 @@ export default function RecipesPage() {
   const [activeTab, setActiveTab] = useState<Tab>('recipes');
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-5">
-      <h1 className="text-2xl font-bold text-text">Recipes</h1>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--fb-bg)', color: 'var(--fb-text)', fontFamily: 'var(--font-body)' }}>
 
-      <div className="flex gap-1 border-b border-border">
-        {([
-          { id: 'recipes', label: 'Recipes' },
-          { id: 'bundles', label: 'Bundles' },
-        ] as { id: Tab; label: string }[]).map(t => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            className={[
-              'px-5 py-2.5 text-sm font-medium transition-colors cursor-pointer border-b-2 -mb-px',
-              activeTab === t.id
-                ? 'border-accent text-accent'
-                : 'border-transparent text-text-sec hover:text-text',
-            ].join(' ')}
-          >
-            {t.label}
-          </button>
-        ))}
+      <PageHeader
+        eyebrow="Kitchen"
+        title="Recipes"
+        right={
+          <SegmentedControl<Tab>
+            value={activeTab}
+            onChange={setActiveTab}
+            options={[
+              { value: 'recipes', label: 'Recipes' },
+              { value: 'bundles', label: 'Bundles' },
+            ]}
+          />
+        }
+      />
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px 60px' }} className="hide-scrollbar">
+        <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+          {activeTab === 'recipes' ? <RecipesTab /> : <BundlesTab />}
+        </div>
       </div>
-
-      {activeTab === 'recipes' ? <RecipesTab /> : <BundlesTab />}
     </div>
   );
 }

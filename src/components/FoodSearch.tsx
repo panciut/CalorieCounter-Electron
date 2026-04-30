@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback, useLayoutEffect, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import Fuse from 'fuse.js';
 import { api } from '../api';
@@ -16,19 +16,74 @@ interface FoodSearchProps {
   showAllWhenEmpty?: boolean;
   /** When set, each food row shows a small badge with the total grams currently in this pantry. */
   pantryId?: number;
+  /** Compact header-style input instead of the large pill */
+  compact?: boolean;
 }
 
-export default function FoodSearch({ items, onSelect, placeholder = 'Search…', value, onClear, clearAfterSelect = false, showAllWhenEmpty = false, pantryId }: FoodSearchProps) {
+// ── Style tokens ──────────────────────────────────────────────────────────────
+
+const eyebrow: CSSProperties = {
+  fontSize: 9.5, fontWeight: 600, letterSpacing: 1.2,
+  textTransform: 'uppercase', color: 'var(--fb-text-3)',
+};
+
+const serifItalic: CSSProperties = {
+  fontFamily: 'var(--font-serif)', fontStyle: 'italic',
+};
+
+function inputStyle(compact: boolean, focused: boolean): CSSProperties {
+  if (compact) {
+    return {
+      width: '100%',
+      background: 'var(--fb-card)',
+      border: '1px solid ' + (focused ? 'var(--fb-accent)' : 'var(--fb-border)'),
+      borderRadius: 11,
+      padding: '8px 32px 8px 32px',
+      fontSize: 13, fontWeight: 500,
+      fontFamily: 'var(--font-body)',
+      color: 'var(--fb-text)',
+      outline: 'none',
+      transition: 'border-color .25s ease, box-shadow .25s ease',
+      boxShadow: focused ? '0 0 0 3px var(--fb-accent-soft)' : 'none',
+    };
+  }
+  return {
+    width: '100%',
+    background: 'var(--fb-card)',
+    border: '1px solid ' + (focused ? 'var(--fb-accent)' : 'var(--fb-border-strong)'),
+    borderRadius: 18,
+    padding: '16px 52px 16px 52px',
+    fontSize: 15, fontWeight: 500,
+    fontFamily: 'var(--font-serif)', fontStyle: 'italic',
+    color: 'var(--fb-text)',
+    outline: 'none',
+    letterSpacing: -0.1,
+    transition: 'border-color .25s ease, box-shadow .25s ease',
+    boxShadow: focused ? '0 0 0 4px var(--fb-accent-soft)' : '0 1px 2px rgba(0,0,0,0.18)',
+  };
+}
+
+const dotDivider: CSSProperties = {
+  width: 3, height: 3, borderRadius: '50%',
+  background: 'var(--fb-border-strong)',
+  flexShrink: 0,
+};
+
+export default function FoodSearch({
+  items, onSelect, placeholder = 'Search…',
+  value, onClear, clearAfterSelect = false,
+  showAllWhenEmpty = false, pantryId, compact = false,
+}: FoodSearchProps) {
   const [query, setQuery] = useState(value ?? '');
   const [activeIdx, setActiveIdx] = useState(-1);
   const [open, setOpen] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [rect, setRect] = useState<{ top: number; left: number; width: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef  = useRef<HTMLUListElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const fuse = useMemo(() => new Fuse(items, { keys: ['name'], threshold: 0.4, includeScore: true }), [items]);
-
   const allSorted = useMemo(() => [...items].sort((a, b) => a.name.localeCompare(b.name)), [items]);
 
   const results = useMemo(() => {
@@ -36,7 +91,6 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
       return showAllWhenEmpty ? allSorted : [];
     }
     const raw = fuse.search(query).slice(0, 20);
-    // Sort: exact prefix match first, then by frequency, then fuse score
     return raw
       .sort((a, b) => {
         const aFreq = (a.item as SearchItem & { _freq?: number })._freq ?? 0;
@@ -46,9 +100,8 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
       })
       .slice(0, 10)
       .map(r => r.item);
-  }, [query, fuse]);
+  }, [query, fuse, showAllWhenEmpty, allSorted]);
 
-  // Pantry stock map (food_id → { total, packs, loose }). Refetched when pantry changes or list opens.
   type Stock = { total_g: number; loose_g: number; packs: { grams: number; count: number }[] };
   const [stockMap, setStockMap] = useState<Record<number, Stock>>({});
   useEffect(() => {
@@ -70,12 +123,10 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
     return [...packParts, fmtG(s.loose_g)].join(' + ');
   }
 
-  // Sync controlled value
   useEffect(() => {
     if (value !== undefined) setQuery(value);
   }, [value]);
 
-  // Click outside closes
   useEffect(() => {
     function handler(e: MouseEvent) {
       const target = e.target as Node;
@@ -87,14 +138,13 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Track input position for portaled dropdown
   useLayoutEffect(() => {
     if (!open) return;
     function update() {
       const el = inputRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      setRect({ top: r.bottom + 4, left: r.left, width: r.width });
+      setRect({ top: r.bottom + 6, left: r.left, width: r.width });
     }
     update();
     window.addEventListener('resize', update);
@@ -135,72 +185,154 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
     if (!e.target.value && onClear) onClear();
   }
 
+  const iconSize = compact ? 14 : 18;
+  const iconLeftOffset = compact ? 11 : 20;
+  const clearRightOffset = compact ? 8 : 18;
+
   return (
-    <div ref={containerRef} className="relative w-full">
-      <div className="relative flex items-center">
-        <div className="absolute left-5 text-text-sec/40 pointer-events-none group-focus-within:text-accent transition-colors">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-        </div>
+    <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+        <span style={{
+          position: 'absolute', left: iconLeftOffset,
+          pointerEvents: 'none',
+          color: focused ? 'var(--fb-accent)' : 'var(--fb-text-3)',
+          display: 'inline-flex', transition: 'color .25s ease',
+        }}>
+          <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
+          </svg>
+        </span>
         <input
           ref={inputRef}
           type="text"
           value={query}
           onChange={handleChange}
-          onFocus={() => (query || showAllWhenEmpty) && setOpen(true)}
+          onFocus={() => { setFocused(true); if (query || showAllWhenEmpty) setOpen(true); }}
+          onBlur={() => setFocused(false)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="w-full bg-card border-2 border-border/40 rounded-[2rem] pl-14 pr-6 py-5 text-lg font-bold text-text placeholder:text-text-sec/30 outline-none focus:border-accent focus:bg-bg/60 transition-all shadow-sm"
+          style={inputStyle(compact, focused)}
         />
         {query && (
-          <button onClick={() => { setQuery(''); if(onClear) onClear(); }} className="absolute right-5 p-2 text-text-sec/40 hover:text-text transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-          </button>
+          <button
+            type="button"
+            onClick={() => { setQuery(''); if (onClear) onClear(); inputRef.current?.focus(); }}
+            aria-label="Clear"
+            style={{
+              position: 'absolute', right: clearRightOffset,
+              width: compact ? 20 : 26, height: compact ? 20 : 26,
+              borderRadius: 99, border: 0,
+              background: 'var(--fb-bg-2)', color: 'var(--fb-text-3)',
+              fontSize: compact ? 10 : 12, lineHeight: 1, cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              transition: 'all .2s ease',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'var(--fb-bg)'; e.currentTarget.style.color = 'var(--fb-text)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'var(--fb-bg-2)'; e.currentTarget.style.color = 'var(--fb-text-3)'; }}
+          >✕</button>
         )}
       </div>
       {open && results.length > 0 && rect && createPortal(
         <ul
           ref={listRef}
-          style={{ position: 'fixed', top: rect.top, left: rect.left, width: rect.width }}
-          className="z-[100] bg-card/95 backdrop-blur-xl border border-border/60 rounded-[2rem] shadow-2xl max-h-96 overflow-y-auto mt-2 overflow-hidden animate-spring-up"
+          style={{
+            position: 'fixed',
+            top: rect.top, left: rect.left, width: rect.width,
+            zIndex: 100,
+            background: 'var(--fb-card)',
+            border: '1px solid var(--fb-border-strong)',
+            borderRadius: compact ? 12 : 18,
+            boxShadow: '0 16px 48px rgba(0,0,0,0.55)',
+            maxHeight: 384, overflowY: 'auto',
+            margin: 0, padding: 4, listStyle: 'none',
+            animation: 'fb-fade-up 0.15s ease',
+          }}
         >
-          {results.map((item, i) => (
-            <li
-              key={item.id + (item.isRecipe ? '-r' : '')}
-              onMouseDown={() => select(item)}
-              onMouseEnter={() => setActiveIdx(i)}
-              className={[
-                'flex items-center justify-between gap-4 px-6 py-4 cursor-pointer transition-all border-b border-border/10 last:border-0',
-                i === activeIdx ? 'bg-accent/10' : 'hover:bg-card-hover/40',
-              ].join(' ')}
-            >
-              <div className="min-w-0 flex-1">
-                <div className={`font-black text-lg truncate ${i === activeIdx ? 'text-accent' : 'text-text'} transition-colors tracking-tight`}>{item.name}</div>
-                <div className="text-[10px] font-bold text-text-sec/60 uppercase tracking-widest mt-1 flex items-center gap-1.5 flex-wrap">
-                  <span className="text-text tabular-nums">{Math.round(item.calories)} kcal</span>
-                  <span className="opacity-20">/</span>
-                  <span>P {Math.round(item.protein * 10) / 10}g</span>
-                  <span className="opacity-20">/</span>
-                  <span>C {Math.round(item.carbs * 10) / 10}g</span>
-                  <span className="opacity-20">/</span>
-                  <span>F {Math.round(item.fat * 10) / 10}g</span>
-                  {!item.isRecipe && <span className="ml-1 opacity-40 font-normal italic text-[9px] lowercase">(per 100g)</span>}
+          {results.map((item, i) => {
+            const isActive = i === activeIdx;
+            const stock = !item.isRecipe ? stockMap[item.id] : null;
+            return (
+              <li
+                key={item.id + (item.isRecipe ? '-r' : '')}
+                onMouseDown={() => select(item)}
+                onMouseEnter={() => setActiveIdx(i)}
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  gap: 10,
+                  padding: compact ? '8px 10px' : '10px 14px',
+                  borderRadius: compact ? 8 : 12,
+                  cursor: 'pointer',
+                  background: isActive ? 'var(--fb-accent-soft)' : 'transparent',
+                  transition: 'background .2s ease',
+                }}
+              >
+                <div style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <div style={{
+                    ...serifItalic,
+                    fontSize: 14, fontWeight: 500,
+                    color: isActive ? 'var(--fb-accent)' : 'var(--fb-text)',
+                    letterSpacing: -0.1,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    transition: 'color .2s ease',
+                  }}>{item.name}</div>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6,
+                    fontSize: 10.5, fontWeight: 600,
+                    color: 'var(--fb-text-2)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}>
+                    <span style={{ color: 'var(--fb-text)' }}>{Math.round(item.calories)} kcal</span>
+                    <span style={dotDivider} />
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--fb-red)' }} />
+                      P {Math.round(item.protein * 10) / 10}g
+                    </span>
+                    <span style={dotDivider} />
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--fb-amber)' }} />
+                      C {Math.round(item.carbs * 10) / 10}g
+                    </span>
+                    <span style={dotDivider} />
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ width: 4, height: 4, borderRadius: '50%', background: 'var(--fb-green)' }} />
+                      F {Math.round(item.fat * 10) / 10}g
+                    </span>
+                    {!item.isRecipe && (
+                      <span style={{ ...serifItalic, fontWeight: 400, fontSize: 10, color: 'var(--fb-text-3)', marginLeft: 2 }}>
+                        per 100g
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-              {!item.isRecipe && pantryId != null && stockMap[item.id]?.total_g > 0 && (
-                <span
-                  className="text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-xl bg-green/10 text-green tabular-nums shrink-0 border border-green/20"
-                  title={`In pantry: ${Math.round(stockMap[item.id].total_g)}g`}
-                >
-                  {formatStock(stockMap[item.id])}
-                </span>
-              )}
-              {item.isRecipe && (
-                <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl bg-accent/10 text-accent2 shrink-0 border border-accent/20">
-                  recipe
-                </span>
-              )}
-            </li>
-          ))}
+                {!item.isRecipe && pantryId != null && stock && stock.total_g > 0 && (
+                  <span
+                    title={`In pantry: ${Math.round(stock.total_g)}g`}
+                    style={{
+                      ...eyebrow, color: 'var(--fb-green)',
+                      padding: '4px 10px', borderRadius: 99,
+                      background: 'color-mix(in srgb, var(--fb-green) 14%, transparent)',
+                      border: '1px solid color-mix(in srgb, var(--fb-green) 28%, transparent)',
+                      fontVariantNumeric: 'tabular-nums',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {formatStock(stock)}
+                  </span>
+                )}
+                {item.isRecipe && (
+                  <span style={{
+                    ...eyebrow, color: 'var(--fb-accent-2)',
+                    padding: '4px 10px', borderRadius: 99,
+                    background: 'var(--fb-accent-soft)',
+                    border: '1px solid color-mix(in srgb, var(--fb-accent) 28%, transparent)',
+                    flexShrink: 0,
+                  }}>
+                    recipe
+                  </span>
+                )}
+              </li>
+            );
+          })}
         </ul>,
         document.body
       )}

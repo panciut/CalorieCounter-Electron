@@ -157,6 +157,12 @@ export const api = {
     search: (query: string) => invoke<BarcodeSearchResult[]>('barcode:search', { query }),
   },
 
+  customDb: {
+    selectFile:  () => invoke<string | null>('customdb:selectFile'),
+    setPath:     (filePath: string | null) => invoke<{ ok: boolean; error?: string }>('customdb:setPath', { filePath }),
+    getStatus:   () => invoke<{ path: string | null; status: 'none' | 'ok' | 'error'; error?: string; table?: string; rows?: number }>('customdb:getStatus'),
+  },
+
   streaks: {
     get: () => invoke<Streak>('streaks:get'),
   },

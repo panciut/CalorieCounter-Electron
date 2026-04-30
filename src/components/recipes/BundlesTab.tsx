@@ -8,6 +8,7 @@ import { today } from '../../lib/dateUtil';
 import { MEAL_ORDER, type Recipe, type RecipeIngredient, type Food, type Meal, type PantryIngredientCheck, type PantryLocation } from '../../types';
 import { useDeductionEvents } from '../../hooks/useDeductionEvents';
 import DeductionEventModal from '../DeductionEventModal';
+import { serifItalic, pillPrimary, pillGhost, EmptyState, MACRO_DOT, MacroChip } from '../../lib/fbUI';
 
 type PantryCheckResult = { can_make: boolean; missing: PantryIngredientCheck[] };
 
@@ -132,101 +133,142 @@ function BundlesTab() {
   const visibleBundles = canMakeFilter ? bundles.filter(b => canMakeMap.get(b.id)?.can_make) : bundles;
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <p className="text-sm text-text-sec">Fixed-portion shortcuts — log a set of foods in one tap.</p>
-        <div className="flex items-center gap-2 flex-wrap">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+          <span className="tnum" style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 28, letterSpacing: -1, color: 'var(--fb-text)', lineHeight: 1 }}>
+            {visibleBundles.length}
+          </span>
+          <span style={{ ...serifItalic, fontSize: 14, color: 'var(--fb-text-3)' }}>
+            {visibleBundles.length === 1 ? 'bundle' : 'bundles'}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {pantries.length > 1 && (
             <select
               value={pantryId ?? ''}
               onChange={e => { const pid = Number(e.target.value); setPantryId(pid); loadBundles(pid); }}
-              className="bg-bg border border-border rounded-lg px-2 py-1.5 text-xs text-text outline-none focus:border-accent cursor-pointer"
+              style={{ fontSize: 11, fontWeight: 600, background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', borderRadius: 99, padding: '6px 14px', color: 'var(--fb-text-2)', outline: 'none', cursor: 'pointer' }}
             >
               {pantries.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
           )}
           <button
             onClick={() => setCanMakeFilter(v => !v)}
-            className={[
-              'text-xs px-3 py-1.5 rounded-lg border cursor-pointer transition-colors',
-              canMakeFilter
-                ? 'border-accent bg-accent/10 text-accent'
-                : 'border-border text-text-sec hover:border-accent/50',
-            ].join(' ')}
+            style={canMakeFilter
+              ? { ...pillGhost, color: 'var(--fb-accent)', borderColor: 'var(--fb-accent)', background: 'var(--fb-accent-soft)' }
+              : pillGhost}
           >
-            🥗 Can make
+            Can make
           </button>
-          <button
-            onClick={() => setCreating(true)}
-            className="px-4 py-2 rounded-xl bg-accent text-white text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer"
-          >
-            + New Bundle
-          </button>
+          <button onClick={() => setCreating(true)} style={pillPrimary}>+ New bundle</button>
         </div>
       </div>
 
       {visibleBundles.length === 0 ? (
-        <p className="text-text-sec text-center py-12 text-sm">
-          {canMakeFilter ? 'No bundles you can make with current pantry.' : 'No bundles yet.'}
-        </p>
+        <EmptyState message={canMakeFilter ? 'No bundles you can make with current pantry.' : 'No bundles yet.'} />
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
           {visibleBundles.map(b => {
             const cm = canMakeMap.get(b.id);
             return (
-            <div
-              key={b.id}
-              onClick={() => openDetail(b.id)}
-              className="bg-card border border-border rounded-xl p-4 cursor-pointer hover:bg-card-hover transition-colors space-y-2"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold text-text">{b.name}</h3>
-                    {cm && (
-                      <span className={[
-                        'text-xs px-1.5 py-0.5 rounded font-medium shrink-0',
-                        cm.can_make
-                          ? 'bg-green/10 text-green'
-                          : cm.missing_count <= 2
-                            ? 'bg-yellow/10 text-yellow'
-                            : 'bg-red/10 text-red',
-                      ].join(' ')}>
-                        {cm.can_make ? '✓ can make' : `${cm.missing_count} missing`}
-                      </span>
+              <div
+                key={b.id}
+                onClick={() => openDetail(b.id)}
+                className="bundle-card"
+                style={{
+                  background: 'var(--fb-bg)',
+                  border: '1px solid var(--fb-border)',
+                  borderRadius: 18,
+                  padding: 4,
+                  cursor: 'pointer',
+                  transition: 'transform .35s cubic-bezier(0.32,0.72,0,1), border-color .25s ease',
+                }}
+              >
+                <div style={{
+                  background: 'var(--fb-card)',
+                  borderRadius: 14,
+                  padding: 16,
+                  display: 'flex', flexDirection: 'column', gap: 12,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                    <div style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                        <span style={{ ...serifItalic, fontSize: 17, fontWeight: 400, color: 'var(--fb-text)', letterSpacing: -0.2 }}>{b.name}</span>
+                        {cm && (
+                          <span style={{
+                            fontSize: 9.5, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase',
+                            padding: '3px 9px', borderRadius: 99,
+                            background: cm.can_make ? 'color-mix(in srgb, var(--fb-green) 14%, transparent)' : cm.missing_count <= 2 ? 'color-mix(in srgb, var(--fb-amber) 14%, transparent)' : 'color-mix(in srgb, var(--fb-red) 14%, transparent)',
+                            color: cm.can_make ? 'var(--fb-green)' : cm.missing_count <= 2 ? 'var(--fb-amber)' : 'var(--fb-red)',
+                            flexShrink: 0,
+                          }}>
+                            {cm.can_make ? '✓ ready' : `${cm.missing_count} missing`}
+                          </span>
+                        )}
+                      </div>
+                      {b.description && (
+                        <p style={{ fontSize: 11.5, color: 'var(--fb-text-3)', margin: 0, lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                          {b.description}
+                        </p>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+                      <button
+                        onClick={e => { e.stopPropagation(); openLogTarget(b); }}
+                        style={{
+                          padding: '6px 14px', borderRadius: 99,
+                          background: 'var(--fb-accent-soft)', color: 'var(--fb-accent)',
+                          border: '1px solid var(--fb-accent)',
+                          fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                        }}
+                      >Log</button>
+                      <button
+                        onClick={e => { e.stopPropagation(); setDeleteTarget(b); }}
+                        aria-label="Delete"
+                        style={{
+                          width: 28, height: 28, borderRadius: 99,
+                          background: 'transparent', color: 'var(--fb-text-3)',
+                          border: '1px solid var(--fb-border-strong)',
+                          fontSize: 11, cursor: 'pointer',
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                        }}
+                      >✕</button>
+                    </div>
+                  </div>
+
+                  <div style={{
+                    display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center',
+                    paddingTop: 8, borderTop: '1px solid var(--fb-divider)',
+                  }}>
+                    <MacroChip dot={MACRO_DOT.kcal}    value={`${n((b as unknown as Record<string,unknown>).total_calories ?? b.calories)}`} unit="kcal" emphasis />
+                    <MacroChip dot={MACRO_DOT.protein} value={`${n((b as unknown as Record<string,unknown>).total_protein ?? b.protein)}`} unit="g P" />
+                    <MacroChip dot={MACRO_DOT.carbs}   value={`${n((b as unknown as Record<string,unknown>).total_carbs ?? b.carbs)}`}     unit="g C" />
+                    <MacroChip dot={MACRO_DOT.fat}     value={`${n((b as unknown as Record<string,unknown>).total_fat ?? b.fat)}`}         unit="g F" />
+                    <span className="tnum" style={{ fontSize: 11, color: 'var(--fb-text-3)' }}>{b.ingredient_count} items</span>
+                    {cm && !cm.can_make && (
+                      <button
+                        onClick={e => { e.stopPropagation(); addMissingToShopping(b.id); }}
+                        style={{
+                          marginLeft: 'auto', fontSize: 10.5, fontWeight: 600,
+                          padding: '4px 10px', borderRadius: 99,
+                          border: '1px dashed var(--fb-border-strong)',
+                          background: 'transparent', color: 'var(--fb-text-3)',
+                          cursor: 'pointer',
+                        }}
+                      >+ shopping</button>
                     )}
                   </div>
-                  {b.description && <p className="text-xs text-text-sec mt-0.5">{b.description}</p>}
-                </div>
-                <div className="flex gap-1.5 shrink-0">
-                  <button
-                    onClick={e => { e.stopPropagation(); openLogTarget(b); }}
-                    className="px-2.5 py-1 rounded-lg bg-accent/10 text-accent text-xs font-medium hover:bg-accent/20 transition-colors cursor-pointer"
-                  >Log</button>
-                  <button
-                    onClick={e => { e.stopPropagation(); setDeleteTarget(b); }}
-                    className="px-2.5 py-1 rounded-lg bg-red/10 text-red text-xs font-medium hover:bg-red/20 transition-colors cursor-pointer"
-                  >Delete</button>
                 </div>
               </div>
-              <div className="flex gap-3 text-xs text-text-sec flex-wrap items-center">
-                <span>{n((b as unknown as Record<string,unknown>).total_calories ?? b.calories)} kcal</span>
-                <span>F {n((b as unknown as Record<string,unknown>).total_fat ?? b.fat)}g</span>
-                <span>C {n((b as unknown as Record<string,unknown>).total_carbs ?? b.carbs)}g</span>
-                <span>P {n((b as unknown as Record<string,unknown>).total_protein ?? b.protein)}g</span>
-                <span>{b.ingredient_count} items</span>
-                {cm && !cm.can_make && (
-                  <button
-                    onClick={e => { e.stopPropagation(); addMissingToShopping(b.id); }}
-                    className="ml-auto text-xs px-2 py-0.5 rounded border border-border text-text-sec hover:border-accent hover:text-accent cursor-pointer transition-colors"
-                  >+ shopping list</button>
-                )}
-              </div>
-            </div>
             );
           })}
         </div>
       )}
+
+      <style>{`
+        .bundle-card:hover { border-color: var(--fb-border-strong) !important; transform: translateY(-1px); }
+      `}</style>
 
       {detailId !== null && detail && (
         <BundleDetailModal
@@ -253,7 +295,7 @@ function BundlesTab() {
 
       {logTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm mx-4 space-y-4">
+          <div className="bg-card border border-border rounded-xl p-6 w-full max-w-sm mx-4 space-y-4">
             <h2 className="font-semibold text-text">Log "{logTarget.name}"</h2>
             <div className="space-y-3">
               <div className="space-y-1">
@@ -350,7 +392,7 @@ function BundleDetailModal({ detail, foods, onClose, onSave, onChange }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-lg mx-4 space-y-4 max-h-[85vh] overflow-y-auto">
+      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-lg mx-4 space-y-4 max-h-[85vh] overflow-y-auto">
         <h2 className="font-semibold text-text text-lg">{detail.name}</h2>
         <div className="space-y-2">
           {(detail.ingredients ?? []).map((ing, i) => (
@@ -416,7 +458,7 @@ function BundleCreateModal({ foods, onClose, onCreate, initial }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-card border border-border rounded-2xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto flex flex-col gap-5">
+      <div className="bg-card border border-border rounded-xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto flex flex-col gap-5">
         <h2 className="font-semibold text-text text-xl">New Bundle</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, type CSSProperties } from 'react';
 import { evalExpr, resolveExpr } from '../lib/evalExpr';
 import { today, daysUntil, formatDMY } from '../lib/dateUtil';
 import { api } from '../api';
@@ -9,6 +9,10 @@ import FoodSearch from '../components/FoodSearch';
 import type { SearchItem } from '../components/FoodSearch';
 import ConfirmDialog from '../components/ConfirmDialog';
 import AddFoodForm from '../components/AddFoodForm';
+import {
+  PageHeader, SegmentedControl, SearchField, EmptyState, IconBtn,
+  eyebrow, serifItalic, cardOuter, tinyInput, pillPrimary, pillGhost, pillSoft,
+} from '../lib/fbUI';
 import type { Food, PantryItem, PantryAggregate, PantryLocation, ShoppingItem } from '../types';
 
 type Tab = 'pantry' | 'shopping';
@@ -22,16 +26,18 @@ function compareExpiry(a: string | null, b: string | null): number {
   return a.localeCompare(b);
 }
 
-function expiryPillClass(iso: string | null, warn: number, urgent: number): string {
-  if (!iso) return 'text-text-sec';
+interface ExpiryStatus { color: string; bg: string; bold: boolean; }
+
+function expiryStatus(iso: string | null, warn: number, urgent: number): ExpiryStatus {
+  if (!iso) return { color: 'var(--fb-text-3)', bg: 'transparent', bold: false };
   const d = daysUntil(iso);
-  if (d < 0) return 'text-red font-bold';
-  if (d <= urgent) return 'text-red font-semibold';
-  if (d <= warn) return 'text-yellow-600 font-medium';
-  return 'text-text-sec';
+  if (d < 0) return { color: 'var(--fb-red)', bg: 'color-mix(in srgb, var(--fb-red) 14%, transparent)', bold: true };
+  if (d <= urgent) return { color: 'var(--fb-red)', bg: 'transparent', bold: true };
+  if (d <= warn) return { color: 'var(--fb-amber)', bg: 'transparent', bold: false };
+  return { color: 'var(--fb-text-2)', bg: 'transparent', bold: false };
 }
 
-function expiryLabel(iso: string | null, warn: number, urgent: number): string {
+function expiryLabel(iso: string | null, warn: number, _urgent: number): string {
   if (!iso) return '';
   const d = daysUntil(iso);
   if (d < 0) return `Expired ${Math.abs(d)}d ago`;
@@ -49,19 +55,17 @@ function openedLabel(batch: PantryItem): string | null {
   return `Opened, ${daysLeft}d left`;
 }
 
-function openedPillClass(batch: PantryItem): string {
-  if (!batch.opened_at || !batch.opened_days) return 'text-text-sec';
+function openedStatus(batch: PantryItem): ExpiryStatus {
+  if (!batch.opened_at || !batch.opened_days) return { color: 'var(--fb-text-3)', bg: 'transparent', bold: false };
   const dueMs = new Date(batch.opened_at).getTime() + batch.opened_days * 86400_000;
   const daysLeft = Math.ceil((dueMs - Date.now()) / 86400_000);
-  if (daysLeft < 0)  return 'text-red font-bold bg-red/10 px-2 py-0.5 rounded';
-  if (daysLeft <= 1) return 'text-red font-semibold';
-  if (daysLeft <= 3) return 'text-yellow-600 font-medium';
-  return 'text-text-sec';
+  if (daysLeft < 0)  return { color: 'var(--fb-red)', bg: 'color-mix(in srgb, var(--fb-red) 14%, transparent)', bold: true };
+  if (daysLeft <= 1) return { color: 'var(--fb-red)', bg: 'transparent', bold: true };
+  if (daysLeft <= 3) return { color: 'var(--fb-amber)', bg: 'transparent', bold: false };
+  return { color: 'var(--fb-text-2)', bg: 'transparent', bold: false };
 }
 
-function seedExpiry(current: string): string {
-  return current || today();
-}
+function seedExpiry(current: string): string { return current || today(); }
 
 function resolveExpiry(iso: string): string {
   if (!iso) return iso;
@@ -150,14 +154,13 @@ export default function PantryPage() {
   const [qty, setQty]                   = useState('');
   const [expiry, setExpiry]             = useState('');
   const [unit, setUnit]                 = useState<PantryUnit>('g');
-  
+
   const [pantryOpen, setPantryOpen]     = useState(false);
   const [shopOpen, setShopOpen]         = useState(false);
 
   const [discardId, setDiscardId]       = useState<number | null>(null);
   const [discardAllIds, setDiscardAllIds] = useState<number[] | null>(null);
   const [collapsedFoods, setCollapsedFoods] = useState<Set<number>>(new Set());
-  const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
   const [editingBatch, setEditingBatch] = useState<{ id: number; qty: string; expiry: string; unit: PantryUnit } | null>(null);
   const [pantrySearch, setPantrySearch] = useState('');
   const qtyRef = useRef<HTMLInputElement>(null);
@@ -198,15 +201,7 @@ export default function PantryPage() {
     const map = new Map<number, PantryAggregate>();
     for (const b of items) {
       if (!map.has(b.food_id)) {
-        map.set(b.food_id, {
-          food_id: b.food_id,
-          food_name: b.food_name,
-          piece_grams: b.piece_grams,
-          total_g: 0,
-          earliest_expiry: null,
-          batches: [],
-          pack_breakdown: [],
-        });
+        map.set(b.food_id, { food_id: b.food_id, food_name: b.food_name, piece_grams: b.piece_grams, total_g: 0, earliest_expiry: null, batches: [], pack_breakdown: [] });
       }
       const agg = map.get(b.food_id)!;
       agg.total_g += b.quantity_g;
@@ -241,8 +236,7 @@ export default function PantryPage() {
     const food = item as Food;
     setSelFood(food);
     setUnit(defaultUnit(food));
-    setQty('');
-    setExpiry('');
+    setQty(''); setExpiry('');
     setTimeout(() => qtyRef.current?.focus(), 0);
   }
 
@@ -280,12 +274,7 @@ export default function PantryPage() {
     const val = evalExpr(editingBatch.qty) ?? 0;
     const food = foods.find(f => f.id === batch.food_id);
     const grams = food ? unitToGrams(editingBatch.unit, val, food) : val;
-    await api.pantry.set({
-      id: editingBatch.id,
-      quantity_g: grams || 0,
-      expiry_date: editingBatch.expiry || null,
-      package_id: batch.package_id,
-    });
+    await api.pantry.set({ id: editingBatch.id, quantity_g: grams || 0, expiry_date: editingBatch.expiry || null, package_id: batch.package_id });
     setEditingBatch(null);
     loadPantry(activePantryId);
   }
@@ -344,10 +333,6 @@ export default function PantryPage() {
     loadShopping(id);
   }
 
-  const inputCls = "bg-bg border border-border/60 rounded-xl px-4 py-2.5 text-sm text-text outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all w-full";
-  const numInputCls = "w-full bg-bg border border-border/60 rounded-xl px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 tabular-nums transition-all";
-  const cardCls = "bg-card border border-border/40 shadow-sm rounded-3xl p-5 flex flex-col gap-4";
-
   const warn = settings.pantry_warn_days ?? 3;
   const urgent = settings.pantry_urgent_days ?? 1;
   const unchecked = shopping.filter(s => !s.checked);
@@ -358,289 +343,278 @@ export default function PantryPage() {
   const allCollapsed = visible.length > 0 && visible.every(agg => collapsedFoods.has(agg.food_id));
 
   function toggleAllBatches() {
-    if (allCollapsed) {
-      setCollapsedFoods(new Set());
-    } else {
-      setCollapsedFoods(new Set(visible.map(a => a.food_id)));
-    }
+    if (allCollapsed) setCollapsedFoods(new Set());
+    else setCollapsedFoods(new Set(visible.map(a => a.food_id)));
   }
 
+  const activePantry = pantries.find(p => p.id === activePantryId);
+
   return (
-    <div className="flex flex-col h-[100dvh] md:h-full overflow-hidden bg-bg text-text">
-      
-      {/* ── HEADER FISSO ──────────────────────────────────────────────────────── */}
-      <header className="px-4 py-4 md:px-6 md:py-6 shrink-0 bg-card border-b border-border z-20">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-2xl font-bold">Pantry</h1>
-            <div className="flex items-center gap-2">
-              {pantries.length > 1 && (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--fb-bg)', color: 'var(--fb-text)', fontFamily: 'var(--font-body)' }}>
+
+      <PageHeader
+        eyebrow="Inventory"
+        title={activePantry?.name ?? 'Pantry'}
+        left={
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {pantries.length > 1 && (
+              <>
+                <span style={{ width: 1, height: 22, background: 'var(--fb-border-strong)' }} />
                 <select
                   value={activePantryId ?? ''}
                   onChange={e => handleSwitchPantry(Number(e.target.value))}
-                  className="bg-bg border border-border/60 rounded-lg px-3 py-1.5 text-sm font-medium text-text outline-none focus:border-accent cursor-pointer shadow-sm"
+                  style={{
+                    fontSize: 11, background: 'var(--fb-card)',
+                    border: '1px solid var(--fb-border)', borderRadius: 99,
+                    padding: '5px 12px', color: 'var(--fb-text-2)', outline: 'none', cursor: 'pointer',
+                  }}
                 >
                   {pantries.map(p => (
                     <option key={p.id} value={p.id}>{p.name}{p.is_default ? ` (${t('pantry.defaultBadge')})` : ''}</option>
                   ))}
                 </select>
-              )}
-              <button
-                onClick={() => setShowManageModal(true)}
-                className="text-xs font-medium text-text-sec hover:text-text cursor-pointer transition-colors px-3 py-1.5 rounded-lg border border-border/60 bg-card hover:bg-border/30"
-              >{t('pantry.managePantries')}</button>
-            </div>
-          </div>
-
-          <div className="flex p-1 bg-bg border border-border rounded-lg shrink-0 shadow-sm overflow-x-auto hide-scrollbar w-full md:w-auto">
-            <button onClick={() => setTab('pantry')} className={`flex-1 md:flex-none px-6 py-2 text-sm font-bold rounded-md transition-colors ${tab === 'pantry' ? 'bg-card shadow-sm border border-border text-text' : 'text-text-sec hover:text-text'}`}>
-              Pantry
-            </button>
-            <button onClick={() => setTab('shopping')} className={`flex-1 md:flex-none px-6 py-2 text-sm font-bold rounded-md transition-colors ${tab === 'shopping' ? 'bg-card shadow-sm border border-border text-text' : 'text-text-sec hover:text-text'}`}>
-              Shopping list
+              </>
+            )}
+            <button onClick={() => setShowManageModal(true)} style={pillSoft}>
+              {t('pantry.managePantries')}
             </button>
           </div>
-        </div>
-      </header>
+        }
+        right={
+          <SegmentedControl<Tab>
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: 'pantry',   label: 'Pantry' },
+              { value: 'shopping', label: 'Shopping' },
+            ]}
+          />
+        }
+      />
 
-      {/* ── MAIN SCROLLABLE AREA ─────────────────────────────────────────────── */}
-      <div className="flex-1 min-h-0 overflow-y-auto w-full relative">
-        <div className="p-4 md:p-6 pb-24">
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px 60px' }} className="hide-scrollbar">
+        <div style={{ maxWidth: 1280, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 18 }}>
 
-          {/* ── PANTRY TAB ────────────────────────────────────────────────── */}
           {tab === 'pantry' && (
-            <div className="flex flex-col gap-6">
-
-              {/* Accordion "Add to Pantry" */}
-              <section className={`${cardCls} shrink-0 !p-0 overflow-hidden`}>
-                <button onClick={() => setPantryOpen(v => !v)} className="w-full flex items-center justify-between p-5 group hover:bg-bg/50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold transition-colors ${pantryOpen ? 'bg-text-sec' : 'bg-accent group-hover:bg-accent/90'}`}>
-                      {pantryOpen ? '−' : '+'}
-                    </div>
-                    <h2 className="text-base font-bold text-text group-hover:text-accent transition-colors">Add to Pantry</h2>
+            <>
+              {/* Add to Pantry */}
+              <section style={{ ...cardOuter, padding: 0, overflow: 'hidden' }}>
+                <button
+                  onClick={() => setPantryOpen(v => !v)}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '18px 22px',
+                    background: 'transparent', border: 0, cursor: 'pointer', textAlign: 'left',
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <span style={eyebrow}>Stock</span>
+                    <span style={{ ...serifItalic, fontSize: 20, fontWeight: 400, color: 'var(--fb-text)', lineHeight: 1.1 }}>
+                      Add to pantry
+                    </span>
                   </div>
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    width: 32, height: 32, borderRadius: 99,
+                    background: pantryOpen ? 'var(--fb-bg-2)' : 'var(--fb-accent)',
+                    color: pantryOpen ? 'var(--fb-text-2)' : 'white',
+                    fontSize: 16, lineHeight: 1,
+                    transition: 'transform .5s cubic-bezier(0.32,0.72,0,1), background .3s ease',
+                    transform: pantryOpen ? 'rotate(45deg)' : 'rotate(0deg)',
+                  }}>+</span>
                 </button>
 
                 {pantryOpen && (
-                  <div className="px-5 pb-5 flex flex-col gap-4 border-t border-border/20 pt-4 animate-slide-down">
-
+                  <div style={{
+                    padding: '20px 22px',
+                    borderTop: '1px solid var(--fb-divider)',
+                    display: 'flex', flexDirection: 'column', gap: 14,
+                    animation: 'slideDown .5s cubic-bezier(0.32,0.72,0,1)',
+                  }}>
                     {!selFood ? (
-                      <div className="flex flex-col gap-4">
-                        <FoodSearch items={foodSearchItems} onSelect={handleSelect} onClear={() => { setSelFood(null); setQty(''); setUnit('g'); setExpiry(''); }} placeholder="Search existing food..." pantryId={activePantryId} clearAfterSelect />
-
-                        <div className="relative flex py-2 items-center">
-                          <div className="flex-grow border-t border-border/60"></div>
-                          <span className="flex-shrink-0 mx-4 text-text-sec text-[10px] font-bold uppercase tracking-wider">or scan / create new</span>
-                          <div className="flex-grow border-t border-border/60"></div>
-                        </div>
-
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <FoodSearch
+                          items={foodSearchItems}
+                          onSelect={handleSelect}
+                          onClear={() => { setSelFood(null); setQty(''); setUnit('g'); setExpiry(''); }}
+                          placeholder="Search existing food…"
+                          pantryId={activePantryId}
+                          clearAfterSelect
+                        />
+                        <Divider label="or scan / create new" />
                         <AddFoodForm existingFoods={foods} onFoodFound={handleFoodFound} onAdded={handleFoodSaved} />
                       </div>
                     ) : (
-                      <div className="flex flex-col gap-4">
-                        <div className="flex items-center gap-3 bg-bg border border-border/40 rounded-xl p-3 shadow-inner">
-                          {selFood.image_url && <img src={selFood.image_url} alt="" className="w-12 h-12 rounded-lg object-cover bg-white" />}
-                          <div className="flex flex-col">
-                            <span className="font-bold text-text">{selFood.name}</span>
-                            <span className="text-xs text-text-sec">{selFood.calories} kcal / 100g</span>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col md:flex-row gap-4 items-end">
-                          <div className="flex flex-col gap-2 w-full md:flex-1">
-                            <label className="text-[10px] font-bold text-text-sec/60 uppercase tracking-wider">Quantity</label>
-                            <div className="flex items-center gap-2 w-full">
-                              {(selFood.piece_grams || (selFood.packages?.length ?? 0) > 0) && (
-                                <select
-                                  value={unit}
-                                  onChange={(e) => { setUnit(e.target.value as PantryUnit); setQty(''); }}
-                                  className="bg-bg border border-border/60 rounded-xl p-2.5 text-sm font-medium outline-none w-1/3"
-                                >
-                                  <option value="g">g</option>
-                                  {selFood.piece_grams && <option value="pcs">pcs</option>}
-                                  {selFood.packages?.map(pkg => (
-                                    <option key={pkg.id} value={`pkg-${pkg.id}`}>{pkg.grams}g pack</option>
-                                  ))}
-                                </select>
-                              )}
-                              <div className="relative flex-1">
-                                <input ref={qtyRef} type="text" inputMode="decimal" value={qty} onChange={e => setQty(e.target.value)} onBlur={() => setQty(v => resolveExpr(v))} onKeyDown={e => { if (e.key === 'Enter') { setQty(resolveExpr(qty)); handleAddBatch(); } }} placeholder={unit === 'pcs' ? 'pieces' : unit === 'g' ? 'grams' : 'packs'} className={numInputCls} autoFocus />
-                                {unit !== 'g' && qty && (evalExpr(qty) ?? 0) > 0 && addGrams > 0 && (
-                                  <span className="absolute right-3 top-2.5 text-xs font-bold text-text-sec/60 pointer-events-none">= {Math.round(addGrams)}g</span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-col gap-2 w-full md:w-auto">
-                            <label className="text-[10px] font-bold text-text-sec/60 uppercase tracking-wider">Expiry Date (Opt.)</label>
-                            <div className="flex items-center gap-2">
-                              <input type="date" value={expiry} onFocus={() => setExpiry(v => seedExpiry(v))} onChange={e => setExpiry(e.target.value)} onBlur={e => setExpiry(resolveExpiry(e.target.value))} className={`${inputCls} w-full md:w-40`} />
-                              {expiry && <button onClick={() => setExpiry('')} className="p-2.5 text-text-sec hover:text-red transition-colors bg-bg border border-border/60 rounded-xl">✕</button>}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-3 pt-2">
-                          <button onClick={() => setSelFood(null)} className="px-5 py-2.5 bg-bg border border-border/60 rounded-xl text-text-sec font-bold hover:bg-border/30 transition-colors w-1/3 text-center">Back</button>
-                          <button onClick={handleAddBatch} disabled={!qty || addGrams <= 0} className="px-5 py-2.5 bg-accent text-white rounded-xl font-bold hover:opacity-90 disabled:opacity-50 transition-opacity w-2/3 shadow-sm text-center">Add</button>
-                        </div>
-                      </div>
+                      <SelectedFoodEditor
+                        food={selFood}
+                        qty={qty} setQty={setQty}
+                        unit={unit} setUnit={setUnit}
+                        expiry={expiry} setExpiry={setExpiry}
+                        addGrams={addGrams}
+                        qtyRef={qtyRef}
+                        onBack={() => setSelFood(null)}
+                        onAdd={handleAddBatch}
+                      />
                     )}
                   </div>
                 )}
               </section>
 
-              {/* LISTA INVENTARIO */}
-              <div className="flex flex-col gap-3">
-                <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0">
-                  <div className="relative w-full">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-sec/50">🔍</span>
-                    <input type="text" value={pantrySearch} onChange={e => setPantrySearch(e.target.value)} placeholder="Search pantry..." className={`${inputCls} !pl-10 !py-2.5 shadow-sm`} />
-                  </div>
-                  <button 
-                    onClick={toggleAllBatches} 
-                    className={`w-full sm:w-auto px-5 py-2.5 rounded-xl border text-sm font-bold transition-colors whitespace-nowrap ${!allCollapsed ? 'border-border/60 bg-card text-text-sec hover:bg-border/40' : 'border-accent bg-accent/10 text-accent'}`}
-                  >
+              {/* Inventory list */}
+              <section style={{ ...cardOuter }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <SearchField value={pantrySearch} onChange={setPantrySearch} placeholder="Search pantry…" />
+                  <button onClick={toggleAllBatches} style={!allCollapsed ? pillGhost : { ...pillGhost, color: 'var(--fb-accent)', borderColor: 'var(--fb-accent)', background: 'var(--fb-accent-soft)' }}>
                     {!allCollapsed ? 'Hide batches' : 'Show batches'}
                   </button>
                 </div>
-                
-                {(() => {
-                  if (visible.length === 0) return <div className="text-center text-text-sec py-10 border border-dashed border-border rounded-xl">Pantry is empty or no matches found.</div>;
 
-                  return (
-                    <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col">
-                      {visible.map((agg, idx) => {
-                        const foodData = foodMap.get(agg.food_id);
-                        const collapsed = collapsedFoods.has(agg.food_id);
+                {visible.length === 0 ? (
+                  <EmptyState message="Pantry is empty or no matches found." />
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 0, background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', borderRadius: 14, overflow: 'hidden' }}>
+                    {visible.map((agg, idx) => {
+                      const foodData = foodMap.get(agg.food_id);
+                      const collapsed = collapsedFoods.has(agg.food_id);
+                      return (
+                        <div key={agg.food_id} style={{ display: 'flex', flexDirection: 'column', borderTop: idx === 0 ? 'none' : '1px solid var(--fb-divider)' }}>
 
-                        return (
-                          <div key={agg.food_id} className={`flex flex-col ${idx !== 0 ? 'border-t border-border/60' : ''}`}>
-                            
-                            {/* Group Header (Food Name & Totals) */}
-                            <div onClick={() => toggleCollapse(agg.food_id)} className="bg-bg/40 px-4 py-3 flex items-center justify-between sticky top-0 backdrop-blur-md z-10 cursor-pointer hover:bg-bg/80 transition-colors group">
-                              <div className="flex items-center gap-3">
-                                {foodData?.image_url ? (
-                                  <img src={foodData.image_url} alt="" className="w-8 h-8 rounded-md object-cover border border-border bg-white" />
-                                ) : (
-                                  <div className="w-8 h-8 rounded-md bg-bg border border-border/30 flex items-center justify-center text-text-sec/30 text-[10px]">🍽️</div>
-                                )}
-                                <span className="font-semibold text-text group-hover:text-accent transition-colors">{agg.food_name}</span>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <div className="text-sm font-bold text-text bg-card border border-border px-2 py-0.5 rounded shadow-sm">
-                                  {formatQty(agg.total_g, agg.piece_grams, agg.pack_breakdown.length === 1 ? agg.pack_breakdown[0].grams : null)}
+                          {/* Group header */}
+                          <button
+                            type="button"
+                            onClick={() => toggleCollapse(agg.food_id)}
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                              padding: '12px 16px',
+                              background: 'var(--fb-card)',
+                              border: 0, cursor: 'pointer', textAlign: 'left',
+                              transition: 'background .25s ease',
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'color-mix(in srgb, var(--fb-card) 60%, var(--fb-bg-2) 40%)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'var(--fb-card)')}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                              {foodData?.image_url ? (
+                                <div style={{ padding: 2, background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', borderRadius: 10 }}>
+                                  <img src={foodData.image_url} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'cover', display: 'block', background: 'white' }} />
                                 </div>
-                                <span className={`text-text-sec/40 text-xs w-4 text-center shrink-0 transform transition-transform duration-300 ${collapsed ? '-rotate-90' : ''}`}>▼</span>
+                              ) : (
+                                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: 'var(--fb-text-3)' }}>🍽️</div>
+                              )}
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                                <span style={{ ...serifItalic, fontSize: 15, color: 'var(--fb-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{agg.food_name}</span>
+                                <ExpiryHint iso={agg.earliest_expiry} warn={warn} urgent={urgent} />
                               </div>
                             </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+                              <span className="tnum" style={{ fontFamily: 'var(--font-serif)', fontWeight: 300, fontSize: 18, letterSpacing: -0.5, color: 'var(--fb-text)' }}>
+                                {formatQty(agg.total_g, agg.piece_grams, agg.pack_breakdown.length === 1 ? agg.pack_breakdown[0].grams : null)}
+                              </span>
+                              <span style={{
+                                width: 24, height: 24, borderRadius: 99,
+                                background: 'var(--fb-bg-2)', border: '1px solid var(--fb-border)',
+                                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                                color: 'var(--fb-text-3)', fontSize: 9,
+                                transition: 'transform .35s cubic-bezier(0.32,0.72,0,1)',
+                                transform: collapsed ? 'rotate(-90deg)' : 'rotate(0)',
+                              }}>▼</span>
+                            </div>
+                          </button>
 
-                            {/* Group Rows (Batches) */}
-                            {!collapsed && (
-                              <div className="flex flex-col divide-y divide-border/40">
-                                {groupBatches(agg.batches).map(group => {
-                                  const rep = group.batches[0];
-                                  const count = group.batches.length;
-                                  return group.batches.map((batch, bIdx) => {
-                                    const isEditing = editingBatch?.id === batch.id;
-                                    const expLbl = expiryLabel(batch.expiry_date, warn, urgent);
-                                    const expCls = expiryPillClass(batch.expiry_date, warn, urgent);
-                                    const opnLbl = openedLabel(batch);
-
-                                    return (
-                                      <div key={`${batch.id}-${bIdx}`} className="px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-bg/30 transition-colors group/row">
-                                        {isEditing ? (
-                                          // Edit Mode
-                                          <div className="flex flex-col sm:flex-row items-center gap-2 w-full">
-                                            <div className="flex items-center gap-2 w-full sm:w-auto">
-                                              {batch.piece_grams && foodData?.is_bulk !== 1 && (
-                                                <select value={editingBatch.unit} onChange={e => setEditingBatch(b => b ? { ...b, unit: e.target.value as PantryUnit } : b)} className="bg-card border border-border rounded p-1.5 text-sm outline-none">
-                                                  <option value="g">g</option>
-                                                  <option value="pcs">pcs</option>
-                                                </select>
-                                              )}
-                                              <input type="text" inputMode="decimal" value={editingBatch.qty} onChange={e => setEditingBatch(b => b ? { ...b, qty: e.target.value } : b)} onBlur={() => setEditingBatch(b => b ? { ...b, qty: resolveExpr(b.qty) } : b)} className="bg-card border border-border rounded px-2 py-1.5 text-sm outline-none focus:border-accent w-full sm:w-20" autoFocus />
-                                            </div>
-                                            <input type="date" value={editingBatch.expiry} onChange={e => setEditingBatch(b => b ? { ...b, expiry: e.target.value } : b)} className="bg-card border border-border rounded px-2 py-1.5 text-sm outline-none focus:border-accent w-full sm:w-auto flex-1" />
-                                            <div className="flex gap-2 w-full sm:w-auto justify-end">
-                                              <button onClick={() => setEditingBatch(null)} className="px-3 py-1.5 text-sm text-text-sec bg-card border border-border rounded hover:bg-bg">Cancel</button>
-                                              <button onClick={() => handleSaveBatch(batch)} className="px-3 py-1.5 text-sm text-white bg-accent rounded font-medium hover:opacity-90">Save</button>
-                                            </div>
-                                          </div>
-                                        ) : (
-                                          // View Mode
-                                          <>
-                                            <div className="flex items-center gap-4 flex-1">
-                                              <span className="text-sm font-medium tabular-nums min-w-[60px]">
-                                                {formatQty(batch.quantity_g, batch.piece_grams, batch.package_grams ?? (foodData?.packages?.length === 1 ? foodData.packages[0].grams : null), 1)}
-                                              </span>
-                                              <div className="flex items-center gap-3 flex-wrap">
-                                                {expLbl ? <span className={`text-xs tabular-nums ${expCls}`}>{expLbl}</span> : <span className="text-xs text-text-sec/50">No Date</span>}
-                                                {opnLbl && <span className={`text-xs tabular-nums ${openedPillClass(batch)}`}>{opnLbl}</span>}
-                                              </div>
-                                            </div>
-                                            
-                                            {/* Actions - visible on hover on desktop, always on mobile */}
-                                            <div className="flex items-center gap-2 justify-end opacity-100 sm:opacity-0 sm:group-hover/row:opacity-100 transition-opacity">
-                                              <button onClick={() => startEditBatch(batch)} className="px-3 py-1.5 text-xs font-medium text-text-sec bg-card border border-border rounded hover:text-accent hover:border-accent/50">Edit</button>
-                                              <button onClick={() => setDiscardId(batch.id)} className="px-3 py-1.5 text-xs font-medium text-red bg-red/10 rounded hover:bg-red/20">Discard</button>
-                                            </div>
-                                          </>
-                                        )}
-                                      </div>
-                                    );
-                                  });
-                                })}
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
+                          {/* Batches */}
+                          {!collapsed && (
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              {groupBatches(agg.batches).map(group => (
+                                group.batches.map((batch, bIdx) => {
+                                  const isEditing = editingBatch?.id === batch.id;
+                                  return (
+                                    <BatchRow
+                                      key={`${batch.id}-${bIdx}`}
+                                      batch={batch}
+                                      foodData={foodData}
+                                      warn={warn} urgent={urgent}
+                                      isEditing={isEditing}
+                                      editingState={editingBatch}
+                                      setEditing={setEditingBatch}
+                                      onStartEdit={() => startEditBatch(batch)}
+                                      onSave={() => handleSaveBatch(batch)}
+                                      onCancel={() => setEditingBatch(null)}
+                                      onDiscard={() => setDiscardId(batch.id)}
+                                    />
+                                  );
+                                })
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            </>
           )}
 
-          {/* ── SHOPPING TAB ───────────────────────────────────────────────────── */}
           {tab === 'shopping' && (
-            <div className="flex flex-col gap-6">
-              
-              {/* Accordion "Add to Shopping List" in stile FoodsPage */}
-              <section className={`${cardCls} shrink-0 !p-0 overflow-hidden`}>
-                <button onClick={() => setShopOpen(v => !v)} className="w-full flex items-center justify-between p-5 group hover:bg-bg/50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold transition-colors ${shopOpen ? 'bg-text-sec' : 'bg-accent group-hover:bg-accent/90'}`}>
-                      {shopOpen ? '−' : '+'}
-                    </div>
-                    <h2 className="text-base font-bold text-text group-hover:text-accent transition-colors">Add to Shopping List</h2>
+            <>
+              <section style={{ ...cardOuter, padding: 0, overflow: 'hidden' }}>
+                <button
+                  onClick={() => setShopOpen(v => !v)}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '18px 22px',
+                    background: 'transparent', border: 0, cursor: 'pointer', textAlign: 'left',
+                  }}
+                >
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <span style={eyebrow}>List</span>
+                    <span style={{ ...serifItalic, fontSize: 20, fontWeight: 400, color: 'var(--fb-text)', lineHeight: 1.1 }}>
+                      Add to shopping list
+                    </span>
                   </div>
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    width: 32, height: 32, borderRadius: 99,
+                    background: shopOpen ? 'var(--fb-bg-2)' : 'var(--fb-accent)',
+                    color: shopOpen ? 'var(--fb-text-2)' : 'white',
+                    fontSize: 16, lineHeight: 1,
+                    transition: 'transform .5s cubic-bezier(0.32,0.72,0,1)',
+                    transform: shopOpen ? 'rotate(45deg)' : 'rotate(0)',
+                  }}>+</span>
                 </button>
 
                 {shopOpen && (
-                  <div className="px-5 pb-5 flex flex-col gap-4 border-t border-border/20 pt-4 animate-slide-down">
+                  <div style={{ padding: '20px 22px', borderTop: '1px solid var(--fb-divider)', display: 'flex', flexDirection: 'column', gap: 14, animation: 'slideDown .5s cubic-bezier(0.32,0.72,0,1)' }}>
                     {!shopFood ? (
-                      <div className="flex flex-col gap-4">
-                        <FoodSearch items={foodSearchItems} onSelect={item => { setShopFood(item as Food); setShopQty(''); }} onClear={() => { setShopFood(null); setShopQty(''); }} placeholder="Search food to add..." pantryId={activePantryId} clearAfterSelect />
-                      </div>
+                      <FoodSearch
+                        items={foodSearchItems}
+                        onSelect={item => { setShopFood(item as Food); setShopQty(''); }}
+                        onClear={() => { setShopFood(null); setShopQty(''); }}
+                        placeholder="Search food to add…"
+                        pantryId={activePantryId}
+                        clearAfterSelect
+                      />
                     ) : (
-                      <div className="flex flex-col gap-4">
-                        <div className="flex items-center gap-3 bg-bg border border-border/40 rounded-xl p-3 shadow-inner">
-                          {shopFood.image_url && <img src={shopFood.image_url} alt="" className="w-12 h-12 rounded-lg object-cover bg-white" />}
-                          <span className="font-bold text-text text-lg truncate">{shopFood.name}</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                        <FoodCard food={shopFood} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          <span style={eyebrow}>Amount (optional)</span>
+                          <input
+                            type="text" inputMode="decimal" value={shopQty}
+                            onChange={e => setShopQty(e.target.value)}
+                            onBlur={() => setShopQty(v => resolveExpr(v))}
+                            onKeyDown={e => { if (e.key === 'Enter') { setShopQty(resolveExpr(shopQty)); handleAddShopping(); } }}
+                            placeholder="e.g. 500g"
+                            style={{ ...tinyInput, padding: '10px 14px', fontSize: 14 }}
+                            autoFocus
+                          />
                         </div>
-                        
-                        <div className="flex flex-col gap-2">
-                          <label className="text-[10px] font-bold text-text-sec/60 uppercase tracking-wider">Amount (Optional)</label>
-                          <input type="text" inputMode="decimal" value={shopQty} onChange={e => setShopQty(e.target.value)} onBlur={() => setShopQty(v => resolveExpr(v))} onKeyDown={e => { if (e.key === 'Enter') { setShopQty(resolveExpr(shopQty)); handleAddShopping(); } }} placeholder="e.g. 500g" className={numInputCls} autoFocus />
-                        </div>
-
-                        <div className="flex gap-3 pt-2">
-                          <button onClick={() => setShopFood(null)} className="px-5 py-2.5 bg-bg border border-border/60 rounded-xl text-text-sec font-bold hover:bg-border/30 transition-colors w-1/3 text-center">Back</button>
-                          <button onClick={handleAddShopping} className="px-5 py-2.5 bg-accent text-white rounded-xl font-bold hover:opacity-90 transition-opacity w-2/3 shadow-sm text-center">Add to List</button>
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                          <button onClick={() => setShopFood(null)} style={pillGhost}>Back</button>
+                          <button onClick={handleAddShopping} style={pillPrimary}>
+                            Add to list
+                            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 99, background: 'rgba(255,255,255,0.2)', fontSize: 12 }}>↗</span>
+                          </button>
                         </div>
                       </div>
                     )}
@@ -649,38 +623,43 @@ export default function PantryPage() {
               </section>
 
               {shopping.length === 0 ? (
-                <div className="text-center text-text-sec py-10 border border-dashed border-border rounded-xl">Shopping list is empty.</div>
+                <EmptyState message="Shopping list is empty." />
               ) : (
-                <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col">
+                <section style={{ ...cardOuter, padding: 0, overflow: 'hidden' }}>
                   {unchecked.length > 0 && (
-                    <div className="flex flex-col divide-y divide-border/40">
+                    <div>
                       {unchecked.map(item => (
-                        <ShoppingRow key={item.id} item={item} onToggle={() => api.shopping.toggle(item.id).then(loadShopping)} onDelete={() => api.shopping.delete(item.id).then(loadShopping)} />
+                        <ShoppingRow key={item.id} item={item} onToggle={() => api.shopping.toggle(item.id).then(() => loadShopping(activePantryId))} onDelete={() => api.shopping.delete(item.id).then(() => loadShopping(activePantryId))} />
                       ))}
                     </div>
                   )}
                   {checked.length > 0 && (
-                    <div className="flex flex-col">
-                      <div className="bg-bg/60 px-4 py-2 border-y border-border flex items-center justify-between">
-                        <span className="text-xs font-semibold text-text-sec uppercase tracking-wider">{checked.length} Completed</span>
-                        <button onClick={() => api.shopping.clearChecked(activePantryId).then(() => loadShopping(activePantryId))} className="text-xs font-medium text-red hover:underline">Clear all</button>
+                    <>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '10px 16px',
+                        background: 'var(--fb-bg)',
+                        borderTop: '1px solid var(--fb-divider)',
+                        borderBottom: '1px solid var(--fb-divider)',
+                      }}>
+                        <span style={eyebrow}>{checked.length} completed</span>
+                        <button onClick={() => api.shopping.clearChecked(activePantryId).then(() => loadShopping(activePantryId))} style={{ background: 'transparent', border: 0, color: 'var(--fb-red)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                          Clear all
+                        </button>
                       </div>
-                      <div className="flex flex-col divide-y divide-border/40">
+                      <div>
                         {checked.map(item => (
-                          <ShoppingRow key={item.id} item={item} onToggle={() => api.shopping.toggle(item.id).then(loadShopping)} onDelete={() => api.shopping.delete(item.id).then(loadShopping)} />
+                          <ShoppingRow key={item.id} item={item} onToggle={() => api.shopping.toggle(item.id).then(() => loadShopping(activePantryId))} onDelete={() => api.shopping.delete(item.id).then(() => loadShopping(activePantryId))} />
                         ))}
                       </div>
-                    </div>
+                    </>
                   )}
-                </div>
+                </section>
               )}
-            </div>
+            </>
           )}
-
         </div>
       </div>
-
-      {/* ── MODALS DI GESTIONE ────────────────────────────────────────── */}
 
       {discardId !== null && (
         <ConfirmDialog message="Discard this batch? The quantity will be removed from the pantry." confirmLabel="Discard" dangerous onConfirm={handleConfirmDiscard} onCancel={() => setDiscardId(null)} />
@@ -706,11 +685,325 @@ export default function PantryPage() {
           }}
         />
       )}
+
+      <style>{`
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+      `}</style>
     </div>
   );
 }
 
-// ── Module-level sub-components ───────────────────────────────────────────────
+// ── Sub-components ───────────────────────────────────────────────────────────
+
+function Divider({ label }: { label: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '4px 0' }}>
+      <span style={{ flex: 1, height: 1, background: 'var(--fb-divider)' }} />
+      <span style={eyebrow}>{label}</span>
+      <span style={{ flex: 1, height: 1, background: 'var(--fb-divider)' }} />
+    </div>
+  );
+}
+
+function FoodCard({ food }: { food: Food }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 12,
+      padding: 12,
+      background: 'var(--fb-bg)', border: '1px solid var(--fb-border)',
+      borderRadius: 14,
+    }}>
+      {food.image_url && (
+        <div style={{ padding: 2, background: 'var(--fb-card)', border: '1px solid var(--fb-border)', borderRadius: 12 }}>
+          <img src={food.image_url} alt="" style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover', display: 'block', background: 'white' }} />
+        </div>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+        <span style={{ ...serifItalic, fontSize: 16, color: 'var(--fb-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {food.name}
+        </span>
+        <span className="tnum" style={{ fontSize: 11, color: 'var(--fb-text-3)' }}>
+          {food.calories} kcal / 100g
+        </span>
+      </div>
+    </div>
+  );
+}
+
+interface SelectedFoodEditorProps {
+  food: Food;
+  qty: string; setQty: (v: string) => void;
+  unit: PantryUnit; setUnit: (u: PantryUnit) => void;
+  expiry: string; setExpiry: (s: string) => void;
+  addGrams: number;
+  qtyRef: React.RefObject<HTMLInputElement>;
+  onBack: () => void;
+  onAdd: () => void;
+}
+
+function SelectedFoodEditor({ food, qty, setQty, unit, setUnit, expiry, setExpiry, addGrams, qtyRef, onBack, onAdd }: SelectedFoodEditorProps) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <FoodCard food={food} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,200px)', gap: 12 }} className="pantry-editor-grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+          <span style={eyebrow}>Quantity</span>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+            {(food.piece_grams || (food.packages?.length ?? 0) > 0) && (
+              <select
+                value={unit}
+                onChange={e => { setUnit(e.target.value as PantryUnit); setQty(''); }}
+                style={{
+                  background: 'var(--fb-bg)', border: '1px solid var(--fb-border)',
+                  color: 'var(--fb-text)', borderRadius: 10, padding: '8px 10px',
+                  fontSize: 13, fontWeight: 600, outline: 'none', cursor: 'pointer',
+                }}
+              >
+                <option value="g">g</option>
+                {food.piece_grams && <option value="pcs">pcs</option>}
+                {food.packages?.map(pkg => (
+                  <option key={pkg.id} value={`pkg-${pkg.id}`}>{pkg.grams}g pack</option>
+                ))}
+              </select>
+            )}
+            <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+              <input
+                ref={qtyRef} type="text" inputMode="decimal" value={qty}
+                onChange={e => setQty(e.target.value)}
+                onBlur={() => setQty(resolveExpr(qty))}
+                onKeyDown={e => { if (e.key === 'Enter') { setQty(resolveExpr(qty)); onAdd(); } }}
+                placeholder={unit === 'pcs' ? 'pieces' : unit === 'g' ? 'grams' : 'packs'}
+                style={{ ...tinyInput, padding: '10px 14px', fontSize: 14 }}
+                autoFocus
+              />
+              {unit !== 'g' && qty && (evalExpr(qty) ?? 0) > 0 && addGrams > 0 && (
+                <span className="tnum" style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', fontSize: 11, fontWeight: 600, color: 'var(--fb-text-3)', pointerEvents: 'none' }}>
+                  = {Math.round(addGrams)}g
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+          <span style={eyebrow}>Expiry (opt.)</span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              type="date" value={expiry}
+              onFocus={() => setExpiry(seedExpiry(expiry))}
+              onChange={e => setExpiry(e.target.value)}
+              onBlur={e => setExpiry(resolveExpiry(e.target.value))}
+              style={{ ...tinyInput, padding: '10px 12px', fontSize: 13 }}
+            />
+            {expiry && (
+              <IconBtn label="Clear date" tone="red" onClick={() => setExpiry('')}>✕</IconBtn>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        <button onClick={onBack} style={pillGhost}>Back</button>
+        <button onClick={onAdd} disabled={!qty || addGrams <= 0} style={{ ...pillPrimary, opacity: (!qty || addGrams <= 0) ? 0.4 : 1 }}>
+          Add
+          <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 24, height: 24, borderRadius: 99, background: 'rgba(255,255,255,0.2)', fontSize: 12 }}>↗</span>
+        </button>
+      </div>
+
+      <style>{`
+        @media (max-width: 720px) {
+          .pantry-editor-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+function ExpiryHint({ iso, warn, urgent }: { iso: string | null; warn: number; urgent: number }) {
+  if (!iso) return null;
+  const status = expiryStatus(iso, warn, urgent);
+  const lbl = expiryLabel(iso, warn, urgent);
+  return (
+    <span className="tnum" style={{ fontSize: 10, fontWeight: status.bold ? 700 : 500, color: status.color, letterSpacing: 0.2 }}>
+      {lbl}
+    </span>
+  );
+}
+
+interface BatchRowProps {
+  batch: PantryItem;
+  foodData: Food | undefined;
+  warn: number; urgent: number;
+  isEditing: boolean;
+  editingState: { id: number; qty: string; expiry: string; unit: PantryUnit } | null;
+  setEditing: React.Dispatch<React.SetStateAction<{ id: number; qty: string; expiry: string; unit: PantryUnit } | null>>;
+  onStartEdit: () => void;
+  onSave: () => void;
+  onCancel: () => void;
+  onDiscard: () => void;
+}
+
+function BatchRow({ batch, foodData, warn, urgent, isEditing, editingState, setEditing, onStartEdit, onSave, onCancel, onDiscard }: BatchRowProps) {
+  const expLbl = expiryLabel(batch.expiry_date, warn, urgent);
+  const expSt  = expiryStatus(batch.expiry_date, warn, urgent);
+  const opnLbl = openedLabel(batch);
+  const opnSt  = openedStatus(batch);
+
+  if (isEditing && editingState) {
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8,
+        padding: '12px 16px',
+        borderTop: '1px solid var(--fb-divider)',
+        background: 'color-mix(in srgb, var(--fb-card) 50%, transparent)',
+      }}>
+        {batch.piece_grams && foodData?.is_bulk !== 1 && (
+          <select
+            value={editingState.unit}
+            onChange={e => setEditing(b => b ? { ...b, unit: e.target.value as PantryUnit } : b)}
+            style={{ ...tinyInput, width: 70, padding: '7px 8px', cursor: 'pointer' }}
+          >
+            <option value="g">g</option>
+            <option value="pcs">pcs</option>
+          </select>
+        )}
+        <input
+          type="text" inputMode="decimal" value={editingState.qty}
+          onChange={e => setEditing(b => b ? { ...b, qty: e.target.value } : b)}
+          onBlur={() => setEditing(b => b ? { ...b, qty: resolveExpr(b.qty) } : b)}
+          style={{ ...tinyInput, width: 90, textAlign: 'center', fontWeight: 600 }}
+          autoFocus
+        />
+        <input
+          type="date" value={editingState.expiry}
+          onChange={e => setEditing(b => b ? { ...b, expiry: e.target.value } : b)}
+          style={{ ...tinyInput, flex: 1, minWidth: 130 }}
+        />
+        <button onClick={onCancel} style={{ ...pillGhost, padding: '6px 14px', fontSize: 11.5 }}>Cancel</button>
+        <button onClick={onSave} style={{ ...pillPrimary, padding: '6px 14px', fontSize: 11.5 }}>Save</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="pantry-batch-row" style={{
+      display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 12,
+      padding: '11px 16px',
+      borderTop: '1px solid var(--fb-divider)',
+      transition: 'background .25s ease',
+    }}>
+      <span className="tnum" style={{ fontSize: 13, fontWeight: 600, color: 'var(--fb-text)', minWidth: 70 }}>
+        {formatQty(batch.quantity_g, batch.piece_grams, batch.package_grams ?? (foodData?.packages?.length === 1 ? foodData.packages[0].grams : null), 1)}
+      </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flex: 1, minWidth: 0 }}>
+        {expLbl ? (
+          <span className="tnum" style={{
+            fontSize: 11, fontWeight: expSt.bold ? 700 : 500,
+            color: expSt.color,
+            background: expSt.bg,
+            padding: expSt.bg !== 'transparent' ? '3px 9px' : 0,
+            borderRadius: 99,
+            letterSpacing: 0.2,
+          }}>{expLbl}</span>
+        ) : (
+          <span style={{ fontSize: 11, color: 'var(--fb-text-3)', fontStyle: 'italic' }}>No date</span>
+        )}
+        {opnLbl && (
+          <span className="tnum" style={{
+            fontSize: 11, fontWeight: opnSt.bold ? 700 : 500,
+            color: opnSt.color,
+            background: opnSt.bg,
+            padding: opnSt.bg !== 'transparent' ? '3px 9px' : 0,
+            borderRadius: 99,
+          }}>{opnLbl}</span>
+        )}
+      </div>
+      <span className="batch-actions" style={{ display: 'inline-flex', gap: 6 }}>
+        <IconBtn label="Edit" onClick={onStartEdit}>✎</IconBtn>
+        <IconBtn label="Discard" tone="red" onClick={onDiscard}>✕</IconBtn>
+      </span>
+      <style>{`
+        .pantry-batch-row:hover { background: color-mix(in srgb, var(--fb-card) 40%, transparent); }
+        .pantry-batch-row .batch-actions { opacity: 0; transition: opacity .25s ease; }
+        .pantry-batch-row:hover .batch-actions { opacity: 1; }
+        @media (max-width: 720px) {
+          .pantry-batch-row .batch-actions { opacity: 1 !important; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ── ShoppingRow ───────────────────────────────────────────────────────────────
+
+interface ShoppingRowProps {
+  item: ShoppingItem;
+  onToggle: () => void;
+  onDelete: () => void;
+}
+
+function ShoppingRow({ item, onToggle, onDelete }: ShoppingRowProps) {
+  return (
+    <div
+      onClick={onToggle}
+      className="shopping-row"
+      style={{
+        display: 'flex', alignItems: 'center', gap: 12,
+        padding: '12px 16px',
+        borderTop: '1px solid var(--fb-divider)',
+        cursor: 'pointer',
+        background: item.checked ? 'color-mix(in srgb, var(--fb-bg) 40%, transparent)' : 'transparent',
+        transition: 'background .25s ease',
+      }}
+    >
+      <span style={{
+        width: 22, height: 22, borderRadius: 99, flexShrink: 0,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        background: item.checked ? 'var(--fb-accent)' : 'transparent',
+        border: '1.5px solid ' + (item.checked ? 'var(--fb-accent)' : 'var(--fb-border-strong)'),
+        color: 'white', fontSize: 12, fontWeight: 700,
+        transition: 'all .25s cubic-bezier(0.32,0.72,0,1)',
+      }}>
+        {item.checked && '✓'}
+      </span>
+      <span style={{
+        flex: 1, minWidth: 0,
+        ...serifItalic, fontSize: 14.5,
+        color: item.checked ? 'var(--fb-text-3)' : 'var(--fb-text)',
+        textDecoration: item.checked ? 'line-through' : 'none',
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+      }}>
+        {item.food_name}
+      </span>
+      {item.quantity_g > 0 && (
+        <span className="tnum" style={{
+          fontSize: 11, fontWeight: 600,
+          color: item.checked ? 'var(--fb-text-3)' : 'var(--fb-text-2)',
+          padding: '2px 8px', borderRadius: 99,
+          background: 'var(--fb-bg)', border: '1px solid var(--fb-border)',
+        }}>
+          {item.quantity_g}g
+        </span>
+      )}
+      <button
+        onClick={e => { e.stopPropagation(); onDelete(); }}
+        aria-label="Delete"
+        style={{
+          width: 26, height: 26, borderRadius: 99, border: 0,
+          background: 'transparent', color: 'var(--fb-text-3)',
+          cursor: 'pointer', flexShrink: 0,
+          fontSize: 11, lineHeight: 1,
+          transition: 'all .25s ease',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = 'color-mix(in srgb, var(--fb-red) 18%, transparent)'; e.currentTarget.style.color = 'var(--fb-red)'; }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--fb-text-3)'; }}
+      >✕</button>
+    </div>
+  );
+}
+
+// ── ManagePantriesModal ───────────────────────────────────────────────────────
 
 interface ManagePantriesModalProps {
   pantries: PantryLocation[];
@@ -761,72 +1054,86 @@ function ManagePantriesModal({ pantries, activePantryId: _activePantryId, onClos
     onChanged();
   }
 
+  const overlay: CSSProperties = {
+    position: 'fixed', inset: 0, zIndex: 50,
+    background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+  };
+
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-card border border-border rounded-2xl w-full max-w-md flex flex-col p-6 shadow-xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-text">{t('pantry.managePantries')}</h2>
-          <button onClick={onClose} className="text-text-sec hover:text-text cursor-pointer">✕</button>
+    <div style={overlay} onClick={onClose}>
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: 'var(--fb-card)', border: '1px solid var(--fb-border)',
+          borderRadius: 18, padding: 22,
+          width: '100%', maxWidth: 460,
+          display: 'flex', flexDirection: 'column', gap: 14,
+          boxShadow: '0 20px 60px -20px rgba(0,0,0,0.6)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <span style={eyebrow}>Locations</span>
+            <span style={{ ...serifItalic, fontSize: 20, color: 'var(--fb-text)', lineHeight: 1.1 }}>
+              {t('pantry.managePantries')}
+            </span>
+          </div>
+          <IconBtn label="Close" onClick={onClose}>✕</IconBtn>
         </div>
 
-        <div className="flex flex-col border border-border rounded-lg divide-y divide-border overflow-hidden mb-4">
-          {pantries.map(p => (
-            <div key={p.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-3 bg-bg">
+        <div style={{ display: 'flex', flexDirection: 'column', background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', borderRadius: 14, overflow: 'hidden' }}>
+          {pantries.map((p, idx) => (
+            <div key={p.id} style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, padding: '12px 14px', borderTop: idx === 0 ? 'none' : '1px solid var(--fb-divider)' }}>
               {renamingId === p.id ? (
-                <div className="flex items-center gap-2 w-full">
-                  <input type="text" value={renameVal} onChange={e => setRenameVal(e.target.value)} autoFocus onKeyDown={e => { if (e.key === 'Enter') handleRename(p.id); if (e.key === 'Escape') setRenamingId(null); }} className="flex-1 bg-card border border-border rounded px-2 py-1.5 text-sm outline-none focus:border-accent" />
-                  <button onClick={() => handleRename(p.id)} className="px-3 py-1.5 rounded bg-accent text-white text-xs font-medium">Save</button>
-                  <button onClick={() => setRenamingId(null)} className="px-2 py-1.5 rounded bg-card border border-border text-text-sec text-xs">✕</button>
-                </div>
+                <>
+                  <input
+                    type="text" value={renameVal} autoFocus
+                    onChange={e => setRenameVal(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleRename(p.id); if (e.key === 'Escape') setRenamingId(null); }}
+                    style={{ ...tinyInput, flex: 1 }}
+                  />
+                  <button onClick={() => handleRename(p.id)} style={{ ...pillPrimary, padding: '6px 14px', fontSize: 11.5 }}>Save</button>
+                  <IconBtn label="Cancel" onClick={() => setRenamingId(null)}>✕</IconBtn>
+                </>
               ) : (
                 <>
-                  <div className="flex-1 flex items-center gap-2">
-                    <span className="text-sm font-medium">{p.name}</span>
-                    {p.is_default && <span className="text-[10px] font-bold uppercase bg-accent/15 text-accent px-1.5 py-0.5 rounded">{t('pantry.defaultBadge')}</span>}
-                  </div>
-                  <div className="flex items-center gap-2 mt-2 sm:mt-0">
-                    {!p.is_default && <button onClick={() => handleSetDefault(p.id)} className="text-xs text-text-sec hover:text-accent bg-card border border-border px-2 py-1 rounded">Set Default</button>}
-                    <button onClick={() => { setRenamingId(p.id); setRenameVal(p.name); }} className="p-1.5 bg-card border border-border rounded text-text-sec hover:text-accent">✎</button>
-                    {!p.is_default && <button onClick={() => handleDelete(p)} className="p-1.5 bg-card border border-border rounded text-text-sec hover:text-red">✕</button>}
-                  </div>
+                  <span style={{ flex: 1, ...serifItalic, fontSize: 14, color: 'var(--fb-text)' }}>
+                    {p.name}
+                  </span>
+                  {p.is_default && (
+                    <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase', padding: '3px 8px', borderRadius: 99, background: 'var(--fb-accent-soft)', color: 'var(--fb-accent)' }}>
+                      {t('pantry.defaultBadge')}
+                    </span>
+                  )}
+                  {!p.is_default && (
+                    <button onClick={() => handleSetDefault(p.id)} style={{ ...pillSoft, padding: '4px 10px', fontSize: 10.5 }}>Set default</button>
+                  )}
+                  <IconBtn label="Rename" onClick={() => { setRenamingId(p.id); setRenameVal(p.name); }}>✎</IconBtn>
+                  {!p.is_default && (
+                    <IconBtn label="Delete" tone="red" onClick={() => handleDelete(p)}>✕</IconBtn>
+                  )}
                 </>
               )}
             </div>
           ))}
         </div>
 
-        <div className="flex gap-2">
-          <input type="text" value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleCreate(); }} placeholder={t('pantry.pantryName')} className="flex-1 bg-bg border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-accent" />
-          <button onClick={handleCreate} disabled={!newName.trim()} className="px-4 py-2 bg-accent text-white text-sm rounded-lg font-medium hover:opacity-90 disabled:opacity-50">Add</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            type="text" value={newName}
+            onChange={e => setNewName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleCreate(); }}
+            placeholder={t('pantry.pantryName')}
+            style={{ ...tinyInput, flex: 1, padding: '10px 14px', fontSize: 14 }}
+          />
+          <button onClick={handleCreate} disabled={!newName.trim()} style={{ ...pillPrimary, opacity: !newName.trim() ? 0.4 : 1 }}>Add</button>
         </div>
       </div>
-      
+
       {deleteTarget && (
         <ConfirmDialog message={t('pantry.deletePantryConfirm').replace('{name}', deleteTarget.name)} confirmLabel={t('pantry.deletePantry')} dangerous onConfirm={handleConfirmDelete} onCancel={() => setDeleteTarget(null)} />
       )}
-    </div>
-  );
-}
-
-interface ShoppingRowProps {
-  item: ShoppingItem;
-  onToggle: () => void;
-  onDelete: () => void;
-}
-
-function ShoppingRow({ item, onToggle, onDelete }: ShoppingRowProps) {
-  return (
-    <div className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors group ${item.checked ? 'bg-bg/40' : 'hover:bg-bg/40'}`} onClick={onToggle}>
-      <div className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors ${item.checked ? 'bg-accent border-accent text-white' : 'border-text-sec/40 group-hover:border-accent'}`}>
-        {item.checked && <span className="text-xs">✓</span>}
-      </div>
-      <span className={`flex-1 text-sm font-medium truncate ${item.checked ? 'text-text-sec/60 line-through' : 'text-text'}`}>
-        {item.food_name}
-      </span>
-      {item.quantity_g > 0 && (
-        <span className={`text-xs tabular-nums ${item.checked ? 'text-text-sec/40' : 'text-text-sec font-medium'}`}>{item.quantity_g}g</span>
-      )}
-      <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="w-8 h-8 flex items-center justify-center rounded-full text-text-sec/40 hover:text-red hover:bg-red/10 transition-colors shrink-0">✕</button>
     </div>
   );
 }

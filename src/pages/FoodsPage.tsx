@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import { useT } from '../i18n/useT';
 import { useToast } from '../components/Toast';
 import { useSettings } from '../hooks/useSettings';
@@ -19,50 +19,136 @@ const emptyForm = (): FoodFormState => ({ name:'', calories:'', protein:'', carb
 const foodToForm = (f: Food): FoodFormState => ({ name:f.name, calories:String(f.calories), protein:String(f.protein), carbs:String(f.carbs), fat:String(f.fat), fiber:String(f.fiber), piece_grams:f.piece_grams!=null?String(f.piece_grams):'', is_liquid:f.is_liquid===1, is_bulk: f.is_bulk===1, barcode: f.barcode ?? '', opened_days: f.opened_days != null ? String(f.opened_days) : '', discard_threshold_pct: f.discard_threshold_pct != null ? String(f.discard_threshold_pct) : '5', price_per_100g: f.price_per_100g != null ? String(f.price_per_100g) : '', image_url: f.image_url ?? '' });
 const formToData = (f: FoodFormState): Omit<Food,'id'> => ({ name:f.name.trim(), calories:parseFloat(f.calories)||0, protein:parseFloat(f.protein)||0, carbs:parseFloat(f.carbs)||0, fat:parseFloat(f.fat)||0, fiber:parseFloat(f.fiber)||0, piece_grams: f.is_bulk ? null : (f.piece_grams!==''?parseFloat(f.piece_grams):null), is_liquid:f.is_liquid?1:0, is_bulk: f.is_bulk?1:0, barcode: f.barcode.trim() || null, opened_days: f.opened_days !== '' ? parseInt(f.opened_days, 10) : null, discard_threshold_pct: parseFloat(f.discard_threshold_pct) || 5, price_per_100g: f.price_per_100g !== '' ? parseFloat(f.price_per_100g) : null, image_url: f.image_url.trim() || null });
 
-// ── FormFields for table edit row ─────────────────────────────────────────────
+// ── Style tokens (Dashboard + Apple Fitness) ──────────────────────────────────
+
+const eyebrow: CSSProperties = {
+  fontSize: 10, fontWeight: 600, letterSpacing: 1.4,
+  textTransform: 'uppercase', color: 'var(--fb-text-3)',
+};
+
+const serifItalic: CSSProperties = {
+  fontFamily: 'var(--font-serif)', fontStyle: 'italic',
+};
+
+const cardOuter: CSSProperties = {
+  background: 'var(--fb-card)',
+  border: '1px solid var(--fb-border)',
+  borderRadius: 18,
+  padding: 20,
+  display: 'flex', flexDirection: 'column', gap: 14,
+};
+
+const tinyInput: CSSProperties = {
+  width: '100%',
+  background: 'var(--fb-card)', border: '1px solid var(--fb-border)',
+  color: 'var(--fb-text)',
+  borderRadius: 10, padding: '7px 10px',
+  fontSize: 13, outline: 'none',
+  fontFeatureSettings: '"tnum"',
+  transition: 'border-color .25s ease, box-shadow .25s ease',
+};
+
+// macro dot colors per column
+const MACRO_DOT: Record<string, string> = {
+  kcal:    'var(--fb-orange)',
+  fat:     'var(--fb-green)',
+  carbs:   'var(--fb-amber)',
+  fiber:   'var(--fb-text-2)',
+  protein: 'var(--fb-red)',
+};
+
+// ── FormFields for table edit row ────────────────────────────────────────────
 
 interface FormFieldsProps { form: FoodFormState; patch: (p: Partial<FoodFormState>) => void; }
 
 function FormFields({ form, patch }: FormFieldsProps) {
   const { t } = useT();
-  const compactInputCls = "w-full bg-bg border border-border/60 rounded-lg px-2 py-1.5 text-sm text-text outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all";
-
-  const macros: { key: keyof FoodFormState; label: string }[] = [
-    { key: 'calories', label: 'kcal' },
-    { key: 'fat',      label: t('th.fat') },
-    { key: 'carbs',    label: t('th.carbs') },
-    { key: 'fiber',    label: t('th.fiber') },
-    { key: 'protein',  label: t('th.protein') },
-    { key: 'piece_grams', label: t('foods.piecePlaceholder') },
+  const macros: { key: keyof FoodFormState; label: string; dot: string }[] = [
+    { key: 'calories',    label: 'kcal',                  dot: MACRO_DOT.kcal },
+    { key: 'fat',         label: t('th.fat'),             dot: MACRO_DOT.fat },
+    { key: 'carbs',       label: t('th.carbs'),           dot: MACRO_DOT.carbs },
+    { key: 'fiber',       label: t('th.fiber'),           dot: MACRO_DOT.fiber },
+    { key: 'protein',     label: t('th.protein'),         dot: MACRO_DOT.protein },
+    { key: 'piece_grams', label: t('foods.piecePlaceholder'), dot: 'var(--fb-text-3)' },
   ];
   return (
-    <div className="flex flex-col gap-3 p-2">
-      <div className="flex gap-3 items-center">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 4 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         {form.image_url && (
-          <img src={form.image_url} alt="Food" className="w-12 h-12 object-cover rounded-xl border border-border/40 shadow-sm shrink-0" />
+          <div style={{ flexShrink: 0, padding: 2, background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', borderRadius: 12 }}>
+            <img src={form.image_url} alt="" style={{ width: 44, height: 44, borderRadius: 10, objectFit: 'cover', display: 'block', background: 'white' }} />
+          </div>
         )}
-        <input type="text" value={form.name} onChange={e => patch({ name: e.target.value })} placeholder={t('foods.namePlaceholder')} className={`${compactInputCls} font-medium text-base`} />
+        <input
+          type="text" value={form.name} onChange={e => patch({ name: e.target.value })}
+          placeholder={t('foods.namePlaceholder')}
+          style={{
+            flex: 1,
+            background: 'transparent', border: 0, outline: 'none',
+            color: 'var(--fb-text)',
+            fontFamily: 'var(--font-serif)', fontStyle: 'italic',
+            fontSize: 18, fontWeight: 400, letterSpacing: -0.2,
+            borderBottom: '1px solid var(--fb-border-strong)',
+            paddingBottom: 5,
+          }}
+        />
       </div>
 
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-        {macros.map(({ key, label }) => (
-          <div key={key} className="flex flex-col gap-1">
-            <label className="text-[10px] uppercase tracking-wider text-text-sec/60 font-semibold">{label}</label>
-            <input type="text" inputMode="decimal" value={(form as unknown as Record<string,string>)[key]} onChange={e => patch({ [key]: e.target.value })} placeholder="0" className={`${compactInputCls} tabular-nums text-center`} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8 }} className="foods-edit-macros">
+        {macros.map(({ key, label, dot }) => (
+          <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9.5, fontWeight: 600, letterSpacing: 1.2, textTransform: 'uppercase', color: 'var(--fb-text-3)' }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: dot, flexShrink: 0 }} />
+              {label}
+            </span>
+            <input
+              type="text" inputMode="decimal"
+              value={(form as unknown as Record<string,string>)[key]}
+              onChange={e => patch({ [key]: e.target.value })}
+              placeholder="0"
+              className="tnum"
+              style={{ ...tinyInput, textAlign: 'center', fontWeight: 600 }}
+            />
           </div>
         ))}
       </div>
-      <div className="flex items-center gap-6 mt-1 flex-wrap">
-        <label className="flex items-center gap-2 text-sm font-medium text-text-sec cursor-pointer hover:text-text transition-colors">
-          <input type="checkbox" checked={form.is_liquid} onChange={e => patch({ is_liquid: e.target.checked })} className="w-4 h-4 accent-accent rounded" />
-          {t('foods.liquid')} 💧
-        </label>
-        <label className="flex items-center gap-2 text-sm font-medium text-text-sec cursor-pointer hover:text-text transition-colors" title={t('foods.bulkHelp')}>
-          <input type="checkbox" checked={form.is_bulk} onChange={e => patch({ is_bulk: e.target.checked, piece_grams: e.target.checked ? '' : form.piece_grams })} className="w-4 h-4 accent-accent rounded" />
-          {t('foods.bulk')} ⚖️
-        </label>
+
+      <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', marginTop: 2 }}>
+        <ToggleInline checked={form.is_liquid} onChange={v => patch({ is_liquid: v })} label={`${t('foods.liquid')} 💧`} />
+        <ToggleInline checked={form.is_bulk} onChange={v => patch({ is_bulk: v, piece_grams: v ? '' : form.piece_grams })} label={`${t('foods.bulk')} ⚖️`} title={t('foods.bulkHelp')} />
       </div>
     </div>
+  );
+}
+
+function ToggleInline({ checked, onChange, label, title }: { checked: boolean; onChange: (v: boolean) => void; label: string; title?: string }) {
+  return (
+    <label title={title} style={{
+      display: 'inline-flex', alignItems: 'center', gap: 8,
+      fontSize: 11.5, fontWeight: 500, color: 'var(--fb-text-2)',
+      cursor: 'pointer', userSelect: 'none',
+    }}>
+      <span
+        role="switch" aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        style={{
+          position: 'relative', width: 32, height: 18, borderRadius: 99,
+          background: checked ? 'var(--fb-accent)' : 'var(--fb-bg-2)',
+          border: '1px solid ' + (checked ? 'var(--fb-accent)' : 'var(--fb-border-strong)'),
+          transition: 'background .3s cubic-bezier(0.32,0.72,0,1)',
+          flexShrink: 0,
+        }}
+      >
+        <span style={{
+          position: 'absolute', top: 1, left: checked ? 15 : 1,
+          width: 14, height: 14, borderRadius: '50%',
+          background: 'white',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+          transition: 'left .3s cubic-bezier(0.32,0.72,0,1)',
+        }} />
+      </span>
+      {label}
+    </label>
   );
 }
 
@@ -169,261 +255,324 @@ export default function FoodsPage() {
     return filtered.sort((a, b) => a.food.name.localeCompare(b.food.name) || a.pkg.grams - b.pkg.grams);
   }, [foods, searchQuery]);
 
-  const inputCls = "bg-bg border border-border/60 rounded-xl px-4 py-2.5 text-base text-text outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all w-full";
-  const numInputCls = "w-full bg-bg border border-border/60 rounded-xl px-3 py-2.5 text-sm text-text outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 tabular-nums transition-all";
-  const cardCls = "bg-card border border-border/40 shadow-sm rounded-3xl p-5 flex flex-col gap-4";
-
   return (
-    <div className="h-full flex flex-col overflow-hidden">
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--fb-bg)', color: 'var(--fb-text)', fontFamily: 'var(--font-body)' }}>
 
       {/* ── HEADER ──────────────────────────────────────────────────────── */}
-      <header className="shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-3 px-4 md:px-6 py-3 border-b border-border/20 bg-card/40 backdrop-blur-sm">
+      <header style={{ flexShrink: 0, padding: '16px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--fb-border)', background: 'var(--fb-bg)' }}>
         <div>
-          <span className="text-[10px] uppercase tracking-widest font-semibold text-text-sec/60">
-            Database
-          </span>
-          <h1 className="text-xl font-bold text-text">My Foods</h1>
+          <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.6, textTransform: 'uppercase', color: 'var(--fb-accent)' }}>Database</div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 400, fontStyle: 'italic', letterSpacing: -0.4, color: 'var(--fb-text)', lineHeight: 1.1 }}>My Foods</div>
         </div>
-
-        <div className="flex p-1 bg-bg/50 border border-border/40 rounded-full shrink-0 shadow-sm overflow-x-auto hide-scrollbar">
-          <button
-            onClick={() => setTab('foods')}
-            className={`flex-1 md:flex-none px-6 py-2 text-sm font-bold rounded-full transition-all duration-300 ${tab === 'foods' ? 'bg-card text-text shadow-sm border border-border/40' : 'text-text-sec hover:text-text'}`}
-          >{t('foods.tabFoods')}</button>
-          <button
-            onClick={() => setTab('packs')}
-            className={`flex-1 md:flex-none px-6 py-2 text-sm font-bold rounded-full transition-all duration-300 ${tab === 'packs' ? 'bg-card text-text shadow-sm border border-border/40' : 'text-text-sec hover:text-text'}`}
-          >{t('foods.tabPacks')}</button>
+        <div style={{
+          position: 'relative',
+          display: 'grid', gridTemplateColumns: '1fr 1fr',
+          padding: 4,
+          background: 'var(--fb-bg-2)', border: '1px solid var(--fb-border)',
+          borderRadius: 99, minWidth: 220,
+        }}>
+          <span style={{
+            position: 'absolute', top: 4, bottom: 4,
+            left: tab === 'foods' ? 4 : 'calc(50% + 0px)',
+            width: 'calc(50% - 4px)',
+            background: 'var(--fb-card)',
+            border: '1px solid var(--fb-border-strong)',
+            borderRadius: 99,
+            transition: 'left .4s cubic-bezier(0.32,0.72,0,1)',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.18)',
+          }} />
+          {(['foods', 'packs'] as FoodsTab[]).map(id => (
+            <button
+              key={id} onClick={() => setTab(id)}
+              style={{
+                position: 'relative', zIndex: 1,
+                padding: '7px 16px',
+                background: 'transparent', border: 0, cursor: 'pointer',
+                fontSize: 12, fontWeight: 600, letterSpacing: 0.2,
+                color: tab === id ? 'var(--fb-text)' : 'var(--fb-text-2)',
+                transition: 'color .3s ease',
+              }}
+            >
+              {id === 'foods' ? t('foods.tabFoods') : t('foods.tabPacks')}
+            </button>
+          ))}
         </div>
       </header>
 
       {/* ── BODY ─────────────────────────────────────────────────────────── */}
-      <div className="flex-1 min-h-0 flex overflow-hidden">
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
+        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: 20, gap: 18 }}>
 
-        {/* CONTENT */}
-        <div className="flex-1 min-w-0 overflow-hidden flex flex-col p-4 md:p-5 gap-5">
-
-      {/* ── FOODS TAB: AddFoodForm + SEARCH & TABLE ───────────────── */}
-      {tab === 'foods' && (
-        <>
-          {/* AddFoodForm above table */}
-          <div className="shrink-0">
-            <AddFoodForm
-              existingFoods={foods}
-              onAdded={loadFoods}
-              onImport={handleImport}
-            />
-          </div>
-
-          <section className={`${cardCls} flex-1 min-h-0 pt-4 flex flex-col`}>
-          <div className="flex flex-col sm:flex-row items-center gap-3 mb-2 shrink-0">
-            <div className="relative w-full">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-sec/50">🔍</span>
-              <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={t('foods.searchPlaceholder')} className={`${inputCls} !pl-10 !py-2.5 shadow-sm`} />
-            </div>
-            <button type="button" onClick={() => setDetailMode(v => !v)} className={`w-full sm:w-auto px-5 py-2.5 rounded-xl border text-sm font-bold transition-colors whitespace-nowrap ${detailMode ? 'border-accent bg-accent/10 text-accent' : 'border-border/60 bg-bg text-text-sec hover:bg-border/40'}`}>
-              {t('foods.detailMode')}
-            </button>
-          </div>
-
-          {filteredFoods.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center border border-dashed border-border/60 rounded-2xl bg-bg/30 min-h-[150px]">
-               <p className="text-text-sec/60 text-sm font-medium">{t('foods.noFoods')}</p>
-            </div>
-          ) : (
-            <div className="flex-1 overflow-x-auto rounded-2xl border border-border/40 bg-bg hide-scrollbar">
-              <table className="w-full text-sm min-w-[800px] text-left border-collapse">
-                <thead className="sticky top-0 bg-card/95 backdrop-blur-sm z-10 shadow-sm">
-                  <tr>
-                    <th className="px-3 py-3 w-10 border-b border-border/40"></th>
-                    <th className="px-3 py-3 w-14 border-b border-border/40"></th>
-                    <th className="px-4 py-3 font-bold text-text-sec uppercase tracking-wider text-xs border-b border-border/40">{t('th.food')}</th>
-                    <th className="px-3 py-3 text-right font-bold text-text-sec uppercase tracking-wider text-xs border-b border-border/40">{t('th.kcal')}</th>
-                    <th className="px-3 py-3 text-right font-bold text-text-sec uppercase tracking-wider text-xs border-b border-border/40">{t('th.fat')}</th>
-                    <th className="px-3 py-3 text-right font-bold text-text-sec uppercase tracking-wider text-xs border-b border-border/40">{t('th.carbs')}</th>
-                    <th className="px-3 py-3 text-right font-bold text-text-sec uppercase tracking-wider text-xs border-b border-border/40">{t('th.fiber')}</th>
-                    <th className="px-3 py-3 text-right font-bold text-text-sec uppercase tracking-wider text-xs border-b border-border/40">{t('th.protein')}</th>
-                    <th className="px-3 py-3 text-right font-bold text-text-sec uppercase tracking-wider text-xs border-b border-border/40">{t('th.piece')}</th>
-                    <th className="px-2 py-3 text-center font-bold text-text-sec uppercase tracking-wider text-xs border-b border-border/40">{t('th.liquid')}</th>
-                    {detailMode && <th className="px-3 py-3 text-left font-bold text-text-sec uppercase tracking-wider text-xs border-b border-border/40">{t('th.barcode')}</th>}
-                    {detailMode && <th className="px-3 py-3 text-right font-bold text-text-sec uppercase tracking-wider text-xs border-b border-border/40">{t('foods.openedDays')}</th>}
-                    {detailMode && <th className="px-3 py-3 text-right font-bold text-text-sec uppercase tracking-wider text-xs border-b border-border/40">{t('foods.discardThreshold')}</th>}
-                    {detailMode && <th className="px-3 py-3 text-right font-bold text-text-sec uppercase tracking-wider text-xs border-b border-border/40">{t('foods.pricePer100g').replace('{cur}', settings.currency_symbol ?? '€')}</th>}
-                    <th className="px-3 py-3 w-16 border-b border-border/40"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/20">
-                  {filteredFoods.map(food => (
-                    editId === food.id ? (
-                      /* EDIT ROW */
-                      <tr key={food.id} className="bg-card shadow-sm relative z-0">
-                        <td className="px-3 py-4 align-top pt-5 text-center">
-                          <button type="button" onClick={() => handleToggleFavorite(food.id)} className="text-lg hover:scale-110 transition-transform">{food.favorite === 1 ? '⭐' : '☆'}</button>
-                        </td>
-                        <td colSpan={detailMode ? 13 : 9} className="px-3 py-3">
-                          <FormFields form={editForm} patch={patchEdit} />
-                          {detailMode && (
-                            <div className="flex flex-wrap gap-3 mt-4 p-2 bg-bg rounded-xl border border-border/40">
-                              {[
-                                { label: t('th.barcode'), key: 'barcode', type: 'text', placeholder: 'e.g. 8001234567890', width: 'w-48' },
-                                { label: t('foods.openedDays'), key: 'opened_days', type: 'number', placeholder: 'days', width: 'w-24' },
-                                { label: t('foods.discardThreshold'), key: 'discard_threshold_pct', type: 'number', placeholder: '%', width: 'w-24' },
-                                { label: t('foods.pricePer100g').replace('{cur}', settings.currency_symbol ?? '€'), key: 'price_per_100g', type: 'number', placeholder: '0.00', width: 'w-24' }
-                              ].map(({ label, key, type, placeholder, width }) => (
-                                <div key={key} className="flex flex-col gap-1">
-                                  <label className="text-[10px] font-bold text-text-sec/60 uppercase">{label}</label>
-                                  <input type={type} value={(editForm as unknown as Record<string,string>)[key]} onChange={e => patchEdit({ [key]: e.target.value })} placeholder={placeholder} className={`bg-card border border-border/60 rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent ${width} [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none`} />
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          <div className="mt-4 p-3 bg-bg rounded-xl border border-border/40">
-                            <h4 className="text-[10px] font-bold text-text-sec/60 uppercase mb-2">{t('foods.packs')}</h4>
-                            <div className="flex flex-col gap-2 w-full">
-                              {(food.packages ?? []).map(pkg => (
-                                <EditablePackRow key={pkg.id} pkg={pkg} currency={settings.currency_symbol ?? '€'} onSaved={loadFoods} onDelete={() => setDeletePackId(pkg.id)} showError={(msg) => showToast(msg, 'error')} tLocked={t('foods.packInUse')} />
-                              ))}
-                              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-1">
-                                <input type="text" inputMode="decimal" value={newPackGrams} onChange={e => setNewPackGrams(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddPack()} placeholder="+ g" className="w-full sm:w-20 bg-card border border-border/60 rounded-lg px-2 py-1.5 text-sm sm:text-center focus:border-accent outline-none" />
-                                <input type="text" inputMode="decimal" value={newPackPrice} onChange={e => setNewPackPrice(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddPack()} placeholder={`${settings.currency_symbol ?? '€'} opt.`} className="w-full sm:w-24 bg-card border border-border/60 rounded-lg px-2 py-1.5 text-sm focus:border-accent outline-none" />
-                                <button type="button" onClick={handleAddPack} className="w-full sm:w-auto text-xs px-4 py-2 rounded-lg border border-border/60 bg-bg font-medium text-text-sec hover:text-accent hover:border-accent transition-colors whitespace-nowrap">
-                                  + {t('foods.addPack')}
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-3 py-4 align-top pt-5">
-                          <div className="flex flex-col gap-2">
-                            <button type="button" onClick={() => handleSaveEdit(food)} className="text-xs font-bold px-3 py-2 rounded-lg bg-accent text-white hover:opacity-90 transition-opacity">Save</button>
-                            <button type="button" onClick={cancelEdit} className="text-xs font-bold px-3 py-2 rounded-lg border border-border/60 bg-bg text-text-sec hover:bg-border/40 transition-colors">Cancel</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ) : (
-                      /* VIEW ROW */
-                      <tr key={food.id} className="group hover:bg-card/50 transition-colors">
-                        <td className="px-3 py-3 text-center">
-                          <button type="button" onClick={() => handleToggleFavorite(food.id)} className="text-base hover:scale-110 transition-transform">{food.favorite === 1 ? '⭐' : '☆'}</button>
-                        </td>
-                        <td className="px-2 py-2">
-                          {food.image_url ? (
-                            <img src={food.image_url} alt="" className="h-10 w-10 rounded-xl object-cover border border-border/40 shadow-sm bg-white min-w-[2.5rem]" />
-                          ) : (
-                            <div className="h-10 w-10 rounded-xl bg-bg border border-border/30 flex items-center justify-center text-text-sec/30 text-xs min-w-[2.5rem]">🍽️</div>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 font-bold text-text truncate max-w-[200px]">{food.name}</td>
-                        <td className="px-3 py-3 text-right font-bold text-text tabular-nums">{food.calories}</td>
-                        <td className="px-3 py-3 text-right text-text-sec/80 font-medium tabular-nums">{food.fat}</td>
-                        <td className="px-3 py-3 text-right text-text-sec/80 font-medium tabular-nums">{food.carbs}</td>
-                        <td className="px-3 py-3 text-right text-text-sec/80 font-medium tabular-nums">{food.fiber}</td>
-                        <td className="px-3 py-3 text-right text-text-sec/80 font-medium tabular-nums">{food.protein}</td>
-                        <td className="px-3 py-3 text-right text-text-sec/60 tabular-nums">{food.piece_grams != null ? `${food.piece_grams}g` : '—'}</td>
-                        <td className="px-2 py-3 text-center text-lg">{food.is_liquid === 1 ? '💧' : ''}</td>
-                        {detailMode && <td className="px-3 py-3 text-text-sec/50 text-xs tabular-nums">{food.barcode ?? '—'}</td>}
-                        {detailMode && <td className="px-3 py-3 text-right text-text-sec/50 text-xs tabular-nums">{food.opened_days != null ? `${food.opened_days}d` : '—'}</td>}
-                        {detailMode && <td className="px-3 py-3 text-right text-text-sec/50 text-xs tabular-nums">{food.discard_threshold_pct != null ? `${food.discard_threshold_pct}%` : '—'}</td>}
-                        {detailMode && <td className="px-3 py-3 text-right text-text-sec/50 text-xs tabular-nums">{food.price_per_100g != null ? `${settings.currency_symbol ?? '€'}${food.price_per_100g}` : '—'}</td>}
-                        <td className="px-3 py-3">
-                          <div className="flex gap-2 justify-end opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
-                            <button type="button" onClick={() => startEdit(food)} className="p-1.5 bg-card border border-border/60 rounded-lg text-text-sec hover:text-accent transition-colors" title="Edit">✎</button>
-                            <button type="button" onClick={() => setDeleteId(food.id)} className="p-1.5 bg-card border border-border/60 rounded-lg text-text-sec hover:text-red transition-colors" title="Delete">✕</button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-        </>
-      )}
-
-      {/* ── PACKS TAB ──────────────────────────────────────────────────────── */}
-      {tab === 'packs' && (
-        <section className={`${cardCls} flex-1 min-h-0 flex flex-col`}>
-
-          <div className="bg-bg/50 p-4 rounded-2xl border border-border/40 shrink-0">
-            <h2 className="text-xs font-bold text-text-sec/70 uppercase tracking-wider mb-3">{t('foods.addPackToFood')}</h2>
-            <div className="flex flex-col md:flex-row items-center gap-3 w-full">
-              <div className="w-full md:flex-1">
-                <FoodSearch
-                  key={packSearchKey}
-                  items={foodSearchItems}
-                  onSelect={item => {
-                    const food = foods.find(f => f.id === item.id) ?? null;
-                    setPackFood(food);
-                    setPackUnit(food?.piece_grams ? 'pcs' : 'g');
-                    setPackGramsInput('');
-                    setTimeout(() => packGramsRef.current?.focus(), 0);
-                  }}
-                  onClear={() => setPackFood(null)}
-                  placeholder={t('foods.searchPlaceholder')}
+          {tab === 'foods' && (
+            <>
+              <div style={{ flexShrink: 0 }}>
+                <AddFoodForm
+                  existingFoods={foods}
+                  onAdded={loadFoods}
+                  onImport={handleImport}
                 />
               </div>
-              {packFood && (
-                <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto bg-card p-2 rounded-xl border border-border/60">
-                  {packFood.piece_grams && (
-                    <div className="flex rounded-lg bg-bg border border-border/40 overflow-hidden text-sm w-full sm:w-auto">
-                      <button type="button" onClick={() => { setPackUnit('g'); setPackGramsInput(''); }} className={`flex-1 sm:flex-none px-3 py-1.5 font-bold transition-colors ${packUnit === 'g' ? 'bg-accent/15 text-accent' : 'text-text-sec hover:bg-border/30'}`}>g</button>
-                      <button type="button" onClick={() => { setPackUnit('pcs'); setPackGramsInput(''); packGramsRef.current?.focus(); }} className={`flex-1 sm:flex-none px-3 py-1.5 font-bold transition-colors ${packUnit === 'pcs' ? 'bg-accent/15 text-accent' : 'text-text-sec hover:bg-border/30'}`}>pcs</button>
-                    </div>
-                  )}
-                  <div className="relative w-full sm:w-auto flex-1">
-                     <input ref={packGramsRef} type="text" inputMode="decimal" value={packGramsInput} onChange={e => setPackGramsInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAddPackToFood()} placeholder={packUnit === 'pcs' ? 'pieces' : 'grams'} className={`${numInputCls} !py-1.5 w-full sm:w-24`} />
-                  </div>
-                  {packUnit === 'pcs' && packFood.piece_grams && packGramsInput && parseFloat(packGramsInput) > 0 && (
-                    <span className="text-xs font-bold text-text-sec/50 whitespace-nowrap hidden sm:block">= {Math.round(parseFloat(packGramsInput) * packFood.piece_grams)}g</span>
-                  )}
-                  <button type="button" onClick={handleAddPackToFood} disabled={!parseFloat(packGramsInput)} className="w-full sm:w-auto px-5 py-2 rounded-lg bg-accent text-white text-sm font-bold shadow-sm hover:opacity-90 disabled:opacity-50 transition-opacity sm:ml-auto">
-                    {t('common.add')}
+
+              <section style={{ ...cardOuter, flex: 1, minHeight: 0, padding: 18 }}>
+                {/* Search + detail toggle */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, flexWrap: 'wrap' }}>
+                  <SearchField value={searchQuery} onChange={setSearchQuery} placeholder={t('foods.searchPlaceholder')} />
+                  <button
+                    type="button" onClick={() => setDetailMode(v => !v)}
+                    style={{
+                      padding: '8px 16px', borderRadius: 99,
+                      background: detailMode ? 'var(--fb-accent-soft)' : 'var(--fb-bg)',
+                      border: '1px solid ' + (detailMode ? 'var(--fb-accent)' : 'var(--fb-border)'),
+                      color: detailMode ? 'var(--fb-accent)' : 'var(--fb-text-2)',
+                      fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                      transition: 'all .3s cubic-bezier(0.32,0.72,0,1)',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {t('foods.detailMode')}
                   </button>
                 </div>
-              )}
-            </div>
-          </div>
 
-          <div className="relative w-full mt-2 shrink-0">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-text-sec/50">🔍</span>
-            <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search packs by food name..." className={`${inputCls} !pl-10 !py-2.5 shadow-sm`} />
-          </div>
-
-          {packRows.length === 0 ? (
-            <div className="flex-1 flex items-center justify-center border border-dashed border-border/60 rounded-2xl bg-bg/30 min-h-[150px]">
-               <p className="text-text-sec/60 text-sm font-medium">{t('foods.noPacks')}</p>
-            </div>
-          ) : (
-            <div className="flex-1 overflow-x-auto rounded-2xl border border-border/40 bg-bg hide-scrollbar">
-              <table className="w-full text-sm min-w-[400px] text-left border-collapse">
-                <thead className="sticky top-0 bg-card/95 backdrop-blur-sm z-10 shadow-sm">
-                  <tr>
-                    <th className="px-4 py-3 font-bold text-text-sec uppercase tracking-wider text-xs border-b border-border/40">{t('th.food')}</th>
-                    <th className="px-4 py-3 text-right font-bold text-text-sec uppercase tracking-wider text-xs border-b border-border/40">{t('foods.packSize')}</th>
-                    <th className="px-4 py-3 w-16 border-b border-border/40"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/20">
-                  {packRows.map(({ food, pkg }) => (
-                    <tr key={pkg.id} className="group hover:bg-card/50 transition-colors">
-                      <td className="px-4 py-3 font-bold text-text truncate max-w-[200px]">{food.name}</td>
-                      <td className="px-4 py-3 text-right font-bold text-text tabular-nums">{pkg.grams}g</td>
-                      <td className="px-4 py-3 text-right">
-                        <button type="button" onClick={() => setDeletePackId(pkg.id)} className="p-2 bg-card border border-border/60 rounded-lg text-text-sec hover:text-red transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100" title="Delete pack">✕</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                {filteredFoods.length === 0 ? (
+                  <EmptyState message={t('foods.noFoods')} />
+                ) : (
+                  <div style={{
+                    flex: 1, minHeight: 0,
+                    overflow: 'auto',
+                    background: 'var(--fb-bg)',
+                    border: '1px solid var(--fb-border)',
+                    borderRadius: 14,
+                  }} className="hide-scrollbar">
+                    <table style={{ width: '100%', minWidth: 800, borderCollapse: 'collapse', fontSize: 13 }}>
+                      <thead style={{
+                        position: 'sticky', top: 0, zIndex: 1,
+                        background: 'var(--fb-card)',
+                      }}>
+                        <tr>
+                          <Th width={36} />
+                          <Th width={56} />
+                          <Th align="left">{t('th.food')}</Th>
+                          <Th align="right" dot={MACRO_DOT.kcal}>{t('th.kcal')}</Th>
+                          <Th align="right" dot={MACRO_DOT.fat}>{t('th.fat')}</Th>
+                          <Th align="right" dot={MACRO_DOT.carbs}>{t('th.carbs')}</Th>
+                          <Th align="right" dot={MACRO_DOT.fiber}>{t('th.fiber')}</Th>
+                          <Th align="right" dot={MACRO_DOT.protein}>{t('th.protein')}</Th>
+                          <Th align="right">{t('th.piece')}</Th>
+                          <Th align="center">{t('th.liquid')}</Th>
+                          {detailMode && <Th align="left">{t('th.barcode')}</Th>}
+                          {detailMode && <Th align="right">{t('foods.openedDays')}</Th>}
+                          {detailMode && <Th align="right">{t('foods.discardThreshold')}</Th>}
+                          {detailMode && <Th align="right">{t('foods.pricePer100g').replace('{cur}', settings.currency_symbol ?? '€')}</Th>}
+                          <Th width={64} />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredFoods.map(food => (
+                          editId === food.id ? (
+                            <tr key={food.id} style={{ background: 'var(--fb-card)' }}>
+                              <td style={{ padding: '14px 10px', verticalAlign: 'top', textAlign: 'center' }}>
+                                <FavBtn active={food.favorite === 1} onClick={() => handleToggleFavorite(food.id)} />
+                              </td>
+                              <td colSpan={detailMode ? 13 : 9} style={{ padding: '12px 10px' }}>
+                                <FormFields form={editForm} patch={patchEdit} />
+                                {detailMode && (
+                                  <div style={{
+                                    display: 'flex', flexWrap: 'wrap', gap: 12,
+                                    marginTop: 14, padding: 10,
+                                    background: 'var(--fb-bg)', border: '1px solid var(--fb-border)',
+                                    borderRadius: 12,
+                                  }}>
+                                    {[
+                                      { label: t('th.barcode'), key: 'barcode', placeholder: 'e.g. 8001234567890', width: 200 },
+                                      { label: t('foods.openedDays'), key: 'opened_days', placeholder: 'days', width: 90 },
+                                      { label: t('foods.discardThreshold'), key: 'discard_threshold_pct', placeholder: '%', width: 90 },
+                                      { label: t('foods.pricePer100g').replace('{cur}', settings.currency_symbol ?? '€'), key: 'price_per_100g', placeholder: '0.00', width: 100 },
+                                    ].map(({ label, key, placeholder, width }) => (
+                                      <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                        <span style={{ ...eyebrow, fontSize: 9 }}>{label}</span>
+                                        <input
+                                          value={(editForm as unknown as Record<string,string>)[key]}
+                                          onChange={e => patchEdit({ [key]: e.target.value })}
+                                          placeholder={placeholder}
+                                          style={{ ...tinyInput, width }}
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                <div style={{
+                                  marginTop: 14, padding: 12,
+                                  background: 'var(--fb-bg)', border: '1px solid var(--fb-border)',
+                                  borderRadius: 12,
+                                }}>
+                                  <div style={{ ...eyebrow, marginBottom: 8 }}>{t('foods.packs')}</div>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                    {(food.packages ?? []).map(pkg => (
+                                      <EditablePackRow key={pkg.id} pkg={pkg} currency={settings.currency_symbol ?? '€'} onSaved={loadFoods} onDelete={() => setDeletePackId(pkg.id)} showError={(msg) => showToast(msg, 'error')} tLocked={t('foods.packInUse')} />
+                                    ))}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+                                      <input
+                                        type="text" inputMode="decimal" value={newPackGrams}
+                                        onChange={e => setNewPackGrams(e.target.value)}
+                                        onKeyDown={e => e.key === 'Enter' && handleAddPack()}
+                                        placeholder="+ g"
+                                        style={{ ...tinyInput, width: 80, textAlign: 'center' }}
+                                      />
+                                      <input
+                                        type="text" inputMode="decimal" value={newPackPrice}
+                                        onChange={e => setNewPackPrice(e.target.value)}
+                                        onKeyDown={e => e.key === 'Enter' && handleAddPack()}
+                                        placeholder={`${settings.currency_symbol ?? '€'} opt.`}
+                                        style={{ ...tinyInput, width: 100 }}
+                                      />
+                                      <button type="button" onClick={handleAddPack} style={pillGhost}>+ {t('foods.addPack')}</button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td style={{ padding: '14px 10px', verticalAlign: 'top' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                  <button type="button" onClick={() => handleSaveEdit(food)} style={pillPrimary}>Save</button>
+                                  <button type="button" onClick={cancelEdit} style={pillGhost}>Cancel</button>
+                                </div>
+                              </td>
+                            </tr>
+                          ) : (
+                            <ViewRow
+                              key={food.id}
+                              food={food}
+                              detailMode={detailMode}
+                              currency={settings.currency_symbol ?? '€'}
+                              onToggleFav={() => handleToggleFavorite(food.id)}
+                              onEdit={() => startEdit(food)}
+                              onDelete={() => setDeleteId(food.id)}
+                            />
+                          )
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </section>
+            </>
           )}
-        </section>
-      )}
 
-        </div>{/* end right column */}
-      </div>{/* end body flex */}
+          {tab === 'packs' && (
+            <section style={{ ...cardOuter, flex: 1, minHeight: 0 }}>
+
+              {/* Add pack to food */}
+              <div style={{
+                background: 'var(--fb-bg)', border: '1px solid var(--fb-border)',
+                borderRadius: 14, padding: 14,
+                display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0,
+              }}>
+                <span style={eyebrow}>{t('foods.addPackToFood')}</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+                  <div style={{ flex: '1 1 240px', minWidth: 240 }}>
+                    <FoodSearch
+                      key={packSearchKey}
+                      items={foodSearchItems}
+                      onSelect={item => {
+                        const food = foods.find(f => f.id === item.id) ?? null;
+                        setPackFood(food);
+                        setPackUnit(food?.piece_grams ? 'pcs' : 'g');
+                        setPackGramsInput('');
+                        setTimeout(() => packGramsRef.current?.focus(), 0);
+                      }}
+                      onClear={() => setPackFood(null)}
+                      placeholder={t('foods.searchPlaceholder')}
+                    />
+                  </div>
+                  {packFood && (
+                    <div style={{
+                      display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10,
+                      padding: 8, background: 'var(--fb-card)', border: '1px solid var(--fb-border-strong)',
+                      borderRadius: 12,
+                    }}>
+                      {packFood.piece_grams && (
+                        <div style={{
+                          display: 'inline-flex', padding: 3,
+                          background: 'var(--fb-bg)', border: '1px solid var(--fb-border)',
+                          borderRadius: 99,
+                        }}>
+                          {(['g', 'pcs'] as const).map(u => (
+                            <button
+                              key={u} type="button"
+                              onClick={() => { setPackUnit(u); setPackGramsInput(''); if (u === 'pcs') packGramsRef.current?.focus(); }}
+                              style={{
+                                padding: '4px 14px', borderRadius: 99, border: 0,
+                                fontSize: 11.5, fontWeight: 600, cursor: 'pointer',
+                                background: packUnit === u ? 'var(--fb-accent-soft)' : 'transparent',
+                                color: packUnit === u ? 'var(--fb-accent)' : 'var(--fb-text-2)',
+                                transition: 'all .25s ease',
+                              }}
+                            >{u}</button>
+                          ))}
+                        </div>
+                      )}
+                      <input
+                        ref={packGramsRef} type="text" inputMode="decimal"
+                        value={packGramsInput}
+                        onChange={e => setPackGramsInput(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleAddPackToFood()}
+                        placeholder={packUnit === 'pcs' ? 'pieces' : 'grams'}
+                        style={{ ...tinyInput, width: 100 }}
+                      />
+                      {packUnit === 'pcs' && packFood.piece_grams && packGramsInput && parseFloat(packGramsInput) > 0 && (
+                        <span className="tnum" style={{ fontSize: 11, color: 'var(--fb-text-3)', whiteSpace: 'nowrap' }}>
+                          = {Math.round(parseFloat(packGramsInput) * packFood.piece_grams)} g
+                        </span>
+                      )}
+                      <button type="button" onClick={handleAddPackToFood} disabled={!parseFloat(packGramsInput)} style={{ ...pillPrimary, opacity: !parseFloat(packGramsInput) ? 0.4 : 1 }}>
+                        {t('common.add')}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <SearchField value={searchQuery} onChange={setSearchQuery} placeholder="Search packs by food name…" />
+
+              {packRows.length === 0 ? (
+                <EmptyState message={t('foods.noPacks')} />
+              ) : (
+                <div style={{
+                  flex: 1, minHeight: 0,
+                  overflow: 'auto',
+                  background: 'var(--fb-bg)', border: '1px solid var(--fb-border)',
+                  borderRadius: 14,
+                }} className="hide-scrollbar">
+                  <table style={{ width: '100%', minWidth: 400, borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead style={{ position: 'sticky', top: 0, zIndex: 1, background: 'var(--fb-card)' }}>
+                      <tr>
+                        <Th align="left">{t('th.food')}</Th>
+                        <Th align="right">{t('foods.packSize')}</Th>
+                        <Th width={64} />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {packRows.map(({ food, pkg }) => (
+                        <tr key={pkg.id} className="foods-row">
+                          <td style={{ padding: '12px 16px', borderBottom: '1px solid var(--fb-divider)', ...serifItalic, fontSize: 14, color: 'var(--fb-text)' }}>
+                            {food.name}
+                          </td>
+                          <td className="tnum" style={{ padding: '12px 16px', borderBottom: '1px solid var(--fb-divider)', textAlign: 'right', fontWeight: 600, color: 'var(--fb-text)' }}>
+                            {pkg.grams} g
+                          </td>
+                          <td style={{ padding: '8px 16px', borderBottom: '1px solid var(--fb-divider)', textAlign: 'right' }}>
+                            <IconBtn label="Delete pack" tone="red" onClick={() => setDeletePackId(pkg.id)}>✕</IconBtn>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
+
+        </div>
+      </div>
 
       {deleteId !== null && (
         <ConfirmDialog message={t('foods.confirmDelete')} confirmLabel={t('common.delete')} cancelLabel={t('common.cancel')} dangerous onConfirm={() => handleDelete(deleteId)} onCancel={() => setDeleteId(null)} />
@@ -431,7 +580,210 @@ export default function FoodsPage() {
       {deletePackId !== null && (
         <ConfirmDialog message={t('foods.confirmDeletePack')} confirmLabel={t('common.delete')} cancelLabel={t('common.cancel')} dangerous onConfirm={() => handleDeletePack(deletePackId)} onCancel={() => setDeletePackId(null)} />
       )}
+
+      <style>{`
+        .foods-row:hover { background: color-mix(in srgb, var(--fb-card) 60%, transparent); }
+        .foods-row .row-actions { opacity: 0; transition: opacity .25s ease; }
+        .foods-row:hover .row-actions { opacity: 1; }
+        @media (max-width: 720px) {
+          .foods-edit-macros { grid-template-columns: repeat(3, 1fr) !important; }
+          .foods-row .row-actions { opacity: 1 !important; }
+        }
+      `}</style>
     </div>
+  );
+}
+
+// ── Sub-components ───────────────────────────────────────────────────────────
+
+const pillPrimary: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  padding: '7px 16px', borderRadius: 99,
+  background: 'var(--fb-accent)', color: 'white', border: 0,
+  fontSize: 12, fontWeight: 600, cursor: 'pointer',
+  transition: 'all .25s cubic-bezier(0.32,0.72,0,1)',
+  whiteSpace: 'nowrap',
+};
+
+const pillGhost: CSSProperties = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  padding: '7px 16px', borderRadius: 99,
+  background: 'transparent', color: 'var(--fb-text-2)',
+  border: '1px solid var(--fb-border-strong)',
+  fontSize: 12, fontWeight: 600, cursor: 'pointer',
+  transition: 'all .25s ease',
+  whiteSpace: 'nowrap',
+};
+
+function SearchField({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  return (
+    <div style={{
+      flex: 1, minWidth: 220,
+      background: 'var(--fb-bg)', border: '1px solid var(--fb-border)',
+      borderRadius: 14, padding: 3,
+    }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        background: 'var(--fb-card)', borderRadius: 11,
+        padding: '8px 12px',
+      }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--fb-text-3)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          <circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" />
+        </svg>
+        <input
+          type="text" value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          style={{
+            flex: 1, minWidth: 0,
+            background: 'transparent', border: 0, outline: 'none',
+            color: 'var(--fb-text)',
+            fontFamily: 'var(--font-serif)', fontStyle: 'italic',
+            fontSize: 14.5, fontWeight: 400, letterSpacing: -0.1,
+          }}
+        />
+        {value && (
+          <button
+            type="button" onClick={() => onChange('')}
+            aria-label="Clear"
+            style={{
+              width: 20, height: 20, borderRadius: 99, border: 0,
+              background: 'var(--fb-bg-2)', color: 'var(--fb-text-3)',
+              fontSize: 11, lineHeight: 1, cursor: 'pointer',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >✕</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div style={{
+      flex: 1, minHeight: 160,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
+      background: 'var(--fb-bg)',
+      border: '1px dashed var(--fb-border-strong)',
+      borderRadius: 14,
+      padding: '32px 16px',
+    }}>
+      <span style={eyebrow}>Empty</span>
+      <span style={{ ...serifItalic, fontSize: 16, color: 'var(--fb-text-2)' }}>{message}</span>
+    </div>
+  );
+}
+
+function Th({ children, align = 'left', dot, width }: { children?: React.ReactNode; align?: 'left' | 'right' | 'center'; dot?: string; width?: number }) {
+  return (
+    <th style={{
+      padding: '10px 12px',
+      textAlign: align,
+      fontSize: 9.5, fontWeight: 600, letterSpacing: 1.2,
+      textTransform: 'uppercase', color: 'var(--fb-text-3)',
+      borderBottom: '1px solid var(--fb-divider)',
+      width: width != null ? width : undefined,
+      whiteSpace: 'nowrap',
+    }}>
+      {dot ? (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start' }}>
+          <span style={{ width: 5, height: 5, borderRadius: '50%', background: dot }} />
+          {children}
+        </span>
+      ) : children}
+    </th>
+  );
+}
+
+function ViewRow({ food, detailMode, currency, onToggleFav, onEdit, onDelete }:
+  { food: Food; detailMode: boolean; currency: string; onToggleFav: () => void; onEdit: () => void; onDelete: () => void }) {
+  const td: CSSProperties = {
+    padding: '11px 12px',
+    borderBottom: '1px solid var(--fb-divider)',
+    color: 'var(--fb-text-2)',
+  };
+  const tdNum: CSSProperties = { ...td, textAlign: 'right' };
+  return (
+    <tr className="foods-row">
+      <td style={{ ...td, textAlign: 'center' }}>
+        <FavBtn active={food.favorite === 1} onClick={onToggleFav} />
+      </td>
+      <td style={td}>
+        {food.image_url ? (
+          <div style={{ padding: 2, background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', borderRadius: 10, display: 'inline-block' }}>
+            <img src={food.image_url} alt="" style={{ width: 36, height: 36, borderRadius: 8, objectFit: 'cover', display: 'block', background: 'white' }} />
+          </div>
+        ) : (
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--fb-bg)', border: '1px solid var(--fb-border)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: 'var(--fb-text-3)' }}>🍽️</div>
+        )}
+      </td>
+      <td style={{ ...td, ...serifItalic, fontSize: 14.5, color: 'var(--fb-text)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {food.name}
+      </td>
+      <td className="tnum" style={{ ...tdNum, color: 'var(--fb-text)', fontWeight: 600 }}>{food.calories}</td>
+      <td className="tnum" style={tdNum}>{food.fat}</td>
+      <td className="tnum" style={tdNum}>{food.carbs}</td>
+      <td className="tnum" style={tdNum}>{food.fiber}</td>
+      <td className="tnum" style={tdNum}>{food.protein}</td>
+      <td className="tnum" style={{ ...tdNum, color: 'var(--fb-text-3)' }}>{food.piece_grams != null ? `${food.piece_grams}g` : '—'}</td>
+      <td style={{ ...td, textAlign: 'center' }}>{food.is_liquid === 1 ? '💧' : ''}</td>
+      {detailMode && <td className="tnum" style={{ ...td, fontSize: 11, color: 'var(--fb-text-3)' }}>{food.barcode ?? '—'}</td>}
+      {detailMode && <td className="tnum" style={{ ...tdNum, fontSize: 11, color: 'var(--fb-text-3)' }}>{food.opened_days != null ? `${food.opened_days}d` : '—'}</td>}
+      {detailMode && <td className="tnum" style={{ ...tdNum, fontSize: 11, color: 'var(--fb-text-3)' }}>{food.discard_threshold_pct != null ? `${food.discard_threshold_pct}%` : '—'}</td>}
+      {detailMode && <td className="tnum" style={{ ...tdNum, fontSize: 11, color: 'var(--fb-text-3)' }}>{food.price_per_100g != null ? `${currency}${food.price_per_100g}` : '—'}</td>}
+      <td style={{ ...td, textAlign: 'right' }}>
+        <span className="row-actions" style={{ display: 'inline-flex', gap: 6 }}>
+          <IconBtn label="Edit" onClick={onEdit}>✎</IconBtn>
+          <IconBtn label="Delete" tone="red" onClick={onDelete}>✕</IconBtn>
+        </span>
+      </td>
+    </tr>
+  );
+}
+
+function FavBtn({ active, onClick }: { active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button" onClick={onClick}
+      style={{
+        background: 'transparent', border: 0, cursor: 'pointer',
+        fontSize: 16, lineHeight: 1, padding: 0,
+        color: active ? 'var(--fb-accent)' : 'var(--fb-text-3)',
+        transition: 'transform .25s cubic-bezier(0.32,0.72,0,1)',
+      }}
+      onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.15)')}
+      onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}
+    >
+      {active ? '★' : '☆'}
+    </button>
+  );
+}
+
+function IconBtn({ children, onClick, label, tone }: { children: React.ReactNode; onClick: () => void; label: string; tone?: 'red' }) {
+  return (
+    <button
+      type="button" onClick={onClick} title={label} aria-label={label}
+      style={{
+        width: 28, height: 28, borderRadius: 99,
+        background: 'var(--fb-card)', border: '1px solid var(--fb-border)',
+        color: tone === 'red' ? 'var(--fb-red)' : 'var(--fb-text-2)',
+        fontSize: 12, lineHeight: 1, cursor: 'pointer',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        transition: 'all .25s cubic-bezier(0.32,0.72,0,1)',
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.borderColor = tone === 'red' ? 'var(--fb-red)' : 'var(--fb-accent)';
+        e.currentTarget.style.color = tone === 'red' ? 'var(--fb-red)' : 'var(--fb-accent)';
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.borderColor = 'var(--fb-border)';
+        e.currentTarget.style.color = tone === 'red' ? 'var(--fb-red)' : 'var(--fb-text-2)';
+      }}
+    >
+      {children}
+    </button>
   );
 }
 
@@ -469,18 +821,27 @@ function EditablePackRow({ pkg, currency, onSaved, onDelete, showError, tLocked 
     onSaved();
   }
 
-  const compactInputCls = "bg-card border border-border/60 rounded-lg px-2 py-1.5 text-sm outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all text-center";
-
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-2 group w-full">
-      <div className="flex items-center gap-2 w-full sm:w-auto">
-        <div className="relative w-full sm:w-auto">
-          <input type="text" inputMode="decimal" value={grams} onChange={e => setGrams(e.target.value)} onBlur={commit} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} className={`${compactInputCls} w-full sm:w-20 font-medium`} />
-          <span className="absolute right-2 top-1.5 text-xs text-text-sec pointer-events-none">g</span>
-        </div>
-        <input type="text" inputMode="decimal" value={price} onChange={e => setPrice(e.target.value)} onBlur={commit} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} placeholder={`${currency} opt.`} className={`${compactInputCls} w-full sm:w-24`} />
-        <button type="button" onClick={onDelete} className="p-2 sm:p-1.5 text-text-sec hover:text-red hover:bg-red/10 rounded-lg transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100 shrink-0" title="Delete pack">✕</button>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+      <div style={{ position: 'relative' }}>
+        <input
+          type="text" inputMode="decimal" value={grams}
+          onChange={e => setGrams(e.target.value)}
+          onBlur={commit}
+          onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+          style={{ ...tinyInput, width: 80, textAlign: 'center', fontWeight: 600, paddingRight: 22 }}
+        />
+        <span style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', fontSize: 11, color: 'var(--fb-text-3)', pointerEvents: 'none' }}>g</span>
       </div>
+      <input
+        type="text" inputMode="decimal" value={price}
+        onChange={e => setPrice(e.target.value)}
+        onBlur={commit}
+        onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+        placeholder={`${currency} opt.`}
+        style={{ ...tinyInput, width: 100 }}
+      />
+      <IconBtn label="Delete pack" tone="red" onClick={onDelete}>✕</IconBtn>
     </div>
   );
 }
