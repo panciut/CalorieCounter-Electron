@@ -26,6 +26,7 @@ import QuickFoodDialog from '../components/dashboard/QuickFoodDialog';
 import SwapDaysModal from '../components/dashboard/SwapDaysModal';
 import MacroChips from '../components/ui/MacroChips';
 import { scaleNutrients } from '../lib/macroCalc';
+import { formatPacked } from '../lib/pantryUtils';
 
 // ── Recipe editor (inline on dashboard) ──────────────────────────────────────
 
@@ -84,6 +85,8 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
   // Form state
   const [selectedFood, setSelectedFood]     = useState<Food|null>(null);
   const [selectedRecipe, setSelectedRecipe] = useState<RecipeEditState|null>(null);
+  const [selectedAvailableG, setSelectedAvailableG] = useState<number>(0);
+  const [selectedPlannedG, setSelectedPlannedG]     = useState<number>(0);
   const [searchKey, setSearchKey]           = useState(0);
   const [amount, setAmount]                 = useState('');
   const [usePieces, setUsePieces]           = useState(false);
@@ -184,7 +187,25 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
     }
   }
 
-  function handleClear() { setSelectedFood(null); setSelectedRecipe(null); setAmount(''); setSelectedPackId(null); setSearchKey(k => k + 1); }
+  function handleClear() { setSelectedFood(null); setSelectedRecipe(null); setAmount(''); setSelectedPackId(null); setSearchKey(k => k + 1); setSelectedAvailableG(0); setSelectedPlannedG(0); }
+
+  // Pantry availability + planned-future totals for the currently selected food.
+  // Refetched whenever the food changes, the active pantry changes, or after a
+  // log entry (so the numbers reflect what just happened).
+  useEffect(() => {
+    if (!selectedFood) { setSelectedAvailableG(0); setSelectedPlannedG(0); return; }
+    let cancelled = false;
+    (async () => {
+      const [stock, planned] = await Promise.all([
+        api.pantry.checkStock(selectedFood.id, 0, logPantryId),
+        api.log.getPlannedMap(),
+      ]);
+      if (cancelled) return;
+      setSelectedAvailableG(stock?.have_g ?? 0);
+      setSelectedPlannedG(planned?.[selectedFood.id] ?? 0);
+    })();
+    return () => { cancelled = true; };
+  }, [selectedFood, logPantryId, entries]);
 
   const selectedPack = selectedFood?.packages?.find(p => p.id === selectedPackId) ?? null;
   const pieceSize: number | null = selectedFood?.piece_grams ?? selectedPack?.grams ?? null;
@@ -679,6 +700,40 @@ export default function DashboardPage({ initialDate, fromWeek }: DashboardPagePr
                       fat={scaled.fat}
                       fiber={scaled.fiber}
                     />
+                  </div>
+                );
+              })()}
+              {(selectedAvailableG > 0 || selectedPlannedG > 0) && (() => {
+                const remainingAfterPlan = selectedAvailableG - selectedPlannedG;
+                const remainingAfterLog = remainingAfterPlan - effectiveGrams;
+                return (
+                  <div className="flex items-center gap-2 flex-wrap border-t border-border pt-1.5 tabular-nums">
+                    {selectedAvailableG > 0 && (
+                      <span className="text-[11px] px-1.5 py-0.5 rounded bg-green/15 text-green" title={`${Math.round(selectedAvailableG)}g available in pantry`}>
+                        📦 {formatPacked(selectedAvailableG, selectedFood)}
+                      </span>
+                    )}
+                    {selectedPlannedG > 0 && (
+                      <span className="text-[11px] px-1.5 py-0.5 rounded bg-accent/15 text-accent" title={`${Math.round(selectedPlannedG)}g planned today + future`}>
+                        📋 {formatPacked(selectedPlannedG, selectedFood)}
+                      </span>
+                    )}
+                    {selectedAvailableG > 0 && selectedPlannedG > 0 && (
+                      <span className={`text-[11px] px-1.5 py-0.5 rounded ${remainingAfterPlan < 0 ? 'bg-red/15 text-red' : 'bg-text-sec/10 text-text-sec'}`}
+                            title={remainingAfterPlan < 0 ? `Plan exceeds pantry by ${Math.round(-remainingAfterPlan)}g` : `${Math.round(remainingAfterPlan)}g left after the plan`}>
+                        {remainingAfterPlan < 0
+                          ? `⚠ −${formatPacked(-remainingAfterPlan, selectedFood)}`
+                          : `→ ${formatPacked(remainingAfterPlan, selectedFood)}`}
+                      </span>
+                    )}
+                    {effectiveGrams > 0 && selectedAvailableG > 0 && (
+                      <span className={`text-[11px] px-1.5 py-0.5 rounded ${remainingAfterLog < 0 ? 'bg-red/15 text-red' : 'bg-text-sec/10 text-text-sec'}`}
+                            title={remainingAfterLog < 0 ? `Logging ${Math.round(effectiveGrams)}g would short pantry by ${Math.round(-remainingAfterLog)}g` : `${Math.round(remainingAfterLog)}g left after this log`}>
+                        {remainingAfterLog < 0
+                          ? `↘ −${formatPacked(-remainingAfterLog, selectedFood)}`
+                          : `↘ ${formatPacked(remainingAfterLog, selectedFood)}`}
+                      </span>
+                    )}
                   </div>
                 );
               })()}

@@ -198,7 +198,7 @@ export default function FoodSearch({ items, onSelect, placeholder = 'Search…',
                         className="text-[11px] px-1.5 py-0.5 rounded bg-green/15 text-green tabular-nums"
                         title={`In pantry: ${Math.round(stock.total_g)}g`}
                       >
-                        📦 {formatStock(stock)}
+                        📦 {formatStock(stock, food)}
                       </span>
                     )}
                     {remaining && remainingG > 0 && (

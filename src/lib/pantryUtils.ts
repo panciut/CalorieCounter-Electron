@@ -145,15 +145,14 @@ export interface PackedStock {
   pieces?: number;
 }
 
+type PieceyFood = { packages?: { grams: number }[] | null; piece_grams?: number | null } | null | undefined;
+
 /**
  * Greedy-decompose raw grams into whole packs (largest first) + loose remainder.
- * Falls back to pieces when the food has piece_grams but no packages, so a
- * piece-based food reads as "3 pcs" rather than "120g".
+ * When the food has piece_grams set, also populates `pieces` so the formatter
+ * can show "N pcs · Xg" alongside the pack breakdown.
  */
-export function decomposeGrams(
-  grams: number,
-  food: { packages?: { grams: number }[] | null; piece_grams?: number | null } | null | undefined,
-): PackedStock {
+export function decomposeGrams(grams: number, food: PieceyFood): PackedStock {
   if (grams <= 0) return { total_g: 0, loose_g: 0, packs: [] };
   const sizes = [...new Set((food?.packages ?? []).map(p => p.grams))].sort((a, b) => b - a);
   let rem = grams;
@@ -165,33 +164,82 @@ export function decomposeGrams(
       rem -= count * size;
     }
   }
-  if (packs.length === 0 && food?.piece_grams && food.piece_grams > 0) {
-    const pieces = Math.round((rem / food.piece_grams) * 10) / 10;
-    return { total_g: grams, loose_g: 0, packs: [], pieces };
-  }
-  return { total_g: grams, loose_g: Math.round(rem * 10) / 10, packs };
+  const pieces = food?.piece_grams && food.piece_grams > 0
+    ? Math.round((grams / food.piece_grams) * 10) / 10
+    : undefined;
+  return { total_g: grams, loose_g: Math.round(rem * 10) / 10, packs, pieces };
 }
 
-export function formatStock(s: PackedStock): string {
+function fmtPcs(n: number): string {
+  const r = Math.round(n);
+  return Math.abs(n - r) < 0.05 ? `${r} pcs` : `${n} pcs`;
+}
+
+/**
+ * Format a stock object as e.g. "1×500g + 200g". When piece_grams is known
+ * (either via the stock's `pieces` field or by passing `food`), also prefixes
+ * the pieces side. Pieces in full packs are written as "count×pcsPerPack"
+ * (e.g. 2 packs of 12 cookies → "2×12 pcs · 2×600g") instead of being summed
+ * up so the user can see how many full packs they have at a glance.
+ */
+export function formatStock(s: PackedStock, food?: PieceyFood): string {
   const fmtG = (g: number) => g >= 1000
     ? `${(g / 1000).toFixed(g >= 10000 ? 0 : 1)}kg`
     : `${Math.round(g)}g`;
-  if (s.pieces && s.pieces > 0 && s.packs.length === 0) {
-    const pcs = `${s.pieces} pcs`;
-    return s.loose_g > 0 ? `${pcs} + ${fmtG(s.loose_g)}` : pcs;
-  }
-  const packParts = s.packs.map(p =>
+  // Pack + loose grams side
+  const packGramParts = s.packs.map(p =>
     p.count === 1 ? fmtG(p.grams) : `${p.count}×${fmtG(p.grams)}`,
   );
-  if (packParts.length === 0) return fmtG(s.loose_g);
-  if (s.loose_g <= 0) return packParts.join(' + ');
-  return [fmtG(s.loose_g), ...packParts].join(' + ');
+  let gramStr: string;
+  if (packGramParts.length === 0) {
+    gramStr = fmtG(s.loose_g > 0 ? s.loose_g : s.total_g);
+  } else if (s.loose_g <= 0) {
+    gramStr = packGramParts.join(' + ');
+  } else {
+    gramStr = [fmtG(s.loose_g), ...packGramParts].join(' + ');
+  }
+
+  const piece_grams = food?.piece_grams && food.piece_grams > 0 ? food.piece_grams : null;
+  const hasPieces = piece_grams != null || (s.pieces !== undefined && s.pieces > 0);
+  if (!hasPieces) return gramStr;
+
+  // Pieces side
+  let pcsStr: string;
+  if (s.packs.length === 0) {
+    // Wholly loose: "N pcs"
+    const totalPcs = piece_grams != null
+      ? Math.round((s.total_g / piece_grams) * 10) / 10
+      : (s.pieces ?? 0);
+    pcsStr = fmtPcs(totalPcs);
+  } else if (piece_grams != null) {
+    // Pack-based: "count × pcsPerPack" per pack, plus loose pieces if any
+    const packPcsParts = s.packs.map(p => {
+      const pcsInPack = Math.round(p.grams / piece_grams);
+      return p.count === 1 ? `${pcsInPack}` : `${p.count}×${pcsInPack}`;
+    });
+    const loosePcs = s.loose_g > 0
+      ? Math.round((s.loose_g / piece_grams) * 10) / 10
+      : 0;
+    if (loosePcs > 0) {
+      pcsStr = `${[fmtPcsBare(loosePcs), ...packPcsParts].join(' + ')} pcs`;
+    } else {
+      pcsStr = `${packPcsParts.join(' + ')} pcs`;
+    }
+  } else {
+    // Stock came from IPC without piece_grams context — fall back to the
+    // pre-computed total `pieces` field (no per-pack split possible).
+    pcsStr = fmtPcs(s.pieces ?? 0);
+  }
+
+  return `${pcsStr} · ${gramStr}`;
+}
+
+function fmtPcsBare(n: number): string {
+  const r = Math.round(n);
+  return Math.abs(n - r) < 0.05 ? String(r) : String(n);
 }
 
 /** Convenience: decompose + format in one call. */
-export function formatPacked(
-  grams: number,
-  food: { packages?: { grams: number }[] | null; piece_grams?: number | null } | null | undefined,
-): string {
+export function formatPacked(grams: number, food: PieceyFood): string {
   return formatStock(decomposeGrams(grams, food));
 }
