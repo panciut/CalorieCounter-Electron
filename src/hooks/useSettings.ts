@@ -16,6 +16,7 @@ const DEFAULT_SETTINGS: Settings = {
   tol_1: 5, tol_2: 10, tol_3: 20,
   language: 'en', theme: 'dark',
   pantry_enabled: 1, pantry_warn_days: 3, pantry_urgent_days: 1,
+  shopping_prompt_enabled: 1, shopping_prompt_threshold: 1,
   currency_symbol: '€',
   notif_pantry_expiry: 1, notif_low_pantry: 1,
   notif_missing_log: 1, notif_missing_energy: 1,

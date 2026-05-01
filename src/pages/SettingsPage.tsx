@@ -141,6 +141,43 @@ export default function SettingsPage() {
                   </div>
                 </div>
               )}
+
+              {/* Shopping prompt configuration */}
+              <div className="flex flex-col gap-2 pt-3 border-t border-border">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <div
+                    onClick={() => updateSettings({ shopping_prompt_enabled: settings.shopping_prompt_enabled === 0 ? 1 : 0 })}
+                    className={[
+                      'w-10 h-6 rounded-full transition-colors cursor-pointer flex items-center',
+                      settings.shopping_prompt_enabled !== 0 ? 'bg-accent' : 'bg-border',
+                    ].join(' ')}
+                  >
+                    <div className={[
+                      'w-5 h-5 rounded-full bg-white shadow transition-transform mx-0.5',
+                      settings.shopping_prompt_enabled !== 0 ? 'translate-x-4' : 'translate-x-0',
+                    ].join(' ')} />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm text-text">{t('settings.shoppingPromptEnabled')}</span>
+                    <span className="text-[11px] text-text-sec/70">{t('settings.shoppingPromptHint')}</span>
+                  </div>
+                </label>
+                {settings.shopping_prompt_enabled !== 0 && (
+                  <div className="flex flex-col gap-1.5 pl-13">
+                    <label className="text-xs text-text-sec">{t('settings.shoppingPromptThreshold')}</label>
+                    <select
+                      value={settings.shopping_prompt_threshold}
+                      onChange={e => updateSettings({ shopping_prompt_threshold: parseInt(e.target.value, 10) })}
+                      className="bg-bg border border-border rounded-lg px-3 py-2 text-sm text-text outline-none focus:border-accent w-fit cursor-pointer"
+                    >
+                      <option value={0}>{t('settings.shoppingPromptOnLast')}</option>
+                      <option value={1}>{t('settings.shoppingPromptOnLastOrSecondLast')}</option>
+                      <option value={2}>{t('settings.shoppingPromptOnLastFew')}</option>
+                      <option value={99}>{t('settings.shoppingPromptAlways')}</option>
+                    </select>
+                  </div>
+                )}
+              </div>
             </div>
           )}
       </SettingsSection>

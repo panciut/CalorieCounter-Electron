@@ -13,6 +13,7 @@ function registerSettingsIpc() {
       language: 'en', theme: 'dark',
       tol_1: 5, tol_2: 10, tol_3: 20,
       pantry_enabled: 1, pantry_warn_days: 3, pantry_urgent_days: 1,
+      shopping_prompt_enabled: 1, shopping_prompt_threshold: 1,
       track_extra_nutrition: 0, extra_nutrition_unit: 'sodium', off_country: 'world',
       off_local_enabled: 0, off_local_last_synced: '', off_disable_online: 0,
     };

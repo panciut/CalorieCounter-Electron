@@ -69,7 +69,8 @@ function deductFoodFEFO(db, food_id, grams_needed, pantry_id) {
     if (newQty <= 0) {
       db.prepare('DELETE FROM pantry WHERE id = ?').run(batch.id);
       lastDrainedStarting = sg;
-      events.push({ kind: 'finished', batch_id: batch.id, food_id, food_name: foodName, pantry_id: pid });
+      const rcount = db.prepare('SELECT COUNT(*) AS n FROM pantry WHERE food_id = ? AND pantry_id = ?').get(food_id, pid);
+      events.push({ kind: 'finished', batch_id: batch.id, food_id, food_name: foodName, pantry_id: pid, remaining_packs: rcount?.n ?? 0 });
     } else {
       db.prepare("UPDATE pantry SET quantity_g = ?, updated_at = datetime('now') WHERE id = ?")
         .run(newQty, batch.id);
@@ -113,7 +114,8 @@ function deductFoodFEFO(db, food_id, grams_needed, pantry_id) {
     if (newQty <= 0) {
       db.prepare('DELETE FROM pantry WHERE id = ?').run(batch.id);
       lastDrainedStarting = sg;
-      events.push({ kind: 'finished', batch_id: batch.id, food_id, food_name: foodName, pantry_id: pid });
+      const rcount = db.prepare('SELECT COUNT(*) AS n FROM pantry WHERE food_id = ? AND pantry_id = ?').get(food_id, pid);
+      events.push({ kind: 'finished', batch_id: batch.id, food_id, food_name: foodName, pantry_id: pid, remaining_packs: rcount?.n ?? 0 });
     } else {
       db.prepare(`
         UPDATE pantry
@@ -185,7 +187,8 @@ function deductSealedFEFO(db, food_id, grams_needed, pantry_id) {
 
     if (newQty <= 0) {
       db.prepare('DELETE FROM pantry WHERE id = ?').run(batch.id);
-      events.push({ kind: 'finished', batch_id: batch.id, food_id, food_name: foodName, pantry_id: pid });
+      const rcount = db.prepare('SELECT COUNT(*) AS n FROM pantry WHERE food_id = ? AND pantry_id = ?').get(food_id, pid);
+      events.push({ kind: 'finished', batch_id: batch.id, food_id, food_name: foodName, pantry_id: pid, remaining_packs: rcount?.n ?? 0 });
     } else {
       db.prepare(`
         UPDATE pantry

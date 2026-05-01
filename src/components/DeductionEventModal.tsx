@@ -4,6 +4,7 @@ import { api } from '../api';
 import type { DeductionEvent } from '../types';
 import { useT } from '../i18n/useT';
 import { useToast } from './Toast';
+import { useSettings } from '../hooks/useSettings';
 
 interface Props {
   event: DeductionEvent | null;
@@ -238,6 +239,7 @@ function FinishedModal({
 export default function DeductionEventModal({ event, onDone, pushMore, onPantryChanged }: Props) {
   const { t } = useT();
   const { showToast } = useToast();
+  const { settings } = useSettings();
 
   // Auto-dismiss 'opened' events when the food already has a shelf-life default —
   // show a corner toast instead of interrupting the user with a modal.
@@ -254,6 +256,24 @@ export default function DeductionEventModal({ event, onDone, pushMore, onPantryC
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [event]);
 
+  // Auto-dismiss 'finished' events when the user has disabled the shopping prompt
+  // entirely, or when there are still more packs in the pantry than the configured
+  // threshold (e.g. with threshold=1, prompt only fires on last or second-to-last).
+  useEffect(() => {
+    if (!event || event.kind !== 'finished') return;
+    if (settings.shopping_prompt_enabled === 0) {
+      onPantryChanged?.();
+      onDone();
+      return;
+    }
+    const remaining = event.remaining_packs ?? 0;
+    if (remaining > settings.shopping_prompt_threshold) {
+      onPantryChanged?.();
+      onDone();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event]);
+
   // Close on Escape
   useEffect(() => {
     if (!event) return;
@@ -267,6 +287,12 @@ export default function DeductionEventModal({ event, onDone, pushMore, onPantryC
   // Don't render a modal for auto-dismissed opened events
   if (!event) return null;
   if (event.kind === 'opened' && event.default_days != null) return null;
+  // Don't render the shopping-list prompt when it's been disabled or
+  // doesn't meet the user's threshold — the effect above also calls onDone().
+  if (event.kind === 'finished') {
+    if (settings.shopping_prompt_enabled === 0) return null;
+    if ((event.remaining_packs ?? 0) > settings.shopping_prompt_threshold) return null;
+  }
 
   return createPortal(
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60">

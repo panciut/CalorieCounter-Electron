@@ -280,6 +280,11 @@ export interface Settings {
   pantry_enabled: number;    // 0 or 1
   pantry_warn_days: number;  // default 3
   pantry_urgent_days: number; // default 1
+  /** Master toggle for the "add to shopping list?" prompt that appears when a pack is finished. */
+  shopping_prompt_enabled: number;
+  /** Maximum packs-remaining-after-deletion that still triggers the prompt.
+   *  0 = only on the very last pack; 1 = last or second-to-last; 99 = always. */
+  shopping_prompt_threshold: number;
   currency_symbol: string;   // default '€'
   // notification toggles (0 or 1)
   notif_pantry_expiry: number;
@@ -465,7 +470,7 @@ export type DeductionEvent =
   | { kind: 'opened'; batch_id: number; food_id: number; food_name: string; default_days: number | null; pantry_id?: number }
   | { kind: 'residual_or_new'; food_id: number; food_name: string; overflow_g: number; next_batch_id: number | null; pantry_id?: number }
   | { kind: 'near_empty'; batch_id: number; food_id: number; food_name: string; remaining_g: number; starting_g: number; pantry_id?: number }
-  | { kind: 'finished'; batch_id: number; food_id: number; food_name: string; pantry_id?: number };
+  | { kind: 'finished'; batch_id: number; food_id: number; food_name: string; pantry_id?: number; remaining_packs?: number };
 
 export interface PantryAggregate {
   food_id: number;
